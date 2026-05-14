@@ -5,8 +5,10 @@ from pathlib import Path
 import csv
 import json
 
+from ascon_arch.algorithm_planning import REQUESTED_SINGLE_ALGORITHM_FEATURES
 from ascon_arch.config import ImplementationConfig
 from ascon_arch.enums import (
+    AlgorithmFeature,
     ControlProfile,
     DatapathProfile,
     PaddingProfile,
@@ -17,6 +19,7 @@ from ascon_arch.enums import (
 )
 from ascon_arch.presets import (
     asic_dual_enc_dec_cores_config,
+    config_with_algorithm_feature,
     config_with_control_profile,
     config_with_datapath_profile,
     config_with_padding_profile,
@@ -32,6 +35,7 @@ from ascon_arch.validation import ConfigValidationError, validate_config
 @dataclass(frozen=True, slots=True)
 class ValidConfigEntry:
     target: str
+    algorithm: str
     top_level: str
     datapath: str
     permutation: str
@@ -45,6 +49,7 @@ class ValidConfigEntry:
     def to_dict(self) -> dict[str, object]:
         return {
             "target": self.target,
+            "algorithm": self.algorithm,
             "top_level": self.top_level,
             "datapath": self.datapath,
             "permutation": self.permutation,
@@ -66,13 +71,15 @@ FPGA_TOP_LEVELS: dict[str, object] = {
 
 def _build_candidate(
     base: ImplementationConfig,
+    algorithm: AlgorithmFeature,
     datapath: DatapathProfile,
     permutation: PermutationProfile,
     control: ControlProfile,
     padding: PaddingProfile,
     security: SecurityProfile,
 ) -> ImplementationConfig:
-    config = config_with_datapath_profile(base, datapath)
+    config = config_with_algorithm_feature(base, algorithm)
+    config = config_with_datapath_profile(config, datapath)
     config = config_with_permutation_profile(config, permutation)
     config = config_with_control_profile(config, control)
     config = config_with_padding_profile(config, padding)
@@ -88,6 +95,7 @@ def enumerate_selected_configs(
     pipeline_count: int = 2,
     contexts_per_pipeline: int = 12,
     include_invalid: bool = False,
+    algorithms: tuple[AlgorithmFeature, ...] = REQUESTED_SINGLE_ALGORITHM_FEATURES,
 ) -> tuple[ValidConfigEntry, ...]:
     entries: list[ValidConfigEntry] = []
 
@@ -130,14 +138,15 @@ def enumerate_selected_configs(
         securities = (SecurityProfile.NONE, SecurityProfile.FPGA_FAULT_DETECT)
 
     for top_name, build_base in top_builders.items():
-        for datapath, permutation, control, padding, security in product(datapaths, permutations, controls, paddings, securities):
+        for algorithm, datapath, permutation, control, padding, security in product(algorithms, datapaths, permutations, controls, paddings, securities):
             try:
-                config = _build_candidate(build_base(), datapath, permutation, control, padding, security)
+                config = _build_candidate(build_base(), algorithm, datapath, permutation, control, padding, security)
             except (ConfigValidationError, ValueError) as exc:
                 if include_invalid:
                     entries.append(
                         ValidConfigEntry(
                             target=target.value,
+                            algorithm=algorithm.value,
                             top_level=top_name,
                             datapath=datapath.value,
                             permutation=permutation.value,
@@ -153,6 +162,7 @@ def enumerate_selected_configs(
                 entries.append(
                     ValidConfigEntry(
                         target=target.value,
+                        algorithm=algorithm.value,
                         top_level=top_name,
                         datapath=datapath.value,
                         permutation=permutation.value,
@@ -166,18 +176,26 @@ def enumerate_selected_configs(
     return tuple(entries)
 
 
+def _parse_algorithms(value: str) -> tuple[AlgorithmFeature, ...]:
+    if value == "requested":
+        return REQUESTED_SINGLE_ALGORITHM_FEATURES
+    return tuple(AlgorithmFeature(item.strip()) for item in value.split(",") if item.strip())
+
+
 def main() -> None:
     parser = ArgumentParser(description="List selected valid ASCON architecture configurations.")
     parser.add_argument("--target", choices=("asic", "fpga", "both"), default="both")
     parser.add_argument("--engine-count", type=int, default=4)
     parser.add_argument("--pipeline-count", type=int, default=2)
     parser.add_argument("--contexts-per-pipeline", type=int, default=12)
+    parser.add_argument("--algorithms", default="requested", help="Comma-separated AlgorithmFeature values or 'requested'.")
     parser.add_argument("--include-invalid", action="store_true")
     parser.add_argument("--format", choices=("json", "csv", "text"), default="text")
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
 
     targets = (TargetTechnology.ASIC, TargetTechnology.FPGA) if args.target == "both" else (TargetTechnology(args.target),)
+    algorithms = _parse_algorithms(args.algorithms)
     entries: list[ValidConfigEntry] = []
     for target in targets:
         entries.extend(
@@ -187,6 +205,7 @@ def main() -> None:
                 pipeline_count=args.pipeline_count,
                 contexts_per_pipeline=args.contexts_per_pipeline,
                 include_invalid=args.include_invalid,
+                algorithms=algorithms,
             )
         )
 
@@ -204,12 +223,12 @@ def main() -> None:
         payload = buf.getvalue()
     else:
         valid_count = sum(1 for entry in entries if entry.valid)
-        payload_lines = [f"valid={valid_count} total_listed={len(entries)}"]
+        payload_lines = [f"valid={valid_count} total_listed={len(entries)} algorithms={len(algorithms)}"]
         for entry in entries:
             status = "VALID" if entry.valid else "INVALID"
             suffix = f" reason={entry.reason}" if entry.reason else ""
             payload_lines.append(
-                f"{status:7s} {entry.target:4s} {entry.top_level:38s} "
+                f"{status:7s} {entry.target:4s} algo={entry.algorithm:10s} {entry.top_level:38s} "
                 f"dp={entry.datapath:17s} perm={entry.permutation:24s} "
                 f"ctrl={entry.control:32s} sec={entry.security}{suffix}"
             )
@@ -219,7 +238,11 @@ def main() -> None:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(payload, encoding="utf-8")
     else:
-        print(payload, end="")
+        try:
+            print(payload, end="")
+        except BrokenPipeError:
+            # Allows commands such as `make list-valid-configs | head` to exit cleanly.
+            pass
 
 
 if __name__ == "__main__":

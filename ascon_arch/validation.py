@@ -1,4 +1,10 @@
 from ascon_arch.config import ImplementationConfig
+from ascon_arch.algorithm_planning import (
+    AEAD_FEATURES,
+    CXOF_FEATURES,
+    HASH_FEATURES,
+    XOF_FEATURES,
+)
 from ascon_arch.enums import (
     AlgorithmFeature,
     ArchitectureFamily,
@@ -70,8 +76,8 @@ def validate_config(config: ImplementationConfig) -> None:
     if control.profile == ControlProfile.HARDCODED_FSM:
         if control.supports_runtime_algorithm_select or control.supports_concurrent_modes or control.supports_dma:
             raise ConfigValidationError("hardcoded_fsm must not enable runtime algorithm select, concurrent modes, or DMA")
-        if len(config.algorithm.features) > 1 or config.algorithm.include_hash or config.algorithm.include_xof or config.algorithm.include_cxof:
-            raise ConfigValidationError("hardcoded_fsm is only valid for a fixed narrow algorithm set")
+        if len(config.algorithm.features) > 1:
+            raise ConfigValidationError("hardcoded_fsm is only valid for one fixed algorithm feature")
     if control.profile == ControlProfile.MICROCODED_SEQUENCER:
         if control.microcode_words <= 0:
             raise ConfigValidationError("microcoded_sequencer requires microcode_words > 0")
@@ -404,10 +410,15 @@ def validate_config(config: ImplementationConfig) -> None:
         if security.side_channel_protection != SideChannelProtection.THRESHOLD_IMPLEMENTATION:
             raise ConfigValidationError("threshold_sbox profile requires threshold_implementation protection")
 
-    aead_like = (
-        AlgorithmFeature.AEAD128,
-        AlgorithmFeature.LEGACY_AEAD128A,
-        AlgorithmFeature.LEGACY_AEAD128PQ,
-    )
-    if not any(feature in config.algorithm.features for feature in aead_like) and (config.algorithm.include_encrypt or config.algorithm.include_decrypt):
+    if not config.algorithm.features:
+        raise ConfigValidationError("algorithm config must select at least one feature")
+    if not any(feature in AEAD_FEATURES + HASH_FEATURES + XOF_FEATURES + CXOF_FEATURES for feature in config.algorithm.features):
+        raise ConfigValidationError("algorithm config contains an unsupported feature")
+    if not any(feature in config.algorithm.features for feature in AEAD_FEATURES) and (config.algorithm.include_encrypt or config.algorithm.include_decrypt):
         raise ConfigValidationError("encrypt/decrypt inclusion requires an AEAD feature")
+    if config.algorithm.include_hash and not any(feature in config.algorithm.features for feature in HASH_FEATURES):
+        raise ConfigValidationError("include_hash requires a hash-family feature")
+    if config.algorithm.include_xof and not any(feature in config.algorithm.features for feature in XOF_FEATURES):
+        raise ConfigValidationError("include_xof requires an XOF-family feature")
+    if config.algorithm.include_cxof and not any(feature in config.algorithm.features for feature in CXOF_FEATURES):
+        raise ConfigValidationError("include_cxof requires a CXOF-family feature")

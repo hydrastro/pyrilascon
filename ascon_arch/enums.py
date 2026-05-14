@@ -37,13 +37,21 @@ class AlgorithmFeature(str, Enum):
     XOF128 = "xof128"
     CXOF128 = "cxof128"
 
-    # Architecture-level placeholders for broader design-space exploration.
-    # These require dedicated golden-model/KAT support before they should be
-    # considered production-verified algorithm targets.
-    LEGACY_AEAD128A = "legacy_aead128a"
-    LEGACY_AEAD128PQ = "legacy_aead128pq"
+    # User-facing architecture targets for expanded design-space exploration.
+    # These are config-valid targets; each still needs dedicated golden-model
+    # and KAT coverage before being marked RTL-production-verified.
+    AEAD128A = "aead128a"
+    AEAD80PQ = "aead80pq"
+    HASH = "hash"
     HASHA = "hasha"
+    XOF = "xof"
     XOFA = "xofa"
+    CXOF = "cxof"
+
+    # Backward-compatible legacy names kept for existing configs/tests.
+    LEGACY_AEAD128A = "legacy_aead128a"
+    LEGACY_AEAD80PQ = "legacy_aead80pq"
+    LEGACY_AEAD128PQ = "legacy_aead128pq"  # compatibility alias for earlier repo configs
 
 
 class PermutationStyle(str, Enum):
