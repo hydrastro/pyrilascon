@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 from ascon_arch.config import ImplementationConfig
-from ascon_arch.enums import ContextProfile, ControlProfile, DatapathProfile, PaddingProfile, PermutationProfile, TargetTechnology, TopLevelProfile
+from ascon_arch.enums import ContextProfile, ControlProfile, DatapathProfile, PaddingProfile, PermutationProfile, SecurityProfile, TargetTechnology, TopLevelProfile
 from ascon_arch.presets import (
     asic_two_datapaths_column_serial_config,
     asic_dual_enc_dec_cores_config,
@@ -14,6 +14,7 @@ from ascon_arch.presets import (
     asic_two_datapaths_two_rounds_per_cycle_config,
     config_with_padding_profile,
     config_with_permutation_profile,
+    config_with_security_profile,
     config_with_top_level_profile,
     fpga_m_pipelines_n_contexts_config,
     fpga_n_parallel_engines_config,
@@ -81,6 +82,11 @@ def build_arg_parser() -> ArgumentParser:
         "--padding-profile",
         choices=tuple(profile.value for profile in PaddingProfile),
         help="Override padding/final-length handling while preserving the rest of the architecture.",
+    )
+    parser.add_argument(
+        "--security-profile",
+        choices=tuple(profile.value for profile in SecurityProfile),
+        help="Override side-channel/fault/security profile. Safe decrypt buffering remains enforced.",
     )
     parser.add_argument("--out", type=Path, default=Path("build"), help="Output root directory.")
     return parser
@@ -181,6 +187,12 @@ def apply_padding_profile(config: ImplementationConfig, profile_value: str | Non
     return config_with_padding_profile(config, PaddingProfile(profile_value))
 
 
+def apply_security_profile(config: ImplementationConfig, profile_value: str | None) -> ImplementationConfig:
+    if profile_value is None:
+        return config
+    return config_with_security_profile(config, SecurityProfile(profile_value))
+
+
 def main() -> None:
     args = build_arg_parser().parse_args()
     if args.config is not None:
@@ -196,6 +208,7 @@ def main() -> None:
     config = apply_context_profile(config, args.context_profile, args.contexts_per_engine)
     config = apply_control_profile(config, args.control_profile)
     config = apply_padding_profile(config, args.padding_profile)
+    config = apply_security_profile(config, args.security_profile)
     written = write_design_product(config, args.out)
     for path in written:
         print(path)

@@ -32,6 +32,7 @@ from ascon_arch.enums import (
     ResetStyle,
     RtlLanguage,
     SBoxStyle,
+    SecurityProfile,
     SideChannelProtection,
     StateStorageStyle,
     TargetTechnology,
@@ -42,6 +43,7 @@ from ascon_arch.datapath_planning import datapath_config_for_profile
 from ascon_arch.context_planning import context_config_for_profile
 from ascon_arch.control_planning import control_config_for_profile
 from ascon_arch.padding_planning import padding_config_for_profile
+from ascon_arch.security_planning import security_config_for_profile
 
 
 def shared_datapath_config(target: TargetTechnology, name: str = "shared_datapath") -> ImplementationConfig:
@@ -95,9 +97,9 @@ def shared_datapath_config(target: TargetTechnology, name: str = "shared_datapat
             ControlProfile.HARDCODED_FSM if target == TargetTechnology.ASIC else ControlProfile.AXI_STREAM,
             target,
         ),
-        security=SecurityConfig(
-            side_channel_protection=SideChannelProtection.NONE,
-            constant_time_control=True,
+        security=security_config_for_profile(
+            SecurityProfile.ASIC_BASELINE if target == TargetTechnology.ASIC else SecurityProfile.FPGA_FAULT_DETECT,
+            target,
         ),
         rtl=RtlConfig(language=RtlLanguage.SYSTEMVERILOG, reset_style=ResetStyle.ASYNC_ACTIVE_LOW),
         description="Single shared AEAD datapath. Lowest/medium area; one operation progresses at a time.",
@@ -156,11 +158,7 @@ def asic_two_datapaths_config() -> ImplementationConfig:
             separate_encrypt_decrypt_ports=True,
         ),
         control=control_config_for_profile(ControlProfile.HARDCODED_FSM, TargetTechnology.ASIC),
-        security=SecurityConfig(
-            side_channel_protection=SideChannelProtection.NONE,
-            constant_time_control=True,
-            clear_state_on_done=True,
-        ),
+        security=security_config_for_profile(SecurityProfile.ASIC_BASELINE, TargetTechnology.ASIC),
         rtl=RtlConfig(language=RtlLanguage.SYSTEMVERILOG, reset_style=ResetStyle.ASYNC_ACTIVE_LOW),
         description=(
             "ASIC architecture with independent AEAD encryption and decryption datapaths. "
@@ -215,7 +213,10 @@ def shared_permutation_mode_fsm_config(target: TargetTechnology = TargetTechnolo
             ControlProfile.HARDCODED_FSM if target == TargetTechnology.ASIC else ControlProfile.MICROCODED_SEQUENCER,
             target,
         ),
-        security=SecurityConfig(side_channel_protection=SideChannelProtection.NONE, constant_time_control=True),
+        security=security_config_for_profile(
+            SecurityProfile.ASIC_BASELINE if target == TargetTechnology.ASIC else SecurityProfile.FPGA_FAULT_DETECT,
+            target,
+        ),
         rtl=RtlConfig(language=RtlLanguage.SYSTEMVERILOG, reset_style=ResetStyle.ASYNC_ACTIVE_LOW),
         description="Separate mode control around a single shared permutation engine. Medium area, one permutation bottleneck.",
     )
@@ -276,11 +277,7 @@ def fpga_n_parallel_engines_config(engine_count: int) -> ImplementationConfig:
             flow_control=FlowControlStyle.VALID_READY,
         ),
         control=control_config_for_profile(ControlProfile.AXI_STREAM_MICROCODED_HYBRID, TargetTechnology.FPGA),
-        security=SecurityConfig(
-            side_channel_protection=SideChannelProtection.NONE,
-            constant_time_control=True,
-            clear_state_on_done=True,
-        ),
+        security=security_config_for_profile(SecurityProfile.FPGA_FAULT_DETECT, TargetTechnology.FPGA),
         rtl=RtlConfig(language=RtlLanguage.SYSTEMVERILOG, reset_style=ResetStyle.ASYNC_ACTIVE_LOW),
         description=(
             "FPGA architecture with N independent ASCON engines. Area scales roughly with N; "
@@ -452,6 +449,23 @@ def fpga_n_parallel_engines_with_control_profile_config(engine_count: int, profi
     return config_with_control_profile(fpga_n_parallel_engines_config(engine_count), profile)
 
 
+
+
+def config_with_security_profile(
+    config: ImplementationConfig,
+    profile: SecurityProfile,
+    *,
+    name_suffix: str | None = None,
+    plaintext_buffer_capacity_bytes: int | None = None,
+) -> ImplementationConfig:
+    """Return a copy using one named security/fault/decryption-release profile."""
+    security = security_config_for_profile(
+        profile,
+        config.target,
+        plaintext_buffer_capacity_bytes=plaintext_buffer_capacity_bytes,
+    )
+    suffix = name_suffix or profile.value
+    return replace(config, name=f"{config.name}_{suffix}", security=security)
 
 
 def config_with_padding_profile(

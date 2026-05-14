@@ -11,7 +11,10 @@ from ascon_arch.enums import (
     ControlProfile,
     DatapathProfile,
     DatapathWidth,
+    DecryptionBufferStorage,
+    DecryptionReleasePolicy,
     EngineCapability,
+    FaultDetectionProfile,
     FlowControlStyle,
     InterfaceStyle,
     LengthHandling,
@@ -21,6 +24,7 @@ from ascon_arch.enums import (
     ResetStyle,
     RtlLanguage,
     SBoxStyle,
+    SecurityProfile,
     SideChannelProtection,
     StateStorageStyle,
     TargetTechnology,
@@ -486,29 +490,71 @@ class ControlConfig:
 
 @dataclass(frozen=True, slots=True)
 class SecurityConfig:
-    side_channel_protection: SideChannelProtection
-    constant_time_control: bool
+    """Security, fault-detection, and safe-decryption release policy.
+
+    Decryption plaintext release is intentionally modeled here because it is a
+    security property of the implementation: decrypted plaintext must not be
+    externally released until the authentication tag has been verified.
+    """
+
+    side_channel_protection: SideChannelProtection = SideChannelProtection.NONE
+    constant_time_control: bool = True
+    profile: SecurityProfile = SecurityProfile.NONE
+    fault_detection: FaultDetectionProfile = FaultDetectionProfile.NONE
+    constant_time_tag_compare: bool = False
+    randomized_counter_hardening: bool = False
     clear_state_on_done: bool = True
     duplicate_control_fsm_checks: bool = False
+    duplicate_compute_check: bool = False
     randomness_bits_per_cycle: int = 0
+    decryption_release_policy: DecryptionReleasePolicy = DecryptionReleasePolicy.BUFFER_UNTIL_TAG_VERIFY
+    plaintext_buffer_until_tag_verified: bool = True
+    plaintext_buffer_storage: DecryptionBufferStorage = DecryptionBufferStorage.INTERNAL_FIFO
+    plaintext_buffer_capacity_bytes: int = 4096
+    constant_time_decrypt_failure: bool = True
+    zeroize_plaintext_buffer_on_failure: bool = True
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            "profile": self.profile.value,
             "side_channel_protection": self.side_channel_protection.value,
+            "fault_detection": self.fault_detection.value,
             "constant_time_control": self.constant_time_control,
+            "constant_time_tag_compare": self.constant_time_tag_compare,
+            "randomized_counter_hardening": self.randomized_counter_hardening,
             "clear_state_on_done": self.clear_state_on_done,
             "duplicate_control_fsm_checks": self.duplicate_control_fsm_checks,
+            "duplicate_compute_check": self.duplicate_compute_check,
             "randomness_bits_per_cycle": self.randomness_bits_per_cycle,
+            "decryption_release_policy": self.decryption_release_policy.value,
+            "plaintext_buffer_until_tag_verified": self.plaintext_buffer_until_tag_verified,
+            "plaintext_buffer_storage": self.plaintext_buffer_storage.value,
+            "plaintext_buffer_capacity_bytes": self.plaintext_buffer_capacity_bytes,
+            "constant_time_decrypt_failure": self.constant_time_decrypt_failure,
+            "zeroize_plaintext_buffer_on_failure": self.zeroize_plaintext_buffer_on_failure,
         }
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "SecurityConfig":
+    def from_dict(cls, data: Mapping[str, Any] | None) -> "SecurityConfig":
+        if data is None:
+            return cls()
         return cls(
-            side_channel_protection=SideChannelProtection(str(data["side_channel_protection"])),
-            constant_time_control=bool(data["constant_time_control"]),
+            profile=SecurityProfile(str(data.get("profile", SecurityProfile.NONE.value))),
+            side_channel_protection=SideChannelProtection(str(data.get("side_channel_protection", SideChannelProtection.NONE.value))),
+            fault_detection=FaultDetectionProfile(str(data.get("fault_detection", FaultDetectionProfile.NONE.value))),
+            constant_time_control=bool(data.get("constant_time_control", True)),
+            constant_time_tag_compare=bool(data.get("constant_time_tag_compare", False)),
+            randomized_counter_hardening=bool(data.get("randomized_counter_hardening", False)),
             clear_state_on_done=bool(data.get("clear_state_on_done", True)),
             duplicate_control_fsm_checks=bool(data.get("duplicate_control_fsm_checks", False)),
+            duplicate_compute_check=bool(data.get("duplicate_compute_check", False)),
             randomness_bits_per_cycle=int(data.get("randomness_bits_per_cycle", 0)),
+            decryption_release_policy=DecryptionReleasePolicy(str(data.get("decryption_release_policy", DecryptionReleasePolicy.BUFFER_UNTIL_TAG_VERIFY.value))),
+            plaintext_buffer_until_tag_verified=bool(data.get("plaintext_buffer_until_tag_verified", True)),
+            plaintext_buffer_storage=DecryptionBufferStorage(str(data.get("plaintext_buffer_storage", DecryptionBufferStorage.INTERNAL_FIFO.value))),
+            plaintext_buffer_capacity_bytes=int(data.get("plaintext_buffer_capacity_bytes", 4096)),
+            constant_time_decrypt_failure=bool(data.get("constant_time_decrypt_failure", True)),
+            zeroize_plaintext_buffer_on_failure=bool(data.get("zeroize_plaintext_buffer_on_failure", True)),
         )
 
 

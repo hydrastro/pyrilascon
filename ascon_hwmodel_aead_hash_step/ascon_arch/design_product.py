@@ -9,6 +9,7 @@ from ascon_arch.context_planning import estimate_context_storage
 from ascon_arch.top_level_planning import estimate_top_level
 from ascon_arch.control_planning import estimate_control
 from ascon_arch.padding_planning import estimate_padding
+from ascon_arch.security_planning import estimate_security
 from ascon_arch.validation import validate_config
 
 
@@ -44,6 +45,14 @@ def padding_module_name(config: ImplementationConfig) -> str:
     return f"ascon_{config.name}_padding"
 
 
+def security_module_name(config: ImplementationConfig) -> str:
+    return f"ascon_{config.name}_security"
+
+
+def decrypt_plaintext_buffer_module_name(config: ImplementationConfig) -> str:
+    return f"ascon_{config.name}_decrypt_plaintext_buffer"
+
+
 def _reset_condition(config: ImplementationConfig) -> str:
     if config.rtl.reset_style == ResetStyle.ASYNC_ACTIVE_LOW:
         return "!rst_n"
@@ -70,6 +79,8 @@ def emit_top_module(config: ImplementationConfig) -> str:
         f"// Engine count: {topology.engine_count}",
         f"// Top-level profile: {topology.top_level_profile.value}",
         f"// Control profile: {config.control.profile.value}",
+        f"// Security profile: {config.security.profile.value}",
+        f"// Decrypt release policy: {config.security.decryption_release_policy.value}",
         f"// AEAD core count: {topology.aead_core_count}",
         f"// Permutation pipeline count: {topology.permutation_pipeline_count}",
         f"// Expected parallel operations: {topology.expected_parallel_operations()}",
@@ -502,6 +513,77 @@ def emit_control_module(config: ImplementationConfig) -> str:
         ]
     )
 
+
+def emit_security_module(config: ImplementationConfig) -> str:
+    security = config.security
+    estimate = estimate_security(security)
+    return "\n".join(
+        [
+            "// Generated ASCON security/fault/decryption-release skeleton.",
+            f"// profile={security.profile.value}, side_channel={security.side_channel_protection.value}, fault_detection={security.fault_detection.value}",
+            f"// constant_time_tag_compare={str(security.constant_time_tag_compare).lower()}, randomized_counter_hardening={str(security.randomized_counter_hardening).lower()}",
+            f"// plaintext_release_policy={security.decryption_release_policy.value}",
+            f"// plaintext_buffer={security.plaintext_buffer_storage.value}, capacity_bytes={security.plaintext_buffer_capacity_bytes}",
+            f"// area_class={estimate.area_class}, performance_impact={estimate.performance_impact}",
+            f"module {security_module_name(config)} #(",
+            f"  parameter int PLAINTEXT_BUFFER_CAPACITY_BYTES = {security.plaintext_buffer_capacity_bytes},",
+            f"  parameter bit CONSTANT_TIME_TAG_COMPARE = {1 if security.constant_time_tag_compare else 0},",
+            f"  parameter bit RANDOMIZED_COUNTER_HARDENING = {1 if security.randomized_counter_hardening else 0},",
+            f"  parameter bit DUPLICATE_COMPUTE_CHECK = {1 if security.duplicate_compute_check else 0}",
+            ") (",
+            "  input  logic clk,",
+            "  input  logic rst_n,",
+            "  input  logic tag_compare_start_i,",
+            "  input  logic [127:0] tag_expected_i,",
+            "  input  logic [127:0] tag_actual_i,",
+            "  output logic tag_valid_o,",
+            "  output logic fault_o",
+            ");",
+            "",
+            "  logic [127:0] tag_diff;",
+            "  assign tag_diff = tag_expected_i ^ tag_actual_i;",
+            "",
+            "  // Constant-time tag compare shape: OR-reduce all differences; do not early-exit.",
+            "  assign tag_valid_o = tag_compare_start_i & ~(|tag_diff);",
+            "",
+            "  // TODO: bind duplicate-computation comparison and randomized counter hardening backends.",
+            "  assign fault_o = 1'b0;",
+            "endmodule",
+            "",
+        ]
+    )
+
+
+def emit_decrypt_plaintext_buffer_module(config: ImplementationConfig) -> str:
+    security = config.security
+    return "\n".join(
+        [
+            "// Generated ASCON decrypt plaintext release buffer skeleton.",
+            "// Decryption plaintext must not be externally released until tag verification succeeds.",
+            f"// storage={security.plaintext_buffer_storage.value}, capacity_bytes={security.plaintext_buffer_capacity_bytes}",
+            f"module {decrypt_plaintext_buffer_module_name(config)} #(",
+            f"  parameter int DATA_BUS_BITS = {config.io.data_bus_bits},",
+            f"  parameter int CAPACITY_BYTES = {security.plaintext_buffer_capacity_bytes}",
+            ") (",
+            "  input  logic clk,",
+            "  input  logic rst_n,",
+            "  input  logic plaintext_valid_i,",
+            "  input  logic [DATA_BUS_BITS-1:0] plaintext_i,",
+            "  input  logic tag_verified_i,",
+            "  input  logic decrypt_failed_i,",
+            "  output logic plaintext_valid_o,",
+            "  output logic [DATA_BUS_BITS-1:0] plaintext_o",
+            ");",
+            "",
+            "  // TODO: implement full-message FIFO/RAM buffering.",
+            "  // Until tag_verified_i is asserted, plaintext_valid_o must remain deasserted.",
+            "  assign plaintext_valid_o = plaintext_valid_i & tag_verified_i & ~decrypt_failed_i;",
+            "  assign plaintext_o = tag_verified_i ? plaintext_i : '0;",
+            "endmodule",
+            "",
+        ]
+    )
+
 def design_metrics(config: ImplementationConfig) -> dict[str, object]:
     topology = config.topology
     perm_estimate = estimate_permutation(config.permutation)
@@ -510,7 +592,22 @@ def design_metrics(config: ImplementationConfig) -> dict[str, object]:
     top_estimate = estimate_top_level(config)
     control_estimate = estimate_control(config.control)
     padding_estimate = estimate_padding(config.padding)
+    security_estimate = estimate_security(config.security)
     return {
+        "security_profile": config.security.profile.value,
+        "side_channel_protection": config.security.side_channel_protection.value,
+        "fault_detection": config.security.fault_detection.value,
+        "constant_time_tag_compare": config.security.constant_time_tag_compare,
+        "randomized_counter_hardening": config.security.randomized_counter_hardening,
+        "duplicate_control_fsm_checks": config.security.duplicate_control_fsm_checks,
+        "duplicate_compute_check": config.security.duplicate_compute_check,
+        "decryption_release_policy": config.security.decryption_release_policy.value,
+        "plaintext_buffer_until_tag_verified": config.security.plaintext_buffer_until_tag_verified,
+        "plaintext_buffer_storage": config.security.plaintext_buffer_storage.value,
+        "plaintext_buffer_capacity_bytes": config.security.plaintext_buffer_capacity_bytes,
+        "constant_time_decrypt_failure": config.security.constant_time_decrypt_failure,
+        "zeroize_plaintext_buffer_on_failure": config.security.zeroize_plaintext_buffer_on_failure,
+        "security_estimate": security_estimate.to_dict(),
         "padding_profile": config.padding.profile.value,
         "padding_strategy": config.padding.strategy.value,
         "padding_length_handling": config.padding.length_handling.value,
@@ -591,6 +688,8 @@ def write_design_product(config: ImplementationConfig, output_root: str | Path) 
         (f"{state_context_module_name(config)}.sv", emit_state_context_module(config)),
         (f"{control_module_name(config)}.sv", emit_control_module(config)),
         (f"{padding_module_name(config)}.sv", emit_padding_module(config)),
+        (f"{security_module_name(config)}.sv", emit_security_module(config)),
+        (f"{decrypt_plaintext_buffer_module_name(config)}.sv", emit_decrypt_plaintext_buffer_module(config)),
     ]
     if config.topology.family == ArchitectureFamily.SEPARATE_ENC_DEC_DATAPATHS:
         rtl_files.extend(
@@ -615,6 +714,8 @@ def write_design_product(config: ImplementationConfig, output_root: str | Path) 
         "permutation_pipeline_count": config.topology.permutation_pipeline_count,
         "expected_parallel_operations": config.topology.expected_parallel_operations(),
         "control_profile": config.control.profile.value,
+        "security_profile": config.security.profile.value,
+        "decryption_release_policy": config.security.decryption_release_policy.value,
         "rtl_files": [f"rtl/{filename}" for filename, _ in rtl_files],
         "metrics": design_metrics(config),
     }
@@ -636,6 +737,7 @@ def write_design_product(config: ImplementationConfig, output_root: str | Path) 
         f"Permutation: `{config.permutation.style.value}` / S-box `{config.permutation.sbox_style.value}`\n\n"
         f"Control: `{config.control.profile.value}`\n\n"
         f"Padding: `{config.padding.profile.value}` / length `{config.padding.length_handling.value}`\n\n"
+        f"Security: `{config.security.profile.value}` / decrypt release `{config.security.decryption_release_policy.value}`\n\n"
         "This directory is generated from an architecture configuration. "
         "The current RTL files are structural placeholders that preserve module boundaries for the next implementation phase.\n",
         encoding="utf-8",

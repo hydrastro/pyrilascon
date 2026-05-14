@@ -165,6 +165,32 @@ class FlowControlStyle(str, Enum):
     FIFO_COUPLED = "fifo_coupled"
 
 
+class DecryptionReleasePolicy(str, Enum):
+    BUFFER_UNTIL_TAG_VERIFY = "buffer_until_tag_verify"
+
+
+class DecryptionBufferStorage(str, Enum):
+    INTERNAL_FIFO = "internal_fifo"
+    BRAM_FIFO = "bram_fifo"
+    SRAM_FIFO = "sram_fifo"
+    EXTERNAL_MEMORY = "external_memory"
+
+
+class SecurityProfile(str, Enum):
+    NONE = "none"
+    ASIC_BASELINE = "asic_rand_counter_consttime_tag"
+    FPGA_FAULT_DETECT = "fpga_fault_detect_rand_counter_consttime_tag"
+    FIRST_ORDER_MASKED = "first_order_masked"
+    THRESHOLD_SBOX = "threshold_sbox"
+    DUPLICATE_COMPUTE = "duplicate_compute"
+
+
+class FaultDetectionProfile(str, Enum):
+    NONE = "none"
+    DUPLICATE_COMPUTE = "duplicate_compute"
+    CONTROL_FLOW_COUNTERS = "control_flow_counters"
+
+
 class SideChannelProtection(str, Enum):
     NONE = "none"
     FIRST_ORDER_MASKING = "first_order_masking"

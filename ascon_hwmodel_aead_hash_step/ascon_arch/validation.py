@@ -7,11 +7,14 @@ from ascon_arch.enums import (
     ControlProfile,
     DatapathProfile,
     DatapathWidth,
+    DecryptionReleasePolicy,
+    FaultDetectionProfile,
     InterfaceStyle,
     LengthHandling,
     PaddingProfile,
     PaddingStrategy,
     PermutationStyle,
+    SecurityProfile,
     SideChannelProtection,
     StateStorageStyle,
     TargetTechnology,
@@ -30,6 +33,7 @@ def validate_config(config: ImplementationConfig) -> None:
     context = config.context
     padding = config.padding
     control = config.control
+    security = config.security
 
     if not config.name:
         raise ConfigValidationError("config name must not be empty")
@@ -345,11 +349,60 @@ def validate_config(config: ImplementationConfig) -> None:
         if permutation.sbox_columns_per_cycle != 1:
             raise ConfigValidationError("bit_serial requires sbox_columns_per_cycle=1")
 
-    if config.security.side_channel_protection != SideChannelProtection.NONE:
-        if config.security.randomness_bits_per_cycle <= 0:
+    if security.plaintext_buffer_capacity_bytes < 0:
+        raise ConfigValidationError("plaintext_buffer_capacity_bytes must be non-negative")
+    if config.algorithm.include_decrypt:
+        if security.decryption_release_policy != DecryptionReleasePolicy.BUFFER_UNTIL_TAG_VERIFY:
+            raise ConfigValidationError("decryption must buffer plaintext until the authentication tag verifies")
+        if not security.plaintext_buffer_until_tag_verified:
+            raise ConfigValidationError("decrypt plaintext release before tag verification is forbidden")
+        if security.plaintext_buffer_capacity_bytes <= 0 and security.plaintext_buffer_storage.value != "external_memory":
+            raise ConfigValidationError("safe decryption requires a positive plaintext buffer capacity unless using external memory")
+        if not security.zeroize_plaintext_buffer_on_failure:
+            raise ConfigValidationError("failed decryption must zeroize/drop the buffered plaintext")
+
+    if security.profile == SecurityProfile.NONE:
+        if security.fault_detection != FaultDetectionProfile.NONE:
+            raise ConfigValidationError("security profile 'none' must not enable fault detection")
+        if security.side_channel_protection != SideChannelProtection.NONE:
+            raise ConfigValidationError("security profile 'none' must not enable side-channel protection")
+        if security.constant_time_tag_compare or security.randomized_counter_hardening or security.duplicate_compute_check:
+            raise ConfigValidationError("security profile 'none' must not enable countermeasures")
+
+    if security.fault_detection == FaultDetectionProfile.DUPLICATE_COMPUTE and not security.duplicate_compute_check:
+        raise ConfigValidationError("duplicate_compute fault detection requires duplicate_compute_check=True")
+    if security.duplicate_compute_check and security.fault_detection != FaultDetectionProfile.DUPLICATE_COMPUTE:
+        raise ConfigValidationError("duplicate_compute_check requires duplicate_compute fault detection profile")
+    if security.profile == SecurityProfile.FPGA_FAULT_DETECT:
+        if config.target != TargetTechnology.FPGA:
+            raise ConfigValidationError("fpga_fault_detect profile is only valid for FPGA targets")
+        if not security.constant_time_tag_compare or not security.randomized_counter_hardening:
+            raise ConfigValidationError("fpga fault-detection baseline requires constant-time tag compare and randomized counter hardening")
+        if security.fault_detection != FaultDetectionProfile.DUPLICATE_COMPUTE:
+            raise ConfigValidationError("fpga fault-detection baseline requires duplicate computation")
+    if security.profile == SecurityProfile.ASIC_BASELINE:
+        if config.target != TargetTechnology.ASIC:
+            raise ConfigValidationError("asic baseline security profile is only valid for ASIC targets")
+        if not security.constant_time_tag_compare or not security.randomized_counter_hardening:
+            raise ConfigValidationError("asic baseline requires constant-time tag compare and randomized counter hardening")
+        if security.fault_detection != FaultDetectionProfile.NONE:
+            raise ConfigValidationError("asic baseline chosen here does not enable duplicate-compute fault detection")
+
+    if security.side_channel_protection != SideChannelProtection.NONE:
+        if security.randomness_bits_per_cycle <= 0:
             raise ConfigValidationError("masked/side-channel-protected variants require randomness_bits_per_cycle > 0")
         if not padding.supports_partial_blocks:
             raise ConfigValidationError("side-channel-protected variants should keep partial block handling explicit")
+    else:
+        if security.randomness_bits_per_cycle != 0 and security.profile not in (SecurityProfile.FIRST_ORDER_MASKED, SecurityProfile.THRESHOLD_SBOX):
+            raise ConfigValidationError("unmasked variants should not request randomness_bits_per_cycle")
+
+    if security.profile == SecurityProfile.FIRST_ORDER_MASKED:
+        if security.side_channel_protection != SideChannelProtection.FIRST_ORDER_MASKING:
+            raise ConfigValidationError("first_order_masked profile requires first_order_masking protection")
+    if security.profile == SecurityProfile.THRESHOLD_SBOX:
+        if security.side_channel_protection != SideChannelProtection.THRESHOLD_IMPLEMENTATION:
+            raise ConfigValidationError("threshold_sbox profile requires threshold_implementation protection")
 
     aead_like = (
         AlgorithmFeature.AEAD128,
