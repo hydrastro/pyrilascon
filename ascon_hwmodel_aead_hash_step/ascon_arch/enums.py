@@ -89,9 +89,22 @@ class DatapathProfile(str, Enum):
 
 class StateStorageStyle(str, Enum):
     SINGLE_CONTEXT_REGS = "single_context_regs"
+    STATE_PLUS_SHADOW_REGS = "state_plus_shadow_regs"
     MULTI_CONTEXT_REGFILE = "multi_context_regfile"
     FPGA_BRAM_CONTEXT_MEMORY = "fpga_bram_context_memory"
+    FPGA_LUTRAM_CONTEXT_MEMORY = "fpga_lutram_context_memory"
     ASIC_SRAM_CONTEXT_MEMORY = "asic_sram_context_memory"
+    SEPARATE_STATE_PER_CORE = "separate_state_per_core"
+    SHARED_STATE_RAM_PIPELINED_P8 = "shared_state_ram_pipelined_p8"
+
+
+class ContextProfile(str, Enum):
+    SINGLE_320_REGISTER = "single_320_register"
+    STATE_PLUS_SHADOW = "state_plus_shadow"
+    MULTI_CONTEXT_REGISTERS = "multi_context_registers"
+    FPGA_BRAM_LUTRAM = "fpga_bram_lutram"
+    SEPARATE_STATE_PER_CORE = "separate_state_per_core"
+    SHARED_STATE_RAM_PIPELINED_P8 = "shared_state_ram_pipelined_p8"
 
 
 class ContextSchedulingStyle(str, Enum):

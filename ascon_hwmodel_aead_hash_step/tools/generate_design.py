@@ -2,11 +2,12 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 from ascon_arch.config import ImplementationConfig
-from ascon_arch.enums import DatapathProfile, PermutationProfile, TargetTechnology
+from ascon_arch.enums import ContextProfile, DatapathProfile, PermutationProfile, TargetTechnology
 from ascon_arch.presets import (
     asic_two_datapaths_column_serial_config,
     asic_two_datapaths_config,
     asic_two_datapaths_with_datapath_profile_config,
+    config_with_context_profile,
     config_with_datapath_profile,
     asic_two_datapaths_two_rounds_per_cycle_config,
     config_with_permutation_profile,
@@ -45,6 +46,16 @@ def build_arg_parser() -> ArgumentParser:
         "--datapath-profile",
         choices=tuple(profile.value for profile in DatapathProfile),
         help="Override the preset datapath width profile while preserving the rest of the architecture.",
+    )
+    parser.add_argument(
+        "--context-profile",
+        choices=tuple(profile.value for profile in ContextProfile),
+        help="Override the preset state/context organization while preserving the rest of the architecture.",
+    )
+    parser.add_argument(
+        "--contexts-per-engine",
+        type=int,
+        help="Override contexts per engine when --context-profile selects a multi-context organization.",
     )
     parser.add_argument("--out", type=Path, default=Path("build"), help="Output root directory.")
     return parser
@@ -98,6 +109,16 @@ def apply_datapath_profile(config: ImplementationConfig, profile_value: str | No
     return config_with_datapath_profile(config, profile)
 
 
+def apply_context_profile(
+    config: ImplementationConfig,
+    profile_value: str | None,
+    contexts_per_engine: int | None,
+) -> ImplementationConfig:
+    if profile_value is None:
+        return config
+    return config_with_context_profile(config, ContextProfile(profile_value), contexts_per_engine=contexts_per_engine)
+
+
 def main() -> None:
     args = build_arg_parser().parse_args()
     if args.config is not None:
@@ -109,6 +130,7 @@ def main() -> None:
 
     config = apply_datapath_profile(config, args.datapath_profile, args.engine_count)
     config = apply_profile(config, args.permutation_profile, args.engine_count)
+    config = apply_context_profile(config, args.context_profile, args.contexts_per_engine)
     written = write_design_product(config, args.out)
     for path in written:
         print(path)

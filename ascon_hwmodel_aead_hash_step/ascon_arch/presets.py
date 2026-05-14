@@ -15,6 +15,7 @@ from ascon_arch.config import (
 from ascon_arch.enums import (
     AlgorithmFeature,
     ArchitectureFamily,
+    ContextProfile,
     ContextSchedulingStyle,
     DatapathProfile,
     DatapathWidth,
@@ -34,6 +35,7 @@ from ascon_arch.enums import (
 )
 from ascon_arch.permutation_planning import permutation_config_for_profile
 from ascon_arch.datapath_planning import datapath_config_for_profile
+from ascon_arch.context_planning import context_config_for_profile
 
 
 def shared_datapath_config(target: TargetTechnology, name: str = "shared_datapath") -> ImplementationConfig:
@@ -65,11 +67,10 @@ def shared_datapath_config(target: TargetTechnology, name: str = "shared_datapat
             share_key_registers=True,
             share_pad_logic=True,
         ),
-        context=ContextConfig(
-            scheduling=ContextSchedulingStyle.SINGLE_CONTEXT,
-            storage=StateStorageStyle.SINGLE_CONTEXT_REGS,
-            context_count=1,
-            interleave_depth=1,
+        context=context_config_for_profile(
+            ContextProfile.SINGLE_320_REGISTER,
+            target,
+            engine_count=1,
         ),
         padding=PaddingConfig(
             strategy=PaddingStrategy.FSM_ASSISTED,
@@ -121,12 +122,11 @@ def asic_two_datapaths_config() -> ImplementationConfig:
             share_key_registers=False,
             share_pad_logic=True,
         ),
-        context=ContextConfig(
-            scheduling=ContextSchedulingStyle.SINGLE_CONTEXT,
-            storage=StateStorageStyle.SINGLE_CONTEXT_REGS,
-            context_count=2,
-            interleave_depth=1,
-            context_id_bits=1,
+        context=context_config_for_profile(
+            ContextProfile.SINGLE_320_REGISTER,
+            TargetTechnology.ASIC,
+            engine_count=2,
+            contexts_per_engine=1,
         ),
         padding=PaddingConfig(
             strategy=PaddingStrategy.FSM_ASSISTED,
@@ -182,7 +182,11 @@ def shared_permutation_mode_fsm_config(target: TargetTechnology = TargetTechnolo
             share_key_registers=True,
             share_pad_logic=True,
         ),
-        context=ContextConfig(),
+        context=context_config_for_profile(
+            ContextProfile.SINGLE_320_REGISTER,
+            target,
+            engine_count=1,
+        ),
         padding=PaddingConfig(strategy=PaddingStrategy.FSM_ASSISTED, length_handling=LengthHandling.INTERNAL_BYTE_COUNTER),
         io=IOConfig(interface_style=InterfaceStyle.STREAM, data_bus_bits=128, supports_backpressure=True),
         security=SecurityConfig(side_channel_protection=SideChannelProtection.NONE, constant_time_control=True),
@@ -225,12 +229,12 @@ def fpga_n_parallel_engines_config(engine_count: int) -> ImplementationConfig:
             share_key_registers=False,
             share_pad_logic=False,
         ),
-        context=ContextConfig(
-            scheduling=ContextSchedulingStyle.DYNAMIC_QUEUE,
-            storage=StateStorageStyle.MULTI_CONTEXT_REGFILE,
-            context_count=engine_count,
-            interleave_depth=engine_count,
-            context_id_bits=max(1, (engine_count - 1).bit_length()),
+        context=context_config_for_profile(
+            ContextProfile.FPGA_BRAM_LUTRAM,
+            TargetTechnology.FPGA,
+            engine_count=engine_count,
+            contexts_per_engine=12,
+            pipeline_stages=12,
         ),
         padding=PaddingConfig(
             strategy=PaddingStrategy.INLINE_COMBINATIONAL,
@@ -346,3 +350,43 @@ def fpga_n_parallel_engines_with_profile_config(engine_count: int, profile: Perm
     ) else SBoxStyle.BOOLEAN
     base = fpga_n_parallel_engines_config(engine_count)
     return config_with_permutation_profile(base, profile, sbox_style=sbox)
+
+
+def config_with_context_profile(
+    config: ImplementationConfig,
+    profile: ContextProfile,
+    *,
+    contexts_per_engine: int | None = None,
+    name_suffix: str | None = None,
+) -> ImplementationConfig:
+    """Return a copy of a design config using one named state/context organization profile."""
+    if profile == ContextProfile.SINGLE_320_REGISTER and config.topology.family == ArchitectureFamily.SEPARATE_ENC_DEC_DATAPATHS:
+        engine_count_for_context = config.topology.total_encrypt_datapaths() + config.topology.total_decrypt_datapaths()
+    else:
+        engine_count_for_context = config.topology.engine_count
+    context = context_config_for_profile(
+        profile,
+        config.target,
+        engine_count=engine_count_for_context,
+        contexts_per_engine=contexts_per_engine,
+        pipeline_stages=config.permutation.pipeline_stages,
+    )
+    suffix = name_suffix or profile.value
+    return replace(config, name=f"{config.name}_{suffix}", context=context)
+
+
+def asic_two_datapaths_with_context_profile_config(profile: ContextProfile) -> ImplementationConfig:
+    return config_with_context_profile(asic_two_datapaths_config(), profile)
+
+
+def fpga_n_parallel_engines_with_context_profile_config(
+    engine_count: int,
+    profile: ContextProfile,
+    *,
+    contexts_per_engine: int | None = None,
+) -> ImplementationConfig:
+    return config_with_context_profile(
+        fpga_n_parallel_engines_config(engine_count),
+        profile,
+        contexts_per_engine=contexts_per_engine,
+    )

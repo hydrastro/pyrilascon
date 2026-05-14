@@ -17,12 +17,14 @@ from ascon_arch.design_product import (
     encrypt_datapath_module_name,
     engine_module_name,
     permutation_module_name,
+    state_context_module_name,
     top_module_name,
     write_design_product,
 )
 from ascon_arch.enums import (
     AlgorithmFeature,
     ArchitectureFamily,
+    ContextProfile,
     ContextSchedulingStyle,
     DatapathProfile,
     DatapathWidth,
@@ -39,6 +41,12 @@ from ascon_arch.enums import (
     SideChannelProtection,
     StateStorageStyle,
     TargetTechnology,
+)
+from ascon_arch.context_planning import (
+    ContextStorageEstimate,
+    context_config_for_profile,
+    estimate_context_storage,
+    recommended_context_profile,
 )
 from ascon_arch.datapath_planning import (
     DatapathCycleEstimate,
@@ -64,11 +72,14 @@ from ascon_arch.permutation_planning import (
 from ascon_arch.presets import (
     asic_two_datapaths_column_serial_config,
     asic_two_datapaths_config,
+    asic_two_datapaths_with_context_profile_config,
     asic_two_datapaths_with_datapath_profile_config,
+    config_with_context_profile,
     config_with_datapath_profile,
     asic_two_datapaths_two_rounds_per_cycle_config,
     config_with_permutation_profile,
     fpga_n_parallel_engines_config,
+    fpga_n_parallel_engines_with_context_profile_config,
     fpga_n_parallel_engines_with_datapath_profile_config,
     fpga_n_parallel_engines_with_profile_config,
     shared_datapath_config,
@@ -140,5 +151,14 @@ __all__ = [
     "shared_permutation_mode_fsm_config",
     "top_module_name",
     "validate_config",
+    "ContextProfile",
+    "ContextStorageEstimate",
+    "asic_two_datapaths_with_context_profile_config",
+    "config_with_context_profile",
+    "context_config_for_profile",
+    "estimate_context_storage",
+    "fpga_n_parallel_engines_with_context_profile_config",
+    "recommended_context_profile",
+    "state_context_module_name",
     "write_design_product",
 ]

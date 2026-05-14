@@ -5,6 +5,7 @@ from ascon_arch.config import ImplementationConfig
 from ascon_arch.enums import ArchitectureFamily, PermutationStyle, ResetStyle
 from ascon_arch.permutation_planning import estimate_permutation
 from ascon_arch.datapath_planning import estimate_datapath
+from ascon_arch.context_planning import estimate_context_storage
 from ascon_arch.validation import validate_config
 
 
@@ -26,6 +27,10 @@ def decrypt_datapath_module_name(config: ImplementationConfig) -> str:
 
 def permutation_module_name(config: ImplementationConfig) -> str:
     return f"ascon_{config.name}_permutation"
+
+
+def state_context_module_name(config: ImplementationConfig) -> str:
+    return f"ascon_{config.name}_state_context"
 
 
 def _reset_condition(config: ImplementationConfig) -> str:
@@ -129,6 +134,8 @@ def emit_engine_module(config: ImplementationConfig) -> str:
         f"// Datapath profile: {config.datapath.profile.value}",
         f"// Datapath lane width: {config.datapath.lane_width.bits()}",
         f"// Absorb width: {config.datapath.absorb_width.bits()}",
+        f"// Context profile: {config.context.profile.value}",
+        f"// Contexts per engine: {config.context.contexts_per_engine}",
         "",
         f"module {engine_module_name(config)} #(",
         "  parameter int ENGINE_ID = 0,",
@@ -149,6 +156,19 @@ def emit_engine_module(config: ImplementationConfig) -> str:
         "  logic dec_done;",
         "  logic [DATA_BUS_BITS-1:0] enc_data_o;",
         "  logic [DATA_BUS_BITS-1:0] dec_data_o;",
+        "  logic [319:0] context_state_q;",
+        "",
+        f"  {state_context_module_name(config)} #(",
+        f"    .CONTEXT_COUNT({config.context.context_count}),",
+        f"    .CONTEXT_ID_BITS({max(1, config.context.context_id_bits)})",
+        "  ) u_state_context (",
+        "    .clk(clk),",
+        "    .rst_n(rst_n),",
+        "    .context_id_i('0),",
+        "    .state_we_i(1'b0),",
+        "    .state_i(320'b0),",
+        "    .state_o(context_state_q)",
+        "  );",
         "",
     ]
     if topology.family == ArchitectureFamily.SEPARATE_ENC_DEC_DATAPATHS:
@@ -240,6 +260,46 @@ def _emit_datapath_module(config: ImplementationConfig, module_name: str, direct
     )
 
 
+def emit_state_context_module(config: ImplementationConfig) -> str:
+    context = config.context
+    estimate = estimate_context_storage(context)
+    return "\n".join(
+        [
+            "// Generated ASCON state/context storage skeleton.",
+            f"// profile={context.profile.value}, storage={context.storage.value}",
+            f"// context_count={context.context_count}, contexts_per_engine={context.contexts_per_engine}",
+            f"// interleave_depth={context.interleave_depth}, shadow_state={str(context.shadow_state).lower()}",
+            f"// state_bits_total={estimate.state_bits_total}, memory_bits={estimate.memory_bits}",
+            "module " + state_context_module_name(config) + " #(",
+            f"  parameter int CONTEXT_COUNT = {context.context_count},",
+            f"  parameter int CONTEXT_ID_BITS = {max(1, context.context_id_bits)}",
+            ") (",
+            "  input  logic clk,",
+            "  input  logic rst_n,",
+            "  input  logic [CONTEXT_ID_BITS-1:0] context_id_i,",
+            "  input  logic state_we_i,",
+            "  input  logic [319:0] state_i,",
+            "  output logic [319:0] state_o",
+            ");",
+            "",
+            "  logic [319:0] state_mem [0:CONTEXT_COUNT-1];",
+            "",
+            "  always_ff @(posedge clk or negedge rst_n) begin",
+            "    if (!rst_n) begin",
+            "      state_o <= 320'b0;",
+            "    end else begin",
+            "      if (state_we_i) begin",
+            "        state_mem[context_id_i] <= state_i;",
+            "      end",
+            "      state_o <= state_mem[context_id_i];",
+            "    end",
+            "  end",
+            "endmodule",
+            "",
+        ]
+    )
+
+
 def emit_permutation_module(config: ImplementationConfig) -> str:
     permutation = config.permutation
     estimate = estimate_permutation(permutation)
@@ -314,6 +374,7 @@ def design_metrics(config: ImplementationConfig) -> dict[str, object]:
     topology = config.topology
     perm_estimate = estimate_permutation(config.permutation)
     datapath_estimate = estimate_datapath(config.datapath)
+    context_estimate = estimate_context_storage(config.context)
     return {
         "expected_parallel_operations": topology.expected_parallel_operations(),
         "engine_count": topology.engine_count,
@@ -327,8 +388,15 @@ def design_metrics(config: ImplementationConfig) -> dict[str, object]:
         "pipeline_initiation_interval": config.permutation.pipeline_initiation_interval,
         "context_interleaving_required": config.permutation.context_interleaving_required,
         "permutation_latency": perm_estimate.to_dict(),
+        "context_profile": config.context.profile.value,
+        "context_storage": config.context.storage.value,
         "context_count": config.context.context_count,
+        "contexts_per_engine": config.context.contexts_per_engine,
         "interleave_depth": config.context.interleave_depth,
+        "shadow_state": config.context.shadow_state,
+        "state_memory_read_ports": config.context.state_memory_read_ports,
+        "state_memory_write_ports": config.context.state_memory_write_ports,
+        "context_storage_estimate": context_estimate.to_dict(),
         "data_bus_bits": config.io.data_bus_bits,
         "datapath_profile": config.datapath.profile.value,
         "lane_width_bits": config.datapath.lane_width.bits(),
@@ -357,6 +425,7 @@ def write_design_product(config: ImplementationConfig, output_root: str | Path) 
         (f"{top_module_name(config)}.sv", emit_top_module(config)),
         (f"{engine_module_name(config)}.sv", emit_engine_module(config)),
         (f"{permutation_module_name(config)}.sv", emit_permutation_module(config)),
+        (f"{state_context_module_name(config)}.sv", emit_state_context_module(config)),
     ]
     if config.topology.family == ArchitectureFamily.SEPARATE_ENC_DEC_DATAPATHS:
         rtl_files.extend(

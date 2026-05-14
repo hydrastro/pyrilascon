@@ -2,6 +2,7 @@ from ascon_arch.config import ImplementationConfig
 from ascon_arch.enums import (
     AlgorithmFeature,
     ArchitectureFamily,
+    ContextProfile,
     ContextSchedulingStyle,
     DatapathProfile,
     DatapathWidth,
@@ -92,10 +93,14 @@ def validate_config(config: ImplementationConfig) -> None:
 
     if context.context_count < 1:
         raise ConfigValidationError("context_count must be >= 1")
+    if context.contexts_per_engine < 1:
+        raise ConfigValidationError("contexts_per_engine must be >= 1")
     if context.interleave_depth < 1:
         raise ConfigValidationError("interleave_depth must be >= 1")
-    if context.scheduling == ContextSchedulingStyle.SINGLE_CONTEXT and context.context_count != 1 and topology.family != ArchitectureFamily.SEPARATE_ENC_DEC_DATAPATHS:
-        raise ConfigValidationError("single_context scheduling requires context_count=1 unless separate datapaths model separate contexts")
+    if context.state_memory_read_ports < 1 or context.state_memory_write_ports < 1:
+        raise ConfigValidationError("state memory must expose at least one read and one write port")
+    if context.scheduling == ContextSchedulingStyle.SINGLE_CONTEXT and context.context_count != 1 and topology.family != ArchitectureFamily.SEPARATE_ENC_DEC_DATAPATHS and context.storage != StateStorageStyle.SEPARATE_STATE_PER_CORE:
+        raise ConfigValidationError("single_context scheduling requires one context unless separate datapaths/cores model independent single contexts")
     if context.scheduling != ContextSchedulingStyle.SINGLE_CONTEXT and context.context_count < 2:
         raise ConfigValidationError("interleaved/dynamic scheduling requires at least two contexts")
     if context.storage == StateStorageStyle.SINGLE_CONTEXT_REGS and context.context_count > 2:
@@ -104,6 +109,30 @@ def validate_config(config: ImplementationConfig) -> None:
         raise ConfigValidationError("context_id_bits must be non-negative")
     if context.context_count > 1 and (1 << context.context_id_bits) < context.context_count:
         raise ConfigValidationError("context_id_bits cannot address context_count")
+    if context.profile == ContextProfile.SINGLE_320_REGISTER:
+        if context.shadow_state or context.rollback_supported:
+            raise ConfigValidationError("single_320_register profile must not enable shadow/rollback state")
+        if context.interleave_depth != 1:
+            raise ConfigValidationError("single_320_register profile requires interleave_depth=1")
+    if context.profile == ContextProfile.STATE_PLUS_SHADOW:
+        if not context.shadow_state or not context.rollback_supported:
+            raise ConfigValidationError("state_plus_shadow profile requires shadow_state and rollback_supported")
+    if context.profile in (ContextProfile.MULTI_CONTEXT_REGISTERS, ContextProfile.FPGA_BRAM_LUTRAM, ContextProfile.SHARED_STATE_RAM_PIPELINED_P8):
+        if context.context_count < 2 or context.contexts_per_engine < 2:
+            raise ConfigValidationError("multi-context profiles require at least two contexts per engine")
+        if context.interleave_depth < 2:
+            raise ConfigValidationError("multi-context profiles require interleave_depth >= 2")
+    if context.profile == ContextProfile.FPGA_BRAM_LUTRAM:
+        if config.target != TargetTechnology.FPGA:
+            raise ConfigValidationError("fpga_bram_lutram context profile is only valid for FPGA targets")
+        if context.storage not in (StateStorageStyle.FPGA_BRAM_CONTEXT_MEMORY, StateStorageStyle.FPGA_LUTRAM_CONTEXT_MEMORY):
+            raise ConfigValidationError("fpga_bram_lutram profile requires FPGA BRAM or LUTRAM storage")
+    if context.profile == ContextProfile.SEPARATE_STATE_PER_CORE:
+        if context.context_count != topology.engine_count:
+            raise ConfigValidationError("separate_state_per_core requires one context per engine/core")
+    if context.profile == ContextProfile.SHARED_STATE_RAM_PIPELINED_P8:
+        if context.storage != StateStorageStyle.SHARED_STATE_RAM_PIPELINED_P8:
+            raise ConfigValidationError("shared_state_ram_pipelined_p8 profile requires matching storage style")
 
     if padding.supports_bit_granular_lengths and padding.length_handling == LengthHandling.EXTERNAL_LAST_STROBE:
         raise ConfigValidationError("bit-granular lengths require an internal counter or descriptor length field")
@@ -148,6 +177,8 @@ def validate_config(config: ImplementationConfig) -> None:
             raise ConfigValidationError("pipelined permutation requires pipeline_initiation_interval")
         if permutation.context_interleaving_required and context.interleave_depth < 2 and topology.engine_count < 2:
             raise ConfigValidationError("interleaved pipeline requires multiple contexts or multiple engines")
+        if permutation.context_interleaving_required and context.contexts_per_engine < max(2, min(permutation.pipeline_stages, 12)):
+            raise ConfigValidationError("fully pipelined permutations require enough contexts per engine to fill the pipeline")
 
     if permutation.style == PermutationStyle.ROUND_SERIAL:
         if permutation.rounds_per_cycle != 1:

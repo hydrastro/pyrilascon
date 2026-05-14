@@ -106,9 +106,10 @@ def test_fpga_parallel_engine_config_has_scalable_context_and_wide_io() -> None:
     assert AlgorithmFeature.XOF128 in config.algorithm.features
     assert AlgorithmFeature.CXOF128 in config.algorithm.features
     assert config.context.scheduling == ContextSchedulingStyle.DYNAMIC_QUEUE
-    assert config.context.storage == StateStorageStyle.MULTI_CONTEXT_REGFILE
-    assert config.context.context_count == 6
-    assert config.context.context_id_bits == 3
+    assert config.context.storage in (StateStorageStyle.FPGA_LUTRAM_CONTEXT_MEMORY, StateStorageStyle.FPGA_BRAM_CONTEXT_MEMORY)
+    assert config.context.contexts_per_engine == 12
+    assert config.context.context_count == 72
+    assert config.context.context_id_bits == 7
     assert config.datapath.lane_width == DatapathWidth.W128
     assert config.io.data_bus_bits == 768
 
@@ -262,3 +263,42 @@ def test_matrix_enumeration_finds_valid_asic_and_fpga_combinations() -> None:
     assert any(entry.valid for entry in fpga_entries)
     assert any(entry.datapath_profile == DatapathProfile.W8_SERIAL and entry.valid for entry in asic_entries)
     assert any(entry.datapath_profile == DatapathProfile.W128 and entry.valid for entry in fpga_entries)
+
+
+from ascon_arch import (
+    ContextProfile,
+    context_config_for_profile,
+    estimate_context_storage,
+    fpga_n_parallel_engines_with_context_profile_config,
+)
+
+
+def test_context_profiles_match_user_state_organization_choices() -> None:
+    single = context_config_for_profile(ContextProfile.SINGLE_320_REGISTER, TargetTechnology.ASIC, engine_count=1)
+    shadow = context_config_for_profile(ContextProfile.STATE_PLUS_SHADOW, TargetTechnology.ASIC, engine_count=1)
+    fpga = context_config_for_profile(ContextProfile.FPGA_BRAM_LUTRAM, TargetTechnology.FPGA, engine_count=4, contexts_per_engine=12, pipeline_stages=12)
+
+    assert estimate_context_storage(single).state_bits_total == 320
+    assert estimate_context_storage(shadow).state_bits_total == 640
+    assert shadow.shadow_state is True
+    assert fpga.context_count == 48
+    assert fpga.contexts_per_engine == 12
+    assert fpga.interleave_depth == 12
+
+
+def test_fpga_context_profile_override_preserves_engine_scaling() -> None:
+    config = fpga_n_parallel_engines_with_context_profile_config(4, ContextProfile.MULTI_CONTEXT_REGISTERS, contexts_per_engine=12)
+    validate_config(config)
+    assert config.topology.engine_count == 4
+    assert config.context.context_count == 48
+    assert config.context.contexts_per_engine == 12
+    assert config.context.interleave_depth == 12
+
+
+def test_design_product_records_context_metadata(tmp_path: Path) -> None:
+    config = fpga_n_parallel_engines_config(4)
+    write_design_product(config, tmp_path)
+    metrics = (tmp_path / config.name / "metadata" / "expected_metrics.json").read_text(encoding="utf-8")
+    assert "context_storage_estimate" in metrics
+    assert "contexts_per_engine" in metrics
+    assert (tmp_path / config.name / "rtl" / f"ascon_{config.name}_state_context.sv").exists()

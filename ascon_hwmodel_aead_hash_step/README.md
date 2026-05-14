@@ -261,3 +261,43 @@ PYTHONPATH=. python tools/generate_design.py --config configs/fpga/n_parallel_en
 ```
 
 Generated design products are written under `build/`, which is intentionally ignored by git. Each product includes resolved config metadata, expected metrics, a module manifest, and structural SystemVerilog boundaries for the selected architecture.
+
+## State/context organization axis
+
+The architecture generator now includes explicit state/context profiles:
+
+```text
+single_320_register
+state_plus_shadow
+multi_context_registers
+fpga_bram_lutram
+separate_state_per_core
+shared_state_ram_pipelined_p8
+```
+
+Project defaults:
+
+```text
+ASIC: single_320_register
+FPGA: fpga_bram_lutram with multi-context interleaving
+```
+
+Generate the FPGA baseline with explicit context profile:
+
+```bash
+PYTHONPATH=. python tools/generate_design.py \
+  --preset fpga_n_parallel_engines \
+  --engine-count 4 \
+  --context-profile fpga_bram_lutram \
+  --contexts-per-engine 12
+```
+
+Generate the ASIC single-state baseline:
+
+```bash
+PYTHONPATH=. python tools/generate_design.py \
+  --preset asic_two_datapaths \
+  --context-profile single_320_register
+```
+
+See `docs/context_architecture.md` for the detailed profile meanings.

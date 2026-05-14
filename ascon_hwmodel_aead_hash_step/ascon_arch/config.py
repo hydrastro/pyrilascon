@@ -6,6 +6,7 @@ import json
 from ascon_arch.enums import (
     AlgorithmFeature,
     ArchitectureFamily,
+    ContextProfile,
     ContextSchedulingStyle,
     DatapathProfile,
     DatapathWidth,
@@ -188,33 +189,58 @@ class DatapathConfig:
 
 @dataclass(frozen=True, slots=True)
 class ContextConfig:
-    """How state/context is stored and scheduled."""
+    """How state/context is stored and scheduled.
 
+    context_count is the total number of state contexts visible to the generated
+    product. contexts_per_engine disambiguates N-engine FPGA products: for
+    example, four engines with twelve interleaved contexts per engine has
+    context_count=48 and contexts_per_engine=12.
+    """
+
+    profile: ContextProfile = ContextProfile.SINGLE_320_REGISTER
     scheduling: ContextSchedulingStyle = ContextSchedulingStyle.SINGLE_CONTEXT
     storage: StateStorageStyle = StateStorageStyle.SINGLE_CONTEXT_REGS
     context_count: int = 1
+    contexts_per_engine: int = 1
     interleave_depth: int = 1
     context_id_bits: int = 0
+    shadow_state: bool = False
+    rollback_supported: bool = False
+    state_memory_read_ports: int = 1
+    state_memory_write_ports: int = 1
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            "profile": self.profile.value,
             "scheduling": self.scheduling.value,
             "storage": self.storage.value,
             "context_count": self.context_count,
+            "contexts_per_engine": self.contexts_per_engine,
             "interleave_depth": self.interleave_depth,
             "context_id_bits": self.context_id_bits,
+            "shadow_state": self.shadow_state,
+            "rollback_supported": self.rollback_supported,
+            "state_memory_read_ports": self.state_memory_read_ports,
+            "state_memory_write_ports": self.state_memory_write_ports,
         }
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any] | None) -> "ContextConfig":
         if data is None:
             return cls()
+        context_count = int(data.get("context_count", 1))
         return cls(
+            profile=ContextProfile(str(data.get("profile", ContextProfile.SINGLE_320_REGISTER.value))),
             scheduling=ContextSchedulingStyle(str(data.get("scheduling", ContextSchedulingStyle.SINGLE_CONTEXT.value))),
             storage=StateStorageStyle(str(data.get("storage", StateStorageStyle.SINGLE_CONTEXT_REGS.value))),
-            context_count=int(data.get("context_count", 1)),
+            context_count=context_count,
+            contexts_per_engine=int(data.get("contexts_per_engine", context_count)),
             interleave_depth=int(data.get("interleave_depth", 1)),
             context_id_bits=int(data.get("context_id_bits", 0)),
+            shadow_state=bool(data.get("shadow_state", False)),
+            rollback_supported=bool(data.get("rollback_supported", False)),
+            state_memory_read_ports=int(data.get("state_memory_read_ports", 1)),
+            state_memory_write_ports=int(data.get("state_memory_write_ports", 1)),
         )
 
 
