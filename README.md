@@ -128,3 +128,49 @@ rtl/generated/ascon_p12_comb.v
 ```
 
 The `.vh` files are include fragments because they define functions/localparams to be included inside a module or package scope. The `.v` files are standalone combinational module wrappers.
+
+## AEAD encryption/decryption step
+
+The AEAD layer is now split by phase:
+
+```text
+ascon_hwmodel/aead_config.py
+ascon_hwmodel/aead_init.py
+ascon_hwmodel/aead_ad.py
+ascon_hwmodel/aead_plaintext.py
+ascon_hwmodel/aead_ciphertext.py
+ascon_hwmodel/aead_final.py
+ascon_hwmodel/aead_encrypt.py
+ascon_hwmodel/aead_decrypt.py
+ascon_hwmodel/aead.py
+```
+
+The standardized NIST mode is `AEADVariant.NIST_AEAD128`. Legacy Ascon submission-family parameter sets are present in `aead_config.py` as scaffolds, but only the NIST mode is byte-level conformance-targeted by the current little-endian state model.
+
+Run:
+
+```bash
+python -m pytest -q
+PYTHONPATH=. python tools/generate_verilog.py
+python demo_aead.py
+```
+
+Generated Verilog now includes:
+
+```text
+rtl/generated/ascon_rate.vh
+rtl/generated/ascon_aead.vh
+rtl/generated/ascon_hash_xof.vh
+```
+
+## Hash/XOF bonus layer
+
+NIST byte-oriented helpers are included for:
+
+```python
+ascon_hash256(message)
+ascon_xof128(message, output_bytes)
+ascon_cxof128(message, output_bytes, customization)
+```
+
+These currently expose byte-aligned APIs. Bit-granular output can be layered on top of `bitstring.py` later.

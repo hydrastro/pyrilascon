@@ -36,19 +36,22 @@ from ascon_hwmodel.ps import (
     emit_verilog_sbox5_lut_function,
 )
 from ascon_hwmodel.round import emit_verilog_round_function, emit_verilog_round_include
+from ascon_hwmodel.rate import emit_verilog_rate_include
+from ascon_hwmodel.aead import emit_verilog_aead_include
+from ascon_hwmodel.aead_config import emit_verilog_aead_config_include
+from ascon_hwmodel.hash_xof import emit_verilog_hash_xof_include
 from ascon_hwmodel.state import emit_verilog_state_include, emit_verilog_state_pack_function, emit_verilog_state_word_function
 
 
 def emit_verilog_domain_key_functions() -> str:
-    return "\n\n".join((emit_verilog_domain_separator_function(), emit_verilog_keyops_include()))
+    return emit_verilog_domain_separator_function()
 
 
 def emit_verilog_domain_key_include() -> str:
     return "\n\n".join(
         (
-            "// Generated Ascon AEAD domain/key helpers.",
+            "// Generated Ascon AEAD domain separator helper.",
             emit_verilog_domain_separator_function(),
-            emit_verilog_keyops_include(),
         )
     )
 
@@ -59,8 +62,11 @@ def emit_verilog_model_include() -> str:
             emit_verilog_iv_include(),
             emit_verilog_state_include(),
             emit_verilog_aux_include(),
+            emit_verilog_rate_include(),
             emit_verilog_permutation_include(),
             emit_verilog_domain_key_include(),
+            emit_verilog_aead_include(),
+            emit_verilog_hash_xof_include(),
         )
     )
 
@@ -71,6 +77,7 @@ def render_verilog_files() -> Mapping[str, str]:
         "ascon_iv.vh": emit_verilog_iv_include(),
         "ascon_state.vh": emit_verilog_state_include(),
         "ascon_aux.vh": emit_verilog_aux_include(),
+        "ascon_rate.vh": emit_verilog_rate_include(),
         "ascon_pc.vh": emit_verilog_pc_include(),
         "ascon_ps.vh": emit_verilog_ps_include(),
         "ascon_pl.vh": emit_verilog_pl_include(),
@@ -80,11 +87,14 @@ def render_verilog_files() -> Mapping[str, str]:
         "ascon_p12.vh": emit_verilog_p12_include(),
         "ascon_permutation.vh": emit_verilog_permutation_include(),
         "ascon_aead_domain_key.vh": emit_verilog_domain_key_include(),
+        "ascon_aead.vh": emit_verilog_aead_include(),
+        "ascon_hash_xof.vh": emit_verilog_hash_xof_include(),
         "ascon_model.vh": "\n".join(
             (
                 '`include "ascon_iv.vh"',
                 '`include "ascon_state.vh"',
                 '`include "ascon_aux.vh"',
+                '`include "ascon_rate.vh"',
                 '`include "ascon_pc.vh"',
                 '`include "ascon_ps.vh"',
                 '`include "ascon_pl.vh"',
@@ -93,6 +103,8 @@ def render_verilog_files() -> Mapping[str, str]:
                 '`include "ascon_p8.vh"',
                 '`include "ascon_p12.vh"',
                 '`include "ascon_aead_domain_key.vh"',
+                '`include "ascon_aead.vh"',
+                '`include "ascon_hash_xof.vh"',
                 "",
             )
         ),

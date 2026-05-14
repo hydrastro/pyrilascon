@@ -224,3 +224,18 @@ __all__: list[str] = [
     "write_verilog_files",
     "words64_to_bytes_le",
 ]
+
+# AEAD phase-based model
+from ascon_hwmodel.aead_config import AEADConfig, AEADVariant, AEAD_CONFIGS, get_aead_config
+from ascon_hwmodel.aead_init import aead_initialize, aead_initial_state_before_permutation, aead_add_key_after_initial_permutation
+from ascon_hwmodel.aead_ad import aead_process_associated_data
+from ascon_hwmodel.aead_plaintext import AEADPlaintextResult, aead_encrypt_plaintext
+from ascon_hwmodel.aead_ciphertext import AEADCiphertextResult, aead_decrypt_ciphertext
+from ascon_hwmodel.aead_final import aead_add_key_before_final_permutation, aead_extract_tag_after_final_permutation, aead_finalize
+from ascon_hwmodel.aead_encrypt import AEADEncryptionResult, aead_encrypt
+from ascon_hwmodel.aead_decrypt import AEADDecryptionResult, aead_decrypt
+from ascon_hwmodel.aead import ascon_aead128_encrypt, ascon_aead128_decrypt
+from ascon_hwmodel.rate import rate_bytes_from_state, replace_rate_bytes, xor_rate_bytes
+
+# NIST hash/XOF byte-oriented model
+from ascon_hwmodel.hash_xof import HashXofConfig, HashXofVariant, ascon_hash256, ascon_xof128, ascon_cxof128

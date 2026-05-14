@@ -57,5 +57,24 @@ def emit_verilog_round_function() -> str:
     )
 
 
+def emit_verilog_rounds_function() -> str:
+    return "\n".join(
+        (
+            "function [319:0] ascon_rounds;",
+            "  input [319:0] state;",
+            "  input [3:0]   rounds;",
+            "  begin",
+            "    case (rounds)",
+            "      4'd6:  ascon_rounds = ascon_p6(state);",
+            "      4'd8:  ascon_rounds = ascon_p8(state);",
+            "      4'd12: ascon_rounds = ascon_p12(state);",
+            "      default: ascon_rounds = 320'b0;",
+            "    endcase",
+            "  end",
+            "endfunction",
+        )
+    )
+
+
 def emit_verilog_round_include() -> str:
     return "\n\n".join(("// Generated Ascon round composition.", emit_verilog_round_function()))
