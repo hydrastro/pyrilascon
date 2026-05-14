@@ -7,6 +7,7 @@ from ascon_arch.enums import (
     AlgorithmFeature,
     ArchitectureFamily,
     ContextSchedulingStyle,
+    DatapathProfile,
     DatapathWidth,
     EngineCapability,
     FlowControlStyle,
@@ -125,29 +126,43 @@ class PermutationConfig:
 
 @dataclass(frozen=True, slots=True)
 class DatapathConfig:
-    """Width/resource choices inside one engine."""
+    """Width/resource choices inside one engine.
+
+    profile is the architectural intent. lane_width is the main internal
+    datapath slice. absorb_width is the width used when moving rate data
+    into/out of the sponge. These are separate so a tiny ASIC can use a
+    5-bit S-box-serial permutation core while still accepting 8-bit I/O.
+    """
 
     state_width_bits: int = 320
     rate_width_bits: int = 128
+    profile: DatapathProfile = DatapathProfile.W64
     lane_width: DatapathWidth = DatapathWidth.W64
     absorb_width: DatapathWidth = DatapathWidth.W128
+    io_word_width: DatapathWidth = DatapathWidth.W128
     key_width_bits: int = 128
     tag_width_bits: int = 128
     split_encrypt_decrypt_control: bool = False
     share_key_registers: bool = False
     share_pad_logic: bool = True
+    serialized_state_update: bool = False
+    serialized_absorb: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "state_width_bits": self.state_width_bits,
             "rate_width_bits": self.rate_width_bits,
+            "profile": self.profile.value,
             "lane_width": self.lane_width.value,
             "absorb_width": self.absorb_width.value,
+            "io_word_width": self.io_word_width.value,
             "key_width_bits": self.key_width_bits,
             "tag_width_bits": self.tag_width_bits,
             "split_encrypt_decrypt_control": self.split_encrypt_decrypt_control,
             "share_key_registers": self.share_key_registers,
             "share_pad_logic": self.share_pad_logic,
+            "serialized_state_update": self.serialized_state_update,
+            "serialized_absorb": self.serialized_absorb,
         }
 
     @classmethod
@@ -157,13 +172,17 @@ class DatapathConfig:
         return cls(
             state_width_bits=int(data.get("state_width_bits", 320)),
             rate_width_bits=int(data.get("rate_width_bits", 128)),
+            profile=DatapathProfile(str(data.get("profile", DatapathProfile.W64.value))),
             lane_width=DatapathWidth(str(data.get("lane_width", DatapathWidth.W64.value))),
             absorb_width=DatapathWidth(str(data.get("absorb_width", DatapathWidth.W128.value))),
+            io_word_width=DatapathWidth(str(data.get("io_word_width", data.get("absorb_width", DatapathWidth.W128.value)))),
             key_width_bits=int(data.get("key_width_bits", 128)),
             tag_width_bits=int(data.get("tag_width_bits", 128)),
             split_encrypt_decrypt_control=bool(data.get("split_encrypt_decrypt_control", False)),
             share_key_registers=bool(data.get("share_key_registers", False)),
             share_pad_logic=bool(data.get("share_pad_logic", True)),
+            serialized_state_update=bool(data.get("serialized_state_update", False)),
+            serialized_absorb=bool(data.get("serialized_absorb", False)),
         )
 
 

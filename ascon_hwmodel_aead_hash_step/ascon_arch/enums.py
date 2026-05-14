@@ -21,10 +21,19 @@ class EngineCapability(str, Enum):
 
 
 class AlgorithmFeature(str, Enum):
+    # NIST SP 800-232 family currently implemented in the golden model.
     AEAD128 = "aead128"
     HASH256 = "hash256"
     XOF128 = "xof128"
     CXOF128 = "cxof128"
+
+    # Architecture-level placeholders for broader design-space exploration.
+    # These require dedicated golden-model/KAT support before they should be
+    # considered production-verified algorithm targets.
+    LEGACY_AEAD128A = "legacy_aead128a"
+    LEGACY_AEAD128PQ = "legacy_aead128pq"
+    HASHA = "hasha"
+    XOFA = "xofa"
 
 
 class PermutationStyle(str, Enum):
@@ -55,6 +64,8 @@ class SBoxStyle(str, Enum):
 
 
 class DatapathWidth(str, Enum):
+    W1 = "1"
+    W5 = "5"
     W8 = "8"
     W16 = "16"
     W32 = "32"
@@ -64,6 +75,16 @@ class DatapathWidth(str, Enum):
 
     def bits(self) -> int:
         return int(self.value)
+
+
+class DatapathProfile(str, Enum):
+    W128 = "128_bit"
+    W64 = "64_bit"
+    W32 = "32_bit"
+    W16 = "16_bit"
+    W8_SERIAL = "8_bit_serial"
+    W1_BIT_SERIAL = "1_bit_serial"
+    W5_SBOX_SERIAL = "5bit_sbox_serial"
 
 
 class StateStorageStyle(str, Enum):

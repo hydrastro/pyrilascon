@@ -16,6 +16,7 @@ from ascon_arch.enums import (
     AlgorithmFeature,
     ArchitectureFamily,
     ContextSchedulingStyle,
+    DatapathProfile,
     DatapathWidth,
     EngineCapability,
     FlowControlStyle,
@@ -32,6 +33,7 @@ from ascon_arch.enums import (
     TargetTechnology,
 )
 from ascon_arch.permutation_planning import permutation_config_for_profile
+from ascon_arch.datapath_planning import datapath_config_for_profile
 
 
 def shared_datapath_config(target: TargetTechnology, name: str = "shared_datapath") -> ImplementationConfig:
@@ -57,9 +59,8 @@ def shared_datapath_config(target: TargetTechnology, name: str = "shared_datapat
             unroll_factor=1,
             share_round_logic=True,
         ),
-        datapath=DatapathConfig(
-            lane_width=DatapathWidth.W64,
-            absorb_width=DatapathWidth.W128,
+        datapath=replace(
+            datapath_config_for_profile(DatapathProfile.W64, target),
             split_encrypt_decrypt_control=False,
             share_key_registers=True,
             share_pad_logic=True,
@@ -114,9 +115,8 @@ def asic_two_datapaths_config() -> ImplementationConfig:
             register_between_rounds=False,
             share_round_logic=True,
         ),
-        datapath=DatapathConfig(
-            lane_width=DatapathWidth.W64,
-            absorb_width=DatapathWidth.W128,
+        datapath=replace(
+            datapath_config_for_profile(DatapathProfile.W64, TargetTechnology.ASIC),
             split_encrypt_decrypt_control=True,
             share_key_registers=False,
             share_pad_logic=True,
@@ -176,9 +176,8 @@ def shared_permutation_mode_fsm_config(target: TargetTechnology = TargetTechnolo
             pipeline_stages=0,
             share_round_logic=True,
         ),
-        datapath=DatapathConfig(
-            lane_width=DatapathWidth.W64,
-            absorb_width=DatapathWidth.W128,
+        datapath=replace(
+            datapath_config_for_profile(DatapathProfile.W64, target),
             split_encrypt_decrypt_control=False,
             share_key_registers=True,
             share_pad_logic=True,
@@ -220,9 +219,8 @@ def fpga_n_parallel_engines_config(engine_count: int) -> ImplementationConfig:
             TargetTechnology.FPGA,
             sbox_style=SBoxStyle.LUT5,
         ),
-        datapath=DatapathConfig(
-            lane_width=DatapathWidth.W320,
-            absorb_width=DatapathWidth.W128,
+        datapath=replace(
+            datapath_config_for_profile(DatapathProfile.W128, TargetTechnology.FPGA),
             split_encrypt_decrypt_control=True,
             share_key_registers=False,
             share_pad_logic=False,
@@ -283,7 +281,12 @@ def asic_two_datapaths_two_rounds_per_cycle_config() -> ImplementationConfig:
 
 def asic_two_datapaths_column_serial_config() -> ImplementationConfig:
     base = asic_two_datapaths_config()
-    narrow_datapath = replace(base.datapath, lane_width=DatapathWidth.W64)
+    narrow_datapath = replace(
+        datapath_config_for_profile(DatapathProfile.W5_SBOX_SERIAL, TargetTechnology.ASIC),
+        split_encrypt_decrypt_control=True,
+        share_key_registers=True,
+        share_pad_logic=True,
+    )
     return replace(
         config_with_permutation_profile(
             base,
@@ -293,6 +296,46 @@ def asic_two_datapaths_column_serial_config() -> ImplementationConfig:
         ),
         datapath=narrow_datapath,
     )
+
+
+def config_with_datapath_profile(
+    config: ImplementationConfig,
+    profile: DatapathProfile,
+    *,
+    name_suffix: str | None = None,
+) -> ImplementationConfig:
+    """Return a copy of a design config using one named datapath width profile."""
+    base = datapath_config_for_profile(profile, config.target)
+    datapath = replace(
+        base,
+        rate_width_bits=config.datapath.rate_width_bits,
+        key_width_bits=config.datapath.key_width_bits,
+        tag_width_bits=config.datapath.tag_width_bits,
+        split_encrypt_decrypt_control=config.datapath.split_encrypt_decrypt_control,
+        share_key_registers=config.datapath.share_key_registers if profile not in (DatapathProfile.W8_SERIAL, DatapathProfile.W1_BIT_SERIAL, DatapathProfile.W5_SBOX_SERIAL) else True,
+        share_pad_logic=config.datapath.share_pad_logic if profile not in (DatapathProfile.W8_SERIAL, DatapathProfile.W1_BIT_SERIAL, DatapathProfile.W5_SBOX_SERIAL) else True,
+    )
+    suffix = name_suffix or profile.value
+    data_bus_bits = datapath.io_word_width.bits() * config.topology.engine_count
+    io = replace(config.io, data_bus_bits=data_bus_bits)
+    return replace(config, name=f"{config.name}_{suffix}", datapath=datapath, io=io)
+
+
+def asic_two_datapaths_with_datapath_profile_config(profile: DatapathProfile) -> ImplementationConfig:
+    base = asic_two_datapaths_config()
+    config = config_with_datapath_profile(base, profile)
+    if profile == DatapathProfile.W5_SBOX_SERIAL:
+        return config_with_permutation_profile(config, PermutationProfile.COLUMN_SERIAL, sbox_style=SBoxStyle.BOOLEAN)
+    if profile == DatapathProfile.W1_BIT_SERIAL:
+        return config_with_permutation_profile(config, PermutationProfile.BIT_SERIAL, sbox_style=SBoxStyle.BOOLEAN)
+    if profile in (DatapathProfile.W8_SERIAL, DatapathProfile.W16):
+        return config_with_permutation_profile(config, PermutationProfile.COLUMN_SERIAL, sbox_style=SBoxStyle.BOOLEAN)
+    return config
+
+
+def fpga_n_parallel_engines_with_datapath_profile_config(engine_count: int, profile: DatapathProfile) -> ImplementationConfig:
+    base = fpga_n_parallel_engines_config(engine_count)
+    return config_with_datapath_profile(base, profile)
 
 
 def fpga_n_parallel_engines_with_profile_config(engine_count: int, profile: PermutationProfile) -> ImplementationConfig:

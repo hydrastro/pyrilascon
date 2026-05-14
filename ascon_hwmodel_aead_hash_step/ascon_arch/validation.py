@@ -3,6 +3,7 @@ from ascon_arch.enums import (
     AlgorithmFeature,
     ArchitectureFamily,
     ContextSchedulingStyle,
+    DatapathProfile,
     DatapathWidth,
     InterfaceStyle,
     LengthHandling,
@@ -66,12 +67,28 @@ def validate_config(config: ImplementationConfig) -> None:
         raise ConfigValidationError("current generator supports only 128-bit AEAD tags")
     if datapath.rate_width_bits not in (64, 128):
         raise ConfigValidationError("rate_width_bits must be 64 or 128")
-    if datapath.lane_width.bits() not in (8, 16, 32, 64, 128, 320):
+    if datapath.lane_width.bits() not in (1, 5, 8, 16, 32, 64, 128, 320):
         raise ConfigValidationError("unsupported lane_width")
-    if datapath.absorb_width.bits() not in (64, 128):
-        raise ConfigValidationError("absorb_width must be 64 or 128")
+    if datapath.absorb_width.bits() not in (1, 8, 16, 32, 64, 128):
+        raise ConfigValidationError("absorb_width must be 1, 8, 16, 32, 64, or 128")
+    if datapath.io_word_width.bits() not in (1, 8, 16, 32, 64, 128):
+        raise ConfigValidationError("io_word_width must be 1, 8, 16, 32, 64, or 128")
+    if datapath.rate_width_bits % datapath.absorb_width.bits() != 0:
+        raise ConfigValidationError("absorb_width must evenly divide rate_width_bits")
+    if datapath.lane_width.bits() > datapath.state_width_bits:
+        raise ConfigValidationError("lane_width must not exceed the 320-bit state")
     if datapath.absorb_width == DatapathWidth.W128 and datapath.rate_width_bits < 128:
         raise ConfigValidationError("128-bit absorb width requires a 128-bit rate")
+    if datapath.profile == DatapathProfile.W5_SBOX_SERIAL and datapath.lane_width != DatapathWidth.W5:
+        raise ConfigValidationError("5bit_sbox_serial profile requires lane_width=5")
+    if datapath.profile == DatapathProfile.W1_BIT_SERIAL and datapath.lane_width != DatapathWidth.W1:
+        raise ConfigValidationError("1_bit_serial profile requires lane_width=1")
+    if datapath.profile == DatapathProfile.W8_SERIAL and datapath.lane_width != DatapathWidth.W8:
+        raise ConfigValidationError("8_bit_serial profile requires lane_width=8")
+    if datapath.lane_width.bits() < 64 and not datapath.serialized_state_update:
+        raise ConfigValidationError("lane widths below 64 bits must set serialized_state_update=True")
+    if datapath.absorb_width.bits() < 128 and not datapath.serialized_absorb:
+        raise ConfigValidationError("absorb widths below 128 bits must set serialized_absorb=True")
 
     if context.context_count < 1:
         raise ConfigValidationError("context_count must be >= 1")
@@ -149,6 +166,8 @@ def validate_config(config: ImplementationConfig) -> None:
             raise ConfigValidationError("round_unrolled expects the full 64 S-box columns per unrolled round")
 
     if permutation.style == PermutationStyle.COLUMN_SERIAL:
+        if datapath.profile in (DatapathProfile.W128, DatapathProfile.W64) and datapath.lane_width.bits() == 128:
+            raise ConfigValidationError("column_serial should not be paired with a 128-bit datapath profile")
         if datapath.lane_width.bits() > 64:
             raise ConfigValidationError("column_serial should use a narrow datapath lane")
         if permutation.sbox_columns_per_cycle >= 64:
@@ -166,5 +185,10 @@ def validate_config(config: ImplementationConfig) -> None:
         if not padding.supports_partial_blocks:
             raise ConfigValidationError("side-channel-protected variants should keep partial block handling explicit")
 
-    if AlgorithmFeature.AEAD128 not in config.algorithm.features and (config.algorithm.include_encrypt or config.algorithm.include_decrypt):
-        raise ConfigValidationError("encrypt/decrypt inclusion requires aead128 feature")
+    aead_like = (
+        AlgorithmFeature.AEAD128,
+        AlgorithmFeature.LEGACY_AEAD128A,
+        AlgorithmFeature.LEGACY_AEAD128PQ,
+    )
+    if not any(feature in config.algorithm.features for feature in aead_like) and (config.algorithm.include_encrypt or config.algorithm.include_decrypt):
+        raise ConfigValidationError("encrypt/decrypt inclusion requires an AEAD feature")

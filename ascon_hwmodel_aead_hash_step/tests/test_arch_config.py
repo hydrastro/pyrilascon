@@ -109,7 +109,7 @@ def test_fpga_parallel_engine_config_has_scalable_context_and_wide_io() -> None:
     assert config.context.storage == StateStorageStyle.MULTI_CONTEXT_REGFILE
     assert config.context.context_count == 6
     assert config.context.context_id_bits == 3
-    assert config.datapath.lane_width == DatapathWidth.W320
+    assert config.datapath.lane_width == DatapathWidth.W128
     assert config.io.data_bus_bits == 768
 
 
@@ -201,3 +201,64 @@ def test_asic_2rpc_and_column_serial_presets_validate() -> None:
     validate_config(column_serial)
     assert estimate_permutation(two_rpc.permutation).p12_cycles == 6
     assert estimate_permutation(column_serial.permutation).area_class == "very_small"
+
+
+from ascon_arch import (
+    DatapathProfile,
+    asic_two_datapaths_with_datapath_profile_config,
+    datapath_config_for_profile,
+    estimate_datapath,
+    fpga_n_parallel_engines_with_datapath_profile_config,
+)
+
+
+def test_datapath_width_profile_cycle_estimates_match_user_notes() -> None:
+    w128 = estimate_datapath(datapath_config_for_profile(DatapathProfile.W128, TargetTechnology.FPGA))
+    w64 = estimate_datapath(datapath_config_for_profile(DatapathProfile.W64, TargetTechnology.ASIC))
+    w32 = estimate_datapath(datapath_config_for_profile(DatapathProfile.W32, TargetTechnology.ASIC))
+    w16 = estimate_datapath(datapath_config_for_profile(DatapathProfile.W16, TargetTechnology.ASIC))
+    w8 = estimate_datapath(datapath_config_for_profile(DatapathProfile.W8_SERIAL, TargetTechnology.ASIC))
+    w1 = estimate_datapath(datapath_config_for_profile(DatapathProfile.W1_BIT_SERIAL, TargetTechnology.ASIC))
+
+    assert w128.absorb128_cycles == 1
+    assert w64.absorb128_cycles == 2
+    assert w32.absorb128_cycles == 4
+    assert w16.absorb128_cycles == 8
+    assert w8.absorb128_cycles == 16
+    assert w1.absorb128_cycles == 128
+    assert w8.io_fit == "strong_fit_when_asic_io_is_the_bottleneck"
+
+
+def test_fpga_parallel_engine_default_uses_128bit_datapath() -> None:
+    config = fpga_n_parallel_engines_config(4)
+    validate_config(config)
+    assert config.datapath.profile == DatapathProfile.W128
+    assert config.datapath.lane_width == DatapathWidth.W128
+    assert config.io.data_bus_bits == 512
+
+
+def test_asic_tiny_datapath_profiles_validate() -> None:
+    for profile in (DatapathProfile.W8_SERIAL, DatapathProfile.W16, DatapathProfile.W5_SBOX_SERIAL):
+        config = asic_two_datapaths_with_datapath_profile_config(profile)
+        validate_config(config)
+        assert config.datapath.profile == profile
+        assert config.datapath.serialized_absorb is True
+        assert config.datapath.serialized_state_update is True
+
+
+def test_fpga_datapath_profile_override_preserves_engine_scaling() -> None:
+    config = fpga_n_parallel_engines_with_datapath_profile_config(8, DatapathProfile.W128)
+    validate_config(config)
+    assert config.topology.engine_count == 8
+    assert config.io.data_bus_bits == 1024
+
+from ascon_arch import ASIC_DATAPATH_MATRIX, ASIC_PERMUTATION_MATRIX, FPGA_DATAPATH_MATRIX, FPGA_PERMUTATION_MATRIX, enumerate_valid_matrix
+
+
+def test_matrix_enumeration_finds_valid_asic_and_fpga_combinations() -> None:
+    asic_entries = enumerate_valid_matrix(TargetTechnology.ASIC, ASIC_DATAPATH_MATRIX, ASIC_PERMUTATION_MATRIX)
+    fpga_entries = enumerate_valid_matrix(TargetTechnology.FPGA, FPGA_DATAPATH_MATRIX, FPGA_PERMUTATION_MATRIX, engine_count=4)
+    assert any(entry.valid for entry in asic_entries)
+    assert any(entry.valid for entry in fpga_entries)
+    assert any(entry.datapath_profile == DatapathProfile.W8_SERIAL and entry.valid for entry in asic_entries)
+    assert any(entry.datapath_profile == DatapathProfile.W128 and entry.valid for entry in fpga_entries)

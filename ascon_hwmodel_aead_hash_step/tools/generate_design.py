@@ -2,13 +2,16 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 from ascon_arch.config import ImplementationConfig
-from ascon_arch.enums import PermutationProfile, TargetTechnology
+from ascon_arch.enums import DatapathProfile, PermutationProfile, TargetTechnology
 from ascon_arch.presets import (
     asic_two_datapaths_column_serial_config,
     asic_two_datapaths_config,
+    asic_two_datapaths_with_datapath_profile_config,
+    config_with_datapath_profile,
     asic_two_datapaths_two_rounds_per_cycle_config,
     config_with_permutation_profile,
     fpga_n_parallel_engines_config,
+    fpga_n_parallel_engines_with_datapath_profile_config,
     fpga_n_parallel_engines_with_profile_config,
     shared_datapath_config,
     shared_permutation_mode_fsm_config,
@@ -38,6 +41,11 @@ def build_arg_parser() -> ArgumentParser:
         choices=tuple(profile.value for profile in PermutationProfile),
         help="Override the preset permutation profile while preserving the rest of the architecture.",
     )
+    parser.add_argument(
+        "--datapath-profile",
+        choices=tuple(profile.value for profile in DatapathProfile),
+        help="Override the preset datapath width profile while preserving the rest of the architecture.",
+    )
     parser.add_argument("--out", type=Path, default=Path("build"), help="Output root directory.")
     return parser
 
@@ -66,9 +74,28 @@ def apply_profile(config: ImplementationConfig, profile_value: str | None, engin
     if profile_value is None:
         return config
     profile = PermutationProfile(profile_value)
+    sbox = None
+    if config.target == TargetTechnology.FPGA and profile in (
+        PermutationProfile.FOUR_ROUNDS_PER_CYCLE,
+        PermutationProfile.EIGHT_ROUNDS_PER_CYCLE,
+        PermutationProfile.FULLY_PIPELINED,
+    ):
+        # Preserve any previous datapath-profile override while selecting the
+        # FPGA-friendly S-box default for these permutation profiles.
+        from ascon_arch.enums import SBoxStyle
+        sbox = SBoxStyle.LUT5
+    return config_with_permutation_profile(config, profile, sbox_style=sbox)
+
+
+def apply_datapath_profile(config: ImplementationConfig, profile_value: str | None, engine_count: int) -> ImplementationConfig:
+    if profile_value is None:
+        return config
+    profile = DatapathProfile(profile_value)
     if config.target == TargetTechnology.FPGA and config.topology.family.value == "parallel_engines":
-        return fpga_n_parallel_engines_with_profile_config(engine_count, profile)
-    return config_with_permutation_profile(config, profile)
+        return fpga_n_parallel_engines_with_datapath_profile_config(engine_count, profile)
+    if config.target == TargetTechnology.ASIC and config.topology.family.value == "separate_enc_dec_datapaths":
+        return asic_two_datapaths_with_datapath_profile_config(profile)
+    return config_with_datapath_profile(config, profile)
 
 
 def main() -> None:
@@ -80,6 +107,7 @@ def main() -> None:
     else:
         raise SystemExit("provide either --config or --preset")
 
+    config = apply_datapath_profile(config, args.datapath_profile, args.engine_count)
     config = apply_profile(config, args.permutation_profile, args.engine_count)
     written = write_design_product(config, args.out)
     for path in written:

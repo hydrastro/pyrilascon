@@ -4,6 +4,7 @@ import json
 from ascon_arch.config import ImplementationConfig
 from ascon_arch.enums import ArchitectureFamily, PermutationStyle, ResetStyle
 from ascon_arch.permutation_planning import estimate_permutation
+from ascon_arch.datapath_planning import estimate_datapath
 from ascon_arch.validation import validate_config
 
 
@@ -125,7 +126,9 @@ def emit_engine_module(config: ImplementationConfig) -> str:
         "// Generated ASCON engine skeleton.",
         f"// Permutation style: {config.permutation.style.value}",
         f"// S-box style: {config.permutation.sbox_style.value}",
+        f"// Datapath profile: {config.datapath.profile.value}",
         f"// Datapath lane width: {config.datapath.lane_width.bits()}",
+        f"// Absorb width: {config.datapath.absorb_width.bits()}",
         "",
         f"module {engine_module_name(config)} #(",
         "  parameter int ENGINE_ID = 0,",
@@ -204,6 +207,7 @@ def _emit_datapath_module(config: ImplementationConfig, module_name: str, direct
         [
             f"// Generated ASCON {direction} datapath skeleton.",
             f"// Padding: {config.padding.strategy.value}; length handling: {config.padding.length_handling.value}",
+            f"// Datapath profile: {config.datapath.profile.value}; lane={config.datapath.lane_width.bits()}b; absorb={config.datapath.absorb_width.bits()}b; io_word={config.datapath.io_word_width.bits()}b",
             f"module {module_name} #(",
             "  parameter int DATA_BUS_BITS = 128",
             ") (",
@@ -244,6 +248,7 @@ def emit_permutation_module(config: ImplementationConfig) -> str:
         f"// style={permutation.style.value}, sbox={permutation.sbox_style.value}",
         f"// rounds_per_cycle={permutation.rounds_per_cycle}, sbox_columns_per_cycle={permutation.sbox_columns_per_cycle}",
         f"// p8_cycles={estimate.p8_cycles}, p12_cycles={estimate.p12_cycles}, initiation_interval={estimate.initiation_interval}",
+        f"// datapath_profile={config.datapath.profile.value}, lane_width={config.datapath.lane_width.bits()}, absorb_width={config.datapath.absorb_width.bits()}",
         f"// area_class={estimate.area_class}, timing_risk={estimate.timing_risk}",
         f"module {permutation_module_name(config)} #(",
         f"  parameter int ROUNDS_PER_CYCLE = {permutation.rounds_per_cycle},",
@@ -308,6 +313,7 @@ def emit_permutation_module(config: ImplementationConfig) -> str:
 def design_metrics(config: ImplementationConfig) -> dict[str, object]:
     topology = config.topology
     perm_estimate = estimate_permutation(config.permutation)
+    datapath_estimate = estimate_datapath(config.datapath)
     return {
         "expected_parallel_operations": topology.expected_parallel_operations(),
         "engine_count": topology.engine_count,
@@ -324,6 +330,13 @@ def design_metrics(config: ImplementationConfig) -> dict[str, object]:
         "context_count": config.context.context_count,
         "interleave_depth": config.context.interleave_depth,
         "data_bus_bits": config.io.data_bus_bits,
+        "datapath_profile": config.datapath.profile.value,
+        "lane_width_bits": config.datapath.lane_width.bits(),
+        "absorb_width_bits": config.datapath.absorb_width.bits(),
+        "io_word_width_bits": config.datapath.io_word_width.bits(),
+        "serialized_state_update": config.datapath.serialized_state_update,
+        "serialized_absorb": config.datapath.serialized_absorb,
+        "datapath_estimate": datapath_estimate.to_dict(),
     }
 
 
