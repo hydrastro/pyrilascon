@@ -39,7 +39,7 @@
     "separate_encrypt_decrypt_ports": false,
     "supports_backpressure": true
   },
-  "name": "fpga_4_parallel_engines",
+  "name": "fpga_4_parallel_engines_fully_pipelined",
   "padding": {
     "length_handling": "descriptor_based",
     "strategy": "inline_combinational",

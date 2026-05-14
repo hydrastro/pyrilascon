@@ -53,6 +53,10 @@ def validate_config(config: ImplementationConfig) -> None:
         raise ConfigValidationError("pipeline_stages must be >= 0")
     if permutation.unroll_factor < 1 or permutation.unroll_factor > 12:
         raise ConfigValidationError("unroll_factor must satisfy 1 <= unroll_factor <= 12")
+    if permutation.sbox_columns_per_cycle < 1 or permutation.sbox_columns_per_cycle > 64:
+        raise ConfigValidationError("sbox_columns_per_cycle must satisfy 1 <= value <= 64")
+    if permutation.pipeline_initiation_interval is not None and permutation.pipeline_initiation_interval < 1:
+        raise ConfigValidationError("pipeline_initiation_interval must be positive when provided")
 
     if datapath.state_width_bits != 320:
         raise ConfigValidationError("ASCON state_width_bits must be 320")
@@ -118,21 +122,43 @@ def validate_config(config: ImplementationConfig) -> None:
     if config.target == TargetTechnology.ASIC and topology.family == ArchitectureFamily.PARALLEL_ENGINES:
         raise ConfigValidationError("ASIC target should not use the FPGA N-parallel-engine topology in this baseline")
 
-    if permutation.style == PermutationStyle.FULLY_UNROLLED_PIPELINED:
+    if permutation.style in (PermutationStyle.FULLY_UNROLLED_PIPELINED, PermutationStyle.ROUND_PIPELINED):
         if permutation.pipeline_stages < 1:
-            raise ConfigValidationError("fully_unrolled_pipelined requires at least one pipeline stage")
+            raise ConfigValidationError("pipelined permutation requires at least one pipeline stage")
         if not permutation.register_between_rounds:
-            raise ConfigValidationError("fully_unrolled_pipelined requires register_between_rounds=True")
+            raise ConfigValidationError("pipelined permutation requires register_between_rounds=True")
+        if permutation.pipeline_initiation_interval is None:
+            raise ConfigValidationError("pipelined permutation requires pipeline_initiation_interval")
+        if permutation.context_interleaving_required and context.interleave_depth < 2 and topology.engine_count < 2:
+            raise ConfigValidationError("interleaved pipeline requires multiple contexts or multiple engines")
 
     if permutation.style == PermutationStyle.ROUND_SERIAL:
         if permutation.rounds_per_cycle != 1:
             raise ConfigValidationError("round_serial requires rounds_per_cycle=1")
         if permutation.unroll_factor != 1:
             raise ConfigValidationError("round_serial requires unroll_factor=1")
+        if permutation.sbox_columns_per_cycle != 64:
+            raise ConfigValidationError("round_serial expects the full 64 S-box columns per round")
+
+    if permutation.style == PermutationStyle.ROUND_UNROLLED:
+        if permutation.rounds_per_cycle < 2:
+            raise ConfigValidationError("round_unrolled requires rounds_per_cycle >= 2")
+        if permutation.unroll_factor != permutation.rounds_per_cycle:
+            raise ConfigValidationError("round_unrolled requires unroll_factor == rounds_per_cycle")
+        if permutation.sbox_columns_per_cycle != 64:
+            raise ConfigValidationError("round_unrolled expects the full 64 S-box columns per unrolled round")
 
     if permutation.style == PermutationStyle.COLUMN_SERIAL:
         if datapath.lane_width.bits() > 64:
             raise ConfigValidationError("column_serial should use a narrow datapath lane")
+        if permutation.sbox_columns_per_cycle >= 64:
+            raise ConfigValidationError("column_serial should use fewer than 64 S-box columns per cycle")
+
+    if permutation.style == PermutationStyle.BIT_SERIAL:
+        if datapath.lane_width.bits() > 16:
+            raise ConfigValidationError("bit_serial should use a very narrow datapath lane")
+        if permutation.sbox_columns_per_cycle != 1:
+            raise ConfigValidationError("bit_serial requires sbox_columns_per_cycle=1")
 
     if config.security.side_channel_protection != SideChannelProtection.NONE:
         if config.security.randomness_bits_per_cycle <= 0:

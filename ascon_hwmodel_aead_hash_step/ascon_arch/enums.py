@@ -31,7 +31,18 @@ class PermutationStyle(str, Enum):
     ROUND_SERIAL = "round_serial"
     ROUND_UNROLLED = "round_unrolled"
     FULLY_UNROLLED = "fully_unrolled"
+    ROUND_PIPELINED = "round_pipelined"
     FULLY_UNROLLED_PIPELINED = "fully_unrolled_pipelined"
+    COLUMN_SERIAL = "column_serial"
+    BIT_SERIAL = "bit_serial"
+
+
+class PermutationProfile(str, Enum):
+    ONE_ROUND_PER_CYCLE = "one_round_per_cycle"
+    TWO_ROUNDS_PER_CYCLE = "two_rounds_per_cycle"
+    FOUR_ROUNDS_PER_CYCLE = "four_rounds_per_cycle"
+    EIGHT_ROUNDS_PER_CYCLE = "eight_rounds_per_cycle"
+    FULLY_PIPELINED = "fully_pipelined"
     COLUMN_SERIAL = "column_serial"
     BIT_SERIAL = "bit_serial"
 

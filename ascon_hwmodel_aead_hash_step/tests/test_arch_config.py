@@ -157,3 +157,47 @@ def test_invalid_descriptor_stream_requires_descriptor_lengths() -> None:
     )
     with pytest.raises(ConfigValidationError):
         validate_config(bad)
+
+from ascon_arch import (
+    PermutationProfile,
+    asic_two_datapaths_column_serial_config,
+    asic_two_datapaths_two_rounds_per_cycle_config,
+    cycles_for_permutation,
+    estimate_permutation,
+    fpga_n_parallel_engines_with_profile_config,
+    permutation_config_for_profile,
+)
+
+
+def test_permutation_profile_cycle_estimates_match_user_notes() -> None:
+    one = permutation_config_for_profile(PermutationProfile.ONE_ROUND_PER_CYCLE, TargetTechnology.ASIC)
+    two = permutation_config_for_profile(PermutationProfile.TWO_ROUNDS_PER_CYCLE, TargetTechnology.ASIC)
+    four = permutation_config_for_profile(PermutationProfile.FOUR_ROUNDS_PER_CYCLE, TargetTechnology.FPGA)
+    eight = permutation_config_for_profile(PermutationProfile.EIGHT_ROUNDS_PER_CYCLE, TargetTechnology.FPGA)
+
+    assert cycles_for_permutation(8, one) == 8
+    assert cycles_for_permutation(12, one) == 12
+    assert cycles_for_permutation(8, two) == 4
+    assert cycles_for_permutation(12, two) == 6
+    assert cycles_for_permutation(8, four) == 2
+    assert cycles_for_permutation(12, four) == 3
+    assert cycles_for_permutation(8, eight) == 1
+    assert cycles_for_permutation(12, eight) == 2
+
+
+def test_fully_pipelined_profile_requires_context_interleaving() -> None:
+    config = fpga_n_parallel_engines_with_profile_config(8, PermutationProfile.FULLY_PIPELINED)
+    validate_config(config)
+    estimate = estimate_permutation(config.permutation)
+    assert config.permutation.context_interleaving_required is True
+    assert estimate.initiation_interval == 1
+    assert estimate.contexts_for_full_pipeline == 12
+
+
+def test_asic_2rpc_and_column_serial_presets_validate() -> None:
+    two_rpc = asic_two_datapaths_two_rounds_per_cycle_config()
+    column_serial = asic_two_datapaths_column_serial_config()
+    validate_config(two_rpc)
+    validate_config(column_serial)
+    assert estimate_permutation(two_rpc.permutation).p12_cycles == 6
+    assert estimate_permutation(column_serial.permutation).area_class == "very_small"

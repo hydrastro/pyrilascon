@@ -2,7 +2,8 @@ from pathlib import Path
 import json
 
 from ascon_arch.config import ImplementationConfig
-from ascon_arch.enums import ArchitectureFamily, ResetStyle
+from ascon_arch.enums import ArchitectureFamily, PermutationStyle, ResetStyle
+from ascon_arch.permutation_planning import estimate_permutation
 from ascon_arch.validation import validate_config
 
 
@@ -171,8 +172,14 @@ def emit_engine_module(config: ImplementationConfig) -> str:
             [
                 "  // Single logical datapath placeholder for this architecture family.",
                 f"  {permutation_module_name(config)} u_permutation (",
+                "    .clk(clk),",
+                "    .rst_n(rst_n),",
+                "    .start_i(start_i),",
+                "    .rounds_i(2'd2),",
                 "    .state_i({320{1'b0}}),",
-                "    .state_o()",
+                "    .state_o(),",
+                "    .ready_o(),",
+                "    .done_o()",
                 "  );",
                 "",
                 "  assign ready_o = 1'b1;",
@@ -210,8 +217,14 @@ def _emit_datapath_module(config: ImplementationConfig, module_name: str, direct
             ");",
             "",
             f"  {permutation_module_name(config)} u_permutation (",
+            "    .clk(clk),",
+            "    .rst_n(rst_n),",
+            "    .start_i(start_i),",
+            "    .rounds_i(2'd2),",
             "    .state_i({320{1'b0}}),",
-            "    .state_o()",
+            "    .state_o(),",
+            "    .ready_o(),",
+            "    .done_o()",
             "  );",
             "",
             "  assign ready_o = 1'b1;",
@@ -224,24 +237,77 @@ def _emit_datapath_module(config: ImplementationConfig, module_name: str, direct
 
 
 def emit_permutation_module(config: ImplementationConfig) -> str:
-    return "\n".join(
-        [
-            "// Generated ASCON permutation wrapper skeleton.",
-            f"// style={config.permutation.style.value}, sbox={config.permutation.sbox_style.value}, rounds_per_cycle={config.permutation.rounds_per_cycle}",
-            f"module {permutation_module_name(config)} (",
-            "  input  logic [319:0] state_i,",
-            "  output logic [319:0] state_o",
-            ");",
-            "  // TODO: bind selected permutation generator implementation here.",
-            "  assign state_o = state_i;",
-            "endmodule",
-            "",
-        ]
-    )
+    permutation = config.permutation
+    estimate = estimate_permutation(permutation)
+    lines: list[str] = [
+        "// Generated ASCON permutation wrapper skeleton.",
+        f"// style={permutation.style.value}, sbox={permutation.sbox_style.value}",
+        f"// rounds_per_cycle={permutation.rounds_per_cycle}, sbox_columns_per_cycle={permutation.sbox_columns_per_cycle}",
+        f"// p8_cycles={estimate.p8_cycles}, p12_cycles={estimate.p12_cycles}, initiation_interval={estimate.initiation_interval}",
+        f"// area_class={estimate.area_class}, timing_risk={estimate.timing_risk}",
+        f"module {permutation_module_name(config)} #(",
+        f"  parameter int ROUNDS_PER_CYCLE = {permutation.rounds_per_cycle},",
+        f"  parameter int SBOX_COLUMNS_PER_CYCLE = {permutation.sbox_columns_per_cycle},",
+        f"  parameter int PIPELINE_STAGES = {permutation.pipeline_stages},",
+        f"  parameter int INITIATION_INTERVAL = {estimate.initiation_interval},",
+        f"  parameter int P8_CYCLES = {estimate.p8_cycles},",
+        f"  parameter int P12_CYCLES = {estimate.p12_cycles}",
+        ") (",
+        "  input  logic clk,",
+        "  input  logic rst_n,",
+        "  input  logic start_i,",
+        "  input  logic [1:0] rounds_i, // 0:p6, 1:p8, 2:p12",
+        "  input  logic [319:0] state_i,",
+        "  output logic [319:0] state_o,",
+        "  output logic ready_o,",
+        "  output logic done_o",
+        ");",
+        "",
+    ]
+
+    if permutation.style == PermutationStyle.ROUND_SERIAL:
+        lines.extend([
+            "  // One p_C/p_S/p_L round is evaluated per cycle.",
+            "  // TODO: add round counter, round-constant schedule, and state register.",
+        ])
+    elif permutation.style == PermutationStyle.ROUND_UNROLLED:
+        lines.extend([
+            "  // A combinational step contains ROUNDS_PER_CYCLE consecutive rounds.",
+            "  // TODO: generate a step function and iterate ceil(rounds / ROUNDS_PER_CYCLE) cycles.",
+        ])
+    elif permutation.style in (PermutationStyle.ROUND_PIPELINED, PermutationStyle.FULLY_UNROLLED_PIPELINED):
+        lines.extend([
+            "  // Round pipeline: independent contexts/messages are needed for full utilization.",
+            "  logic [319:0] pipe_state [0:PIPELINE_STAGES];",
+            "  // TODO: populate each stage with one fixed-constant Ascon round and context metadata.",
+        ])
+    elif permutation.style == PermutationStyle.COLUMN_SERIAL:
+        lines.extend([
+            "  // Column-serial p_S: only SBOX_COLUMNS_PER_CYCLE of the 64 S-box columns are implemented.",
+            "  // TODO: add column counter and serialized p_S/p_L scheduling.",
+        ])
+    elif permutation.style == PermutationStyle.BIT_SERIAL:
+        lines.extend([
+            "  // Ultra-small serial permutation core.",
+            "  // TODO: add bit/column/round counters and heavily reused boolean datapath.",
+        ])
+    else:
+        lines.append("  // TODO: bind selected permutation generator implementation here.")
+
+    lines.extend([
+        "",
+        "  assign state_o = state_i;",
+        "  assign ready_o = 1'b1;",
+        "  assign done_o  = start_i;",
+        "endmodule",
+        "",
+    ])
+    return "\n".join(lines)
 
 
 def design_metrics(config: ImplementationConfig) -> dict[str, object]:
     topology = config.topology
+    perm_estimate = estimate_permutation(config.permutation)
     return {
         "expected_parallel_operations": topology.expected_parallel_operations(),
         "engine_count": topology.engine_count,
@@ -250,7 +316,11 @@ def design_metrics(config: ImplementationConfig) -> dict[str, object]:
         "permutation_style": config.permutation.style.value,
         "sbox_style": config.permutation.sbox_style.value,
         "rounds_per_cycle": config.permutation.rounds_per_cycle,
+        "sbox_columns_per_cycle": config.permutation.sbox_columns_per_cycle,
         "pipeline_stages": config.permutation.pipeline_stages,
+        "pipeline_initiation_interval": config.permutation.pipeline_initiation_interval,
+        "context_interleaving_required": config.permutation.context_interleaving_required,
+        "permutation_latency": perm_estimate.to_dict(),
         "context_count": config.context.context_count,
         "interleave_depth": config.context.interleave_depth,
         "data_bus_bits": config.io.data_bus_bits,

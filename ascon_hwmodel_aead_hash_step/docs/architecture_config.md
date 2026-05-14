@@ -81,3 +81,7 @@ build/<design_name>/
 ```
 
 The current RTL files are structural skeletons. They intentionally preserve module boundaries before datapath internals are implemented.
+
+## Further architecture notes
+
+See [`permutation_architecture.md`](permutation_architecture.md) for the current permutation microarchitecture profiles and their latency/resource tradeoffs.

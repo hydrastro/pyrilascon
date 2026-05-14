@@ -32,9 +32,42 @@ python -m pytest -q
 Expected result for this step:
 
 ```text
-55 passed
+58 passed
 ```
 
+
+
+## Configurable architecture generation
+
+The repository now separates the golden specification model from implementation choices:
+
+```text
+ascon_hwmodel/   # typed golden model and reference Verilog helpers
+ascon_arch/      # architecture/configuration vocabulary and validation
+configs/         # concrete ASIC/FPGA configuration examples
+tools/           # design and Verilog generation entry points
+build/           # generated design products, ignored by git
+```
+
+Generate the ASIC baseline with separate encryption/decryption datapaths:
+
+```bash
+PYTHONPATH=. python tools/generate_design.py --preset asic_two_datapaths
+```
+
+Generate the ASIC two-datapath variant with two rounds per cycle:
+
+```bash
+PYTHONPATH=. python tools/generate_design.py   --preset asic_two_datapaths   --permutation-profile two_rounds_per_cycle
+```
+
+Generate an FPGA design with N parallel engines and a selected permutation profile:
+
+```bash
+PYTHONPATH=. python tools/generate_design.py   --preset fpga_n_parallel_engines   --engine-count 4   --permutation-profile four_rounds_per_cycle
+```
+
+Permutation profiles are documented in `docs/permutation_architecture.md`.
 
 ## Known-answer tests
 

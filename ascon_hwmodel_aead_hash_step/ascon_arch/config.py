@@ -72,6 +72,15 @@ class AlgorithmConfig:
 
 @dataclass(frozen=True, slots=True)
 class PermutationConfig:
+    """Microarchitecture choices for one Ascon permutation engine.
+
+    rounds_per_cycle controls how many complete p_C/p_S/p_L rounds are composed in
+    one cycle for combinational/unrolled styles. sbox_columns_per_cycle controls
+    how many of the 64 parallel 5-bit S-box columns are physically implemented;
+    64 means a normal bitsliced word datapath, while 1 means an ultra-small
+    column-serial S-box core.
+    """
+
     style: PermutationStyle
     sbox_style: SBoxStyle
     rounds_per_cycle: int
@@ -79,6 +88,9 @@ class PermutationConfig:
     unroll_factor: int = 1
     register_between_rounds: bool = False
     share_round_logic: bool = True
+    sbox_columns_per_cycle: int = 64
+    pipeline_initiation_interval: int | None = None
+    context_interleaving_required: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -89,18 +101,25 @@ class PermutationConfig:
             "unroll_factor": self.unroll_factor,
             "register_between_rounds": self.register_between_rounds,
             "share_round_logic": self.share_round_logic,
+            "sbox_columns_per_cycle": self.sbox_columns_per_cycle,
+            "pipeline_initiation_interval": self.pipeline_initiation_interval,
+            "context_interleaving_required": self.context_interleaving_required,
         }
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> "PermutationConfig":
+        raw_ii = data.get("pipeline_initiation_interval")
         return cls(
             style=PermutationStyle(str(data["style"])),
             sbox_style=SBoxStyle(str(data["sbox_style"])),
             rounds_per_cycle=int(data["rounds_per_cycle"]),
             pipeline_stages=int(data["pipeline_stages"]),
-            unroll_factor=int(data.get("unroll_factor", 1)),
+            unroll_factor=int(data.get("unroll_factor", data.get("rounds_per_cycle", 1))),
             register_between_rounds=bool(data.get("register_between_rounds", False)),
             share_round_logic=bool(data.get("share_round_logic", True)),
+            sbox_columns_per_cycle=int(data.get("sbox_columns_per_cycle", 64)),
+            pipeline_initiation_interval=None if raw_ii is None else int(raw_ii),
+            context_interleaving_required=bool(data.get("context_interleaving_required", False)),
         )
 
 

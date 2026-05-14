@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from ascon_arch.config import (
     AlgorithmConfig,
     ContextConfig,
@@ -20,6 +22,7 @@ from ascon_arch.enums import (
     InterfaceStyle,
     LengthHandling,
     PaddingStrategy,
+    PermutationProfile,
     PermutationStyle,
     ResetStyle,
     RtlLanguage,
@@ -28,6 +31,7 @@ from ascon_arch.enums import (
     StateStorageStyle,
     TargetTechnology,
 )
+from ascon_arch.permutation_planning import permutation_config_for_profile
 
 
 def shared_datapath_config(target: TargetTechnology, name: str = "shared_datapath") -> ImplementationConfig:
@@ -211,14 +215,10 @@ def fpga_n_parallel_engines_config(engine_count: int) -> ImplementationConfig:
             shared_permutation_per_engine=False,
             mode_fsm_count_per_engine=1,
         ),
-        permutation=PermutationConfig(
-            style=PermutationStyle.FULLY_UNROLLED_PIPELINED,
+        permutation=permutation_config_for_profile(
+            PermutationProfile.FULLY_PIPELINED,
+            TargetTechnology.FPGA,
             sbox_style=SBoxStyle.LUT5,
-            rounds_per_cycle=12,
-            pipeline_stages=12,
-            unroll_factor=12,
-            register_between_rounds=True,
-            share_round_logic=False,
         ),
         datapath=DatapathConfig(
             lane_width=DatapathWidth.W320,
@@ -256,3 +256,50 @@ def fpga_n_parallel_engines_config(engine_count: int) -> ImplementationConfig:
             "throughput should scale close to linearly for independent messages if memory/I/O can feed all engines."
         ),
     )
+
+
+
+def config_with_permutation_profile(
+    config: ImplementationConfig,
+    profile: PermutationProfile,
+    *,
+    name_suffix: str | None = None,
+    sbox_style: SBoxStyle | None = None,
+) -> ImplementationConfig:
+    """Return a copy of a design config using one named permutation profile."""
+    permutation = permutation_config_for_profile(profile, config.target, sbox_style=sbox_style)
+    suffix = name_suffix or profile.value
+    return replace(config, name=f"{config.name}_{suffix}", permutation=permutation)
+
+
+def asic_two_datapaths_two_rounds_per_cycle_config() -> ImplementationConfig:
+    return config_with_permutation_profile(
+        asic_two_datapaths_config(),
+        PermutationProfile.TWO_ROUNDS_PER_CYCLE,
+        name_suffix="2rpc",
+        sbox_style=SBoxStyle.BOOLEAN,
+    )
+
+
+def asic_two_datapaths_column_serial_config() -> ImplementationConfig:
+    base = asic_two_datapaths_config()
+    narrow_datapath = replace(base.datapath, lane_width=DatapathWidth.W64)
+    return replace(
+        config_with_permutation_profile(
+            base,
+            PermutationProfile.COLUMN_SERIAL,
+            name_suffix="column_serial",
+            sbox_style=SBoxStyle.BOOLEAN,
+        ),
+        datapath=narrow_datapath,
+    )
+
+
+def fpga_n_parallel_engines_with_profile_config(engine_count: int, profile: PermutationProfile) -> ImplementationConfig:
+    sbox = SBoxStyle.LUT5 if profile in (
+        PermutationProfile.FOUR_ROUNDS_PER_CYCLE,
+        PermutationProfile.EIGHT_ROUNDS_PER_CYCLE,
+        PermutationProfile.FULLY_PIPELINED,
+    ) else SBoxStyle.BOOLEAN
+    base = fpga_n_parallel_engines_config(engine_count)
+    return config_with_permutation_profile(base, profile, sbox_style=sbox)
