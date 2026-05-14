@@ -1,0 +1,14 @@
+state words:
+S0 = 0x0706_0504_0302_0100
+S1 = 0x0F0E_0D0C_0B0A_0908
+S2 = 0x1716_1514_1312_1110
+S3 = 0x1F1E_1D1C_1B1A_1918
+S4 = 0x2726_2524_2322_2120
+
+bitstring: 100000000100000000000001
+
+full byte blocks: ['000102030405060708090a0b0c0d0e0f']
+final byte block: 10111213
+padded final block: 10111213010000000000000000000000
+
+pad 7-byte final block to 8 bytes: ffffffffffffff01

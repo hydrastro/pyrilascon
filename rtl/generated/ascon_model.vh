@@ -1,0 +1,12 @@
+`include "ascon_iv.vh"
+`include "ascon_state.vh"
+`include "ascon_aux.vh"
+`include "ascon_pc.vh"
+`include "ascon_ps.vh"
+`include "ascon_pl.vh"
+`include "ascon_round.vh"
+`include "ascon_p6.vh"
+`include "ascon_p8.vh"
+`include "ascon_p12.vh"
+`include "ascon_aead_domain_key.vh"
+

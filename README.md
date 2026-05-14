@@ -1,0 +1,130 @@
+# Ascon hardware-oriented Python model
+
+This package is a typed Python model of selected NIST SP 800-232 Ascon building blocks, written so the model structure maps cleanly to Verilog.
+
+Implemented so far:
+
+- fixed-width unsigned integer wrappers: `U4`, `U8`, `U16`, `U64`, `U128`, `U320`
+- separated byte-sequence hex and integer hex views
+- bitstring and byte-oriented `parse` / `pad`
+- Ascon IV construction for AEAD128, Hash256, XOF128, and CXOF128
+- little-endian five-word Ascon state model
+- 64-bit and 128-bit block wrappers
+- 64-bit and 128-bit rate absorption helpers
+- AEAD128 key/nonce initial-state construction
+- AEAD128 key injection helpers
+- AEAD associated-data domain separator
+- split Ascon permutation layers: `pc.py`, `ps.py`, `pl.py`
+- substitution layer implemented both as `p_s_lut()` and `p_s_bitsliced()`
+- split permutation wrappers: `p6.py`, `p8.py`, `p12.py`
+- Verilog emission colocated with the Python model object/layer it describes
+- generated `.vh` include fragments and standalone `.v` combinational wrappers
+
+## Run tests
+
+From the package root:
+
+```bash
+python -m pytest -q
+```
+
+Expected result for this step:
+
+```text
+34 passed
+```
+
+## Endianness convention
+
+The state is modeled as five 64-bit integer words:
+
+```text
+x0 = S[0:63]
+x1 = S[64:127]
+x2 = S[128:191]
+x3 = S[192:255]
+x4 = S[256:319]
+```
+
+A 40-byte state image is loaded little-endian word by word. For example, bytes `00 01 02 03 04 05 06 07` become the integer word `0x0706050403020100`.
+
+A Verilog `[319:0]` state bus preserves the logical bit index:
+
+```verilog
+state[63:0]    = x0;
+state[127:64]  = x1;
+state[191:128] = x2;
+state[255:192] = x3;
+state[319:256] = x4;
+```
+
+Therefore state packing is:
+
+```verilog
+state = {x4, x3, x2, x1, x0};
+```
+
+## S-box implementation policy
+
+The substitution layer has two equivalent Python views:
+
+- `p_s_lut(state)`: reference model using 64 scalar 5-bit S-box table lookups
+- `p_s_bitsliced(state)`: hardware-shaped model using word-level boolean operations
+
+`p_s(state)` currently aliases `p_s_bitsliced(state)`, because that representation maps directly to combinational RTL and is much faster in Python than looping through 64 single-bit slices.
+
+Generated Verilog also emits both:
+
+- `ascon_p_s_lut`
+- `ascon_p_s_bitsliced`
+- `ascon_p_s`, which currently calls the bitsliced implementation
+
+## Verilog generation policy
+
+The Verilog generation code is colocated with the Python model layer it describes:
+
+```text
+iv.py       -> IV Verilog helpers
+state.py    -> state pack/access helpers
+byteops.py  -> pad helpers
+pc.py       -> p_C and round constant helpers
+ps.py       -> p_S LUT and bitsliced helpers
+pl.py       -> p_L and rotation helpers
+round.py    -> round composition helper
+p6.py       -> Ascon-p[6] helper and standalone wrapper
+p8.py       -> Ascon-p[8] helper and standalone wrapper
+p12.py      -> Ascon-p[12] helper and standalone wrapper
+domain.py   -> AEAD domain separator helper
+keyops.py   -> AEAD128 key/init/finalization helpers
+```
+
+`ascon_hwmodel/verilog.py` is only an aggregation/file-writing facade.
+
+Generate Verilog files with:
+
+```bash
+PYTHONPATH=. python tools/generate_verilog.py
+```
+
+This writes:
+
+```text
+rtl/generated/ascon_iv.vh
+rtl/generated/ascon_state.vh
+rtl/generated/ascon_aux.vh
+rtl/generated/ascon_pc.vh
+rtl/generated/ascon_ps.vh
+rtl/generated/ascon_pl.vh
+rtl/generated/ascon_round.vh
+rtl/generated/ascon_p6.vh
+rtl/generated/ascon_p8.vh
+rtl/generated/ascon_p12.vh
+rtl/generated/ascon_aead_domain_key.vh
+rtl/generated/ascon_model.vh
+rtl/generated/ascon_permutation_comb.v
+rtl/generated/ascon_p6_comb.v
+rtl/generated/ascon_p8_comb.v
+rtl/generated/ascon_p12_comb.v
+```
+
+The `.vh` files are include fragments because they define functions/localparams to be included inside a module or package scope. The `.v` files are standalone combinational module wrappers.
