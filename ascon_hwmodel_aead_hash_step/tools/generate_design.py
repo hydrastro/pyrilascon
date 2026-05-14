@@ -2,13 +2,14 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 from ascon_arch.config import ImplementationConfig
-from ascon_arch.enums import ContextProfile, DatapathProfile, PermutationProfile, TargetTechnology, TopLevelProfile
+from ascon_arch.enums import ContextProfile, ControlProfile, DatapathProfile, PermutationProfile, TargetTechnology, TopLevelProfile
 from ascon_arch.presets import (
     asic_two_datapaths_column_serial_config,
     asic_dual_enc_dec_cores_config,
     asic_two_datapaths_config,
     asic_two_datapaths_with_datapath_profile_config,
     config_with_context_profile,
+    config_with_control_profile,
     config_with_datapath_profile,
     asic_two_datapaths_two_rounds_per_cycle_config,
     config_with_permutation_profile,
@@ -69,6 +70,11 @@ def build_arg_parser() -> ArgumentParser:
         "--contexts-per-engine",
         type=int,
         help="Override contexts per engine when --context-profile selects a multi-context organization.",
+    )
+    parser.add_argument(
+        "--control-profile",
+        choices=tuple(profile.value for profile in ControlProfile),
+        help="Override the control/sequencer organization while preserving the rest of the architecture.",
     )
     parser.add_argument("--out", type=Path, default=Path("build"), help="Output root directory.")
     return parser
@@ -157,6 +163,12 @@ def apply_context_profile(
     return config_with_context_profile(config, ContextProfile(profile_value), contexts_per_engine=contexts_per_engine)
 
 
+def apply_control_profile(config: ImplementationConfig, profile_value: str | None) -> ImplementationConfig:
+    if profile_value is None:
+        return config
+    return config_with_control_profile(config, ControlProfile(profile_value))
+
+
 def main() -> None:
     args = build_arg_parser().parse_args()
     if args.config is not None:
@@ -170,6 +182,7 @@ def main() -> None:
     config = apply_profile(config, args.permutation_profile, args.engine_count)
     config = apply_top_level_profile(config, args.top_level_profile, args.engine_count, args.pipeline_count, args.contexts_per_engine)
     config = apply_context_profile(config, args.context_profile, args.contexts_per_engine)
+    config = apply_control_profile(config, args.control_profile)
     written = write_design_product(config, args.out)
     for path in written:
         print(path)

@@ -3,6 +3,7 @@ from dataclasses import replace
 from ascon_arch.config import (
     AlgorithmConfig,
     ContextConfig,
+    ControlConfig,
     DatapathConfig,
     DatapathTopology,
     IOConfig,
@@ -17,6 +18,7 @@ from ascon_arch.enums import (
     ArchitectureFamily,
     ContextProfile,
     ContextSchedulingStyle,
+    ControlProfile,
     DatapathProfile,
     DatapathWidth,
     EngineCapability,
@@ -37,6 +39,7 @@ from ascon_arch.enums import (
 from ascon_arch.permutation_planning import permutation_config_for_profile
 from ascon_arch.datapath_planning import datapath_config_for_profile
 from ascon_arch.context_planning import context_config_for_profile
+from ascon_arch.control_planning import control_config_for_profile
 
 
 def shared_datapath_config(target: TargetTechnology, name: str = "shared_datapath") -> ImplementationConfig:
@@ -84,6 +87,10 @@ def shared_datapath_config(target: TargetTechnology, name: str = "shared_datapat
             data_bus_bits=128,
             supports_backpressure=True,
             flow_control=FlowControlStyle.VALID_READY,
+        ),
+        control=control_config_for_profile(
+            ControlProfile.HARDCODED_FSM if target == TargetTechnology.ASIC else ControlProfile.AXI_STREAM,
+            target,
         ),
         security=SecurityConfig(
             side_channel_protection=SideChannelProtection.NONE,
@@ -145,6 +152,7 @@ def asic_two_datapaths_config() -> ImplementationConfig:
             flow_control=FlowControlStyle.VALID_READY,
             separate_encrypt_decrypt_ports=True,
         ),
+        control=control_config_for_profile(ControlProfile.HARDCODED_FSM, TargetTechnology.ASIC),
         security=SecurityConfig(
             side_channel_protection=SideChannelProtection.NONE,
             constant_time_control=True,
@@ -196,6 +204,10 @@ def shared_permutation_mode_fsm_config(target: TargetTechnology = TargetTechnolo
         ),
         padding=PaddingConfig(strategy=PaddingStrategy.FSM_ASSISTED, length_handling=LengthHandling.INTERNAL_BYTE_COUNTER),
         io=IOConfig(interface_style=InterfaceStyle.STREAM, data_bus_bits=128, supports_backpressure=True),
+        control=control_config_for_profile(
+            ControlProfile.HARDCODED_FSM if target == TargetTechnology.ASIC else ControlProfile.MICROCODED_SEQUENCER,
+            target,
+        ),
         security=SecurityConfig(side_channel_protection=SideChannelProtection.NONE, constant_time_control=True),
         rtl=RtlConfig(language=RtlLanguage.SYSTEMVERILOG, reset_style=ResetStyle.ASYNC_ACTIVE_LOW),
         description="Separate mode control around a single shared permutation engine. Medium area, one permutation bottleneck.",
@@ -256,6 +268,7 @@ def fpga_n_parallel_engines_config(engine_count: int) -> ImplementationConfig:
             supports_backpressure=True,
             flow_control=FlowControlStyle.VALID_READY,
         ),
+        control=control_config_for_profile(ControlProfile.AXI_STREAM_MICROCODED_HYBRID, TargetTechnology.FPGA),
         security=SecurityConfig(
             side_channel_protection=SideChannelProtection.NONE,
             constant_time_control=True,
@@ -400,6 +413,26 @@ def fpga_n_parallel_engines_with_context_profile_config(
         contexts_per_engine=contexts_per_engine,
     )
 
+
+
+def config_with_control_profile(
+    config: ImplementationConfig,
+    profile: ControlProfile,
+    *,
+    name_suffix: str | None = None,
+) -> ImplementationConfig:
+    """Return a copy using one named control/sequencing organization profile."""
+    control = control_config_for_profile(profile, config.target)
+    suffix = name_suffix or profile.value
+    return replace(config, name=f"{config.name}_{suffix}", control=control)
+
+
+def asic_two_datapaths_hardcoded_fsm_config() -> ImplementationConfig:
+    return config_with_control_profile(asic_two_datapaths_config(), ControlProfile.HARDCODED_FSM, name_suffix="hardcoded_fsm")
+
+
+def fpga_n_parallel_engines_with_control_profile_config(engine_count: int, profile: ControlProfile) -> ImplementationConfig:
+    return config_with_control_profile(fpga_n_parallel_engines_config(engine_count), profile)
 
 
 def config_with_top_level_profile(

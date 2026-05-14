@@ -7,6 +7,7 @@ from ascon_arch.permutation_planning import estimate_permutation
 from ascon_arch.datapath_planning import estimate_datapath
 from ascon_arch.context_planning import estimate_context_storage
 from ascon_arch.top_level_planning import estimate_top_level
+from ascon_arch.control_planning import estimate_control
 from ascon_arch.validation import validate_config
 
 
@@ -34,6 +35,10 @@ def state_context_module_name(config: ImplementationConfig) -> str:
     return f"ascon_{config.name}_state_context"
 
 
+def control_module_name(config: ImplementationConfig) -> str:
+    return f"ascon_{config.name}_control"
+
+
 def _reset_condition(config: ImplementationConfig) -> str:
     if config.rtl.reset_style == ResetStyle.ASYNC_ACTIVE_LOW:
         return "!rst_n"
@@ -59,6 +64,7 @@ def emit_top_module(config: ImplementationConfig) -> str:
         f"// Family: {topology.family.value}",
         f"// Engine count: {topology.engine_count}",
         f"// Top-level profile: {topology.top_level_profile.value}",
+        f"// Control profile: {config.control.profile.value}",
         f"// AEAD core count: {topology.aead_core_count}",
         f"// Permutation pipeline count: {topology.permutation_pipeline_count}",
         f"// Expected parallel operations: {topology.expected_parallel_operations()}",
@@ -80,6 +86,17 @@ def emit_top_module(config: ImplementationConfig) -> str:
         ");",
         "",
     ]
+
+    lines.extend([
+        f"  {control_module_name(config)} u_control (",
+        "    .clk(clk),",
+        "    .rst_n(rst_n),",
+        "    .start_i(start_i),",
+        "    .busy_o(),",
+        "    .command_valid_o()",
+        "  );",
+        "",
+    ])
 
     if topology.top_level_profile in (TopLevelProfile.ONE_PIPELINED_PERMUTATION_N_CONTEXTS, TopLevelProfile.M_PIPELINES_N_CONTEXTS):
         pipeline_count = max(1, topology.permutation_pipeline_count)
@@ -176,6 +193,7 @@ def emit_engine_module(config: ImplementationConfig) -> str:
         f"// Absorb width: {config.datapath.absorb_width.bits()}",
         f"// Context profile: {config.context.profile.value}",
         f"// Contexts per engine: {config.context.contexts_per_engine}",
+        f"// Control profile: {config.control.profile.value}",
         "",
         f"module {engine_module_name(config)} #(",
         "  parameter int ENGINE_ID = 0,",
@@ -410,13 +428,56 @@ def emit_permutation_module(config: ImplementationConfig) -> str:
     return "\n".join(lines)
 
 
+def emit_control_module(config: ImplementationConfig) -> str:
+    control = config.control
+    estimate = estimate_control(control)
+    return "\n".join(
+        [
+            "// Generated ASCON control/sequencer skeleton.",
+            f"// profile={control.profile.value}",
+            f"// area_class={estimate.area_class}, flexibility={estimate.flexibility_class}",
+            f"// scheduler={estimate.scheduler_class}",
+            f"// microcode_words={control.microcode_words}, command_fifo_depth={control.command_fifo_depth}, csr_register_count={control.csr_register_count}",
+            f"module {control_module_name(config)} #(",
+            f"  parameter int MICROCODE_WORDS = {control.microcode_words},",
+            f"  parameter int COMMAND_FIFO_DEPTH = {control.command_fifo_depth},",
+            f"  parameter int CSR_REGISTER_COUNT = {control.csr_register_count},",
+            f"  parameter int AXI_STREAM_COMMAND_CHANNELS = {control.axi_stream_command_channels}",
+            ") (",
+            "  input  logic clk,",
+            "  input  logic rst_n,",
+            "  input  logic start_i,",
+            "  output logic busy_o,",
+            "  output logic command_valid_o",
+            ");",
+            "",
+            "  // TODO: replace this control scaffold with the selected control backend.",
+            "  assign busy_o = start_i;",
+            "  assign command_valid_o = start_i;",
+            "endmodule",
+            "",
+        ]
+    )
+
 def design_metrics(config: ImplementationConfig) -> dict[str, object]:
     topology = config.topology
     perm_estimate = estimate_permutation(config.permutation)
     datapath_estimate = estimate_datapath(config.datapath)
     context_estimate = estimate_context_storage(config.context)
     top_estimate = estimate_top_level(config)
+    control_estimate = estimate_control(config.control)
     return {
+        "control_profile": config.control.profile.value,
+        "control_microcode_words": config.control.microcode_words,
+        "control_command_fifo_depth": config.control.command_fifo_depth,
+        "control_csr_register_count": config.control.csr_register_count,
+        "control_axi_stream_command_channels": config.control.axi_stream_command_channels,
+        "control_supports_runtime_algorithm_select": config.control.supports_runtime_algorithm_select,
+        "control_supports_concurrent_modes": config.control.supports_concurrent_modes,
+        "control_supports_descriptors": config.control.supports_descriptors,
+        "control_supports_dma": config.control.supports_dma,
+        "control_scheduler_required": config.control.scheduler_required,
+        "control_estimate": control_estimate.to_dict(),
         "top_level_profile": topology.top_level_profile.value,
         "aead_core_count": topology.aead_core_count,
         "permutation_pipeline_count": topology.permutation_pipeline_count,
@@ -473,6 +534,7 @@ def write_design_product(config: ImplementationConfig, output_root: str | Path) 
         (f"{engine_module_name(config)}.sv", emit_engine_module(config)),
         (f"{permutation_module_name(config)}.sv", emit_permutation_module(config)),
         (f"{state_context_module_name(config)}.sv", emit_state_context_module(config)),
+        (f"{control_module_name(config)}.sv", emit_control_module(config)),
     ]
     if config.topology.family == ArchitectureFamily.SEPARATE_ENC_DEC_DATAPATHS:
         rtl_files.extend(
@@ -496,6 +558,7 @@ def write_design_product(config: ImplementationConfig, output_root: str | Path) 
         "aead_core_count": config.topology.aead_core_count,
         "permutation_pipeline_count": config.topology.permutation_pipeline_count,
         "expected_parallel_operations": config.topology.expected_parallel_operations(),
+        "control_profile": config.control.profile.value,
         "rtl_files": [f"rtl/{filename}" for filename, _ in rtl_files],
         "metrics": design_metrics(config),
     }
@@ -515,6 +578,7 @@ def write_design_product(config: ImplementationConfig, output_root: str | Path) 
         f"Architecture family: `{config.topology.family.value}`\n\n"
         f"Expected parallel operations: `{config.topology.expected_parallel_operations()}`\n\n"
         f"Permutation: `{config.permutation.style.value}` / S-box `{config.permutation.sbox_style.value}`\n\n"
+        f"Control: `{config.control.profile.value}`\n\n"
         "This directory is generated from an architecture configuration. "
         "The current RTL files are structural placeholders that preserve module boundaries for the next implementation phase.\n",
         encoding="utf-8",

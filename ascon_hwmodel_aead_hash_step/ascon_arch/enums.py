@@ -123,6 +123,17 @@ class ContextSchedulingStyle(str, Enum):
     DYNAMIC_QUEUE = "dynamic_queue"
 
 
+
+
+class ControlProfile(str, Enum):
+    HARDCODED_FSM = "hardcoded_fsm"
+    MICROCODED_SEQUENCER = "microcoded_sequencer"
+    COMMAND_FIFO = "command_fifo"
+    AXI_STREAM = "axi_stream"
+    AXI_STREAM_MICROCODED_HYBRID = "axi_stream_microcoded_hybrid"
+    CSR_REGISTER_FILE = "csr_register_file"
+    DMA_FED = "dma_fed"
+
 class PaddingStrategy(str, Enum):
     INLINE_COMBINATIONAL = "inline_combinational"
     FSM_ASSISTED = "fsm_assisted"

@@ -4,6 +4,7 @@ from ascon_arch.enums import (
     ArchitectureFamily,
     ContextProfile,
     ContextSchedulingStyle,
+    ControlProfile,
     DatapathProfile,
     DatapathWidth,
     InterfaceStyle,
@@ -27,6 +28,7 @@ def validate_config(config: ImplementationConfig) -> None:
     datapath = config.datapath
     context = config.context
     padding = config.padding
+    control = config.control
 
     if not config.name:
         raise ConfigValidationError("config name must not be empty")
@@ -53,6 +55,53 @@ def validate_config(config: ImplementationConfig) -> None:
     if config.io.interface_style == InterfaceStyle.DESCRIPTOR_STREAM:
         if padding.length_handling != LengthHandling.DESCRIPTOR_BASED:
             raise ConfigValidationError("descriptor_stream requires descriptor_based length handling")
+
+
+
+    if control.microcode_words < 0 or control.command_fifo_depth < 0 or control.csr_register_count < 0:
+        raise ConfigValidationError("control resource counts must be non-negative")
+    if control.axi_stream_command_channels < 0:
+        raise ConfigValidationError("axi_stream_command_channels must be non-negative")
+    if control.profile == ControlProfile.HARDCODED_FSM:
+        if control.supports_runtime_algorithm_select or control.supports_concurrent_modes or control.supports_dma:
+            raise ConfigValidationError("hardcoded_fsm must not enable runtime algorithm select, concurrent modes, or DMA")
+        if len(config.algorithm.features) > 1 or config.algorithm.include_hash or config.algorithm.include_xof or config.algorithm.include_cxof:
+            raise ConfigValidationError("hardcoded_fsm is only valid for a fixed narrow algorithm set")
+    if control.profile == ControlProfile.MICROCODED_SEQUENCER:
+        if control.microcode_words <= 0:
+            raise ConfigValidationError("microcoded_sequencer requires microcode_words > 0")
+        if not control.supports_runtime_algorithm_select:
+            raise ConfigValidationError("microcoded_sequencer should support runtime algorithm selection")
+    if control.profile == ControlProfile.COMMAND_FIFO:
+        if control.command_fifo_depth <= 0:
+            raise ConfigValidationError("command_fifo requires command_fifo_depth > 0")
+    if control.profile in (ControlProfile.AXI_STREAM, ControlProfile.AXI_STREAM_MICROCODED_HYBRID):
+        if not config.io.supports_backpressure or config.io.flow_control.value != "valid_ready":
+            raise ConfigValidationError("AXI-stream control requires valid/ready backpressure")
+        if control.command_fifo_depth <= 0:
+            raise ConfigValidationError("AXI-stream control requires a positive command FIFO depth")
+        if control.axi_stream_command_channels < 1:
+            raise ConfigValidationError("AXI-stream control requires at least one command/status stream channel")
+    if control.profile == ControlProfile.AXI_STREAM_MICROCODED_HYBRID:
+        if control.microcode_words <= 0:
+            raise ConfigValidationError("AXI-stream microcoded hybrid requires microcode storage")
+        if not control.scheduler_required:
+            raise ConfigValidationError("AXI-stream microcoded hybrid requires a scheduler")
+    if control.profile == ControlProfile.CSR_REGISTER_FILE:
+        if control.csr_register_count <= 0:
+            raise ConfigValidationError("CSR register file control requires csr_register_count > 0")
+    if control.profile == ControlProfile.DMA_FED:
+        if config.target != TargetTechnology.FPGA:
+            raise ConfigValidationError("DMA-fed profile is currently reserved for FPGA/system wrappers")
+        if not control.supports_dma or not control.supports_descriptors:
+            raise ConfigValidationError("DMA-fed profile requires DMA and descriptor support")
+        if padding.length_handling != LengthHandling.DESCRIPTOR_BASED:
+            raise ConfigValidationError("DMA-fed profile requires descriptor-based length handling")
+    if topology.top_level_profile in (TopLevelProfile.ONE_PIPELINED_PERMUTATION_N_CONTEXTS, TopLevelProfile.M_PIPELINES_N_CONTEXTS):
+        if not control.scheduler_required:
+            raise ConfigValidationError("context-interleaved pipeline topologies require a scheduler-capable control profile")
+        if control.profile == ControlProfile.HARDCODED_FSM:
+            raise ConfigValidationError("hardcoded_fsm cannot schedule interleaved pipeline contexts")
 
     if permutation.rounds_per_cycle < 1:
         raise ConfigValidationError("rounds_per_cycle must be >= 1")

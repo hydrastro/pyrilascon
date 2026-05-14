@@ -8,6 +8,7 @@ from ascon_arch.enums import (
     ArchitectureFamily,
     ContextProfile,
     ContextSchedulingStyle,
+    ControlProfile,
     DatapathProfile,
     DatapathWidth,
     EngineCapability,
@@ -399,6 +400,58 @@ class IOConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class ControlConfig:
+    """Top-level control/sequencing organization for one generated product.
+
+    This is intentionally separate from IOConfig. A design may use AXI-stream
+    data movement with either a hardcoded FSM or a microcoded sequencer, and a
+    DMA-fed product is modeled as a descriptor/control wrapper around the core.
+    """
+
+    profile: ControlProfile = ControlProfile.HARDCODED_FSM
+    microcode_words: int = 0
+    command_fifo_depth: int = 0
+    csr_register_count: int = 0
+    axi_stream_command_channels: int = 0
+    supports_runtime_algorithm_select: bool = False
+    supports_concurrent_modes: bool = False
+    supports_descriptors: bool = False
+    supports_dma: bool = False
+    scheduler_required: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "profile": self.profile.value,
+            "microcode_words": self.microcode_words,
+            "command_fifo_depth": self.command_fifo_depth,
+            "csr_register_count": self.csr_register_count,
+            "axi_stream_command_channels": self.axi_stream_command_channels,
+            "supports_runtime_algorithm_select": self.supports_runtime_algorithm_select,
+            "supports_concurrent_modes": self.supports_concurrent_modes,
+            "supports_descriptors": self.supports_descriptors,
+            "supports_dma": self.supports_dma,
+            "scheduler_required": self.scheduler_required,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any] | None) -> "ControlConfig":
+        if data is None:
+            return cls()
+        return cls(
+            profile=ControlProfile(str(data.get("profile", ControlProfile.HARDCODED_FSM.value))),
+            microcode_words=int(data.get("microcode_words", 0)),
+            command_fifo_depth=int(data.get("command_fifo_depth", 0)),
+            csr_register_count=int(data.get("csr_register_count", 0)),
+            axi_stream_command_channels=int(data.get("axi_stream_command_channels", 0)),
+            supports_runtime_algorithm_select=bool(data.get("supports_runtime_algorithm_select", False)),
+            supports_concurrent_modes=bool(data.get("supports_concurrent_modes", False)),
+            supports_descriptors=bool(data.get("supports_descriptors", False)),
+            supports_dma=bool(data.get("supports_dma", False)),
+            scheduler_required=bool(data.get("scheduler_required", False)),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class SecurityConfig:
     side_channel_protection: SideChannelProtection
     constant_time_control: bool
@@ -462,6 +515,7 @@ class ImplementationConfig:
     io: IOConfig
     security: SecurityConfig
     description: str
+    control: ControlConfig = field(default_factory=ControlConfig)
     algorithm: AlgorithmConfig = field(default_factory=AlgorithmConfig)
     datapath: DatapathConfig = field(default_factory=DatapathConfig)
     context: ContextConfig = field(default_factory=ContextConfig)
@@ -479,6 +533,7 @@ class ImplementationConfig:
             "context": self.context.to_dict(),
             "padding": self.padding.to_dict(),
             "io": self.io.to_dict(),
+            "control": self.control.to_dict(),
             "security": self.security.to_dict(),
             "rtl": self.rtl.to_dict(),
             "description": self.description,
@@ -496,6 +551,7 @@ class ImplementationConfig:
             context=ContextConfig.from_dict(data.get("context")),
             padding=PaddingConfig.from_dict(data.get("padding")),
             io=IOConfig.from_dict(data["io"]),
+            control=ControlConfig.from_dict(data.get("control")),
             security=SecurityConfig.from_dict(data["security"]),
             rtl=RtlConfig.from_dict(data.get("rtl")),
             description=str(data.get("description", "")),
