@@ -1,0 +1,30 @@
+{
+  "description": "ASIC architecture with independent AEAD encryption and decryption datapaths. This costs more area than a shared datapath but allows one encrypt and one decrypt operation to progress concurrently.",
+  "io": {
+    "data_bus_bits": 128,
+    "interface_style": "stream",
+    "supports_backpressure": true
+  },
+  "name": "asic_two_datapaths",
+  "permutation": {
+    "pipeline_stages": 0,
+    "rounds_per_cycle": 1,
+    "sbox_style": "boolean",
+    "style": "round_serial"
+  },
+  "security": {
+    "constant_time_control": true,
+    "side_channel_protection": "none"
+  },
+  "target": "asic",
+  "topology": {
+    "decrypt_datapaths_per_engine": 1,
+    "engine_capability": "aead_encrypt_decrypt",
+    "engine_count": 1,
+    "encrypt_datapaths_per_engine": 1,
+    "family": "separate_enc_dec_datapaths",
+    "mode_fsm_count_per_engine": 2,
+    "shared_encrypt_decrypt_datapath": false,
+    "shared_permutation_per_engine": false
+  }
+}

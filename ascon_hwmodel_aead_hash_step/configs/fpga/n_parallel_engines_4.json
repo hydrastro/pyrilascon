@@ -1,0 +1,30 @@
+{
+  "description": "FPGA architecture with N independent ASCON engines. Area scales roughly with N; throughput should scale close to linearly for independent messages if memory/I/O can feed all engines.",
+  "io": {
+    "data_bus_bits": 512,
+    "interface_style": "stream",
+    "supports_backpressure": true
+  },
+  "name": "fpga_4_parallel_engines",
+  "permutation": {
+    "pipeline_stages": 12,
+    "rounds_per_cycle": 12,
+    "sbox_style": "lut5",
+    "style": "fully_unrolled_pipelined"
+  },
+  "security": {
+    "constant_time_control": true,
+    "side_channel_protection": "none"
+  },
+  "target": "fpga",
+  "topology": {
+    "decrypt_datapaths_per_engine": 1,
+    "engine_capability": "aead_hash_xof",
+    "engine_count": 4,
+    "encrypt_datapaths_per_engine": 1,
+    "family": "parallel_engines",
+    "mode_fsm_count_per_engine": 1,
+    "shared_encrypt_decrypt_datapath": false,
+    "shared_permutation_per_engine": false
+  }
+}

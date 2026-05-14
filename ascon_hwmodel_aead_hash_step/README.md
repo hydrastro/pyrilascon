@@ -187,3 +187,40 @@ ascon_cxof128(message, output_bytes, customization)
 ```
 
 These currently expose byte-aligned APIs. Bit-granular output can be layered on top of `bitstring.py` later.
+
+## Architecture configuration layer
+
+The repository now has a first implementation-architecture layer under `ascon_arch/`.
+The ASCON specification model remains in `ascon_hwmodel/`; architecture choices are represented separately as typed configs.
+
+Current architecture families:
+
+```text
+shared_datapath                 low/medium area, one operation at a time
+separate_enc_dec_datapaths      higher area, encrypt and decrypt datapaths can progress independently
+shared_permutation_mode_fsm     medium area, one shared permutation bottleneck
+parallel_engines                N independent engines for high-throughput FPGA scaling
+```
+
+Chosen baselines:
+
+```text
+ASIC: asic_two_datapaths
+FPGA: fpga_N_parallel_engines, with configurable N
+```
+
+Generate design-product skeletons with:
+
+```bash
+PYTHONPATH=. python tools/generate_design.py --preset asic_two_datapaths
+PYTHONPATH=. python tools/generate_design.py --preset fpga_n_parallel_engines --engine-count 4
+```
+
+Or use the explicit JSON configs:
+
+```bash
+PYTHONPATH=. python tools/generate_design.py --config configs/asic/two_separate_datapaths.json
+PYTHONPATH=. python tools/generate_design.py --config configs/fpga/n_parallel_engines_4.json
+```
+
+Generated design products are written under `build/`, which is intentionally ignored by git.
