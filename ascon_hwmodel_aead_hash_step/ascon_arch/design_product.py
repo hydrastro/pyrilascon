@@ -2,7 +2,7 @@ from pathlib import Path
 import json
 
 from ascon_arch.config import ImplementationConfig
-from ascon_arch.enums import ArchitectureFamily
+from ascon_arch.enums import ArchitectureFamily, ResetStyle
 from ascon_arch.validation import validate_config
 
 
@@ -10,12 +10,42 @@ def top_module_name(config: ImplementationConfig) -> str:
     return f"ascon_{config.name}_top"
 
 
+def engine_module_name(config: ImplementationConfig) -> str:
+    return f"ascon_{config.name}_engine"
+
+
+def encrypt_datapath_module_name(config: ImplementationConfig) -> str:
+    return f"ascon_{config.name}_encrypt_datapath"
+
+
+def decrypt_datapath_module_name(config: ImplementationConfig) -> str:
+    return f"ascon_{config.name}_decrypt_datapath"
+
+
+def permutation_module_name(config: ImplementationConfig) -> str:
+    return f"ascon_{config.name}_permutation"
+
+
+def _reset_condition(config: ImplementationConfig) -> str:
+    if config.rtl.reset_style == ResetStyle.ASYNC_ACTIVE_LOW:
+        return "!rst_n"
+    if config.rtl.reset_style == ResetStyle.SYNC_ACTIVE_LOW:
+        return "!rst_n"
+    return "rst"
+
+
 def emit_top_stub(config: ImplementationConfig) -> str:
+    """Backward-compatible top emitter used by older tests."""
+    return emit_top_module(config)
+
+
+def emit_top_module(config: ImplementationConfig) -> str:
     module_name = top_module_name(config)
     topology = config.topology
+    io = config.io
     lines: list[str] = [
-        "// Generated architecture skeleton.",
-        "// This file is intentionally a structural placeholder, not the final datapath RTL.",
+        "// Generated ASCON architecture top-level skeleton.",
+        "// This is structural RTL scaffolding; datapath internals are generated in later phases.",
         f"// Config: {config.name}",
         f"// Target: {config.target.value}",
         f"// Family: {topology.family.value}",
@@ -23,44 +53,208 @@ def emit_top_stub(config: ImplementationConfig) -> str:
         f"// Expected parallel operations: {topology.expected_parallel_operations()}",
         "",
         f"module {module_name} #(",
-        f"  parameter integer ENGINE_COUNT = {topology.engine_count}",
+        f"  parameter int ENGINE_COUNT = {topology.engine_count},",
+        f"  parameter int DATA_BUS_BITS = {io.data_bus_bits}",
         ") (",
-        "  input  wire clk,",
-        "  input  wire rst_n,",
-        "  input  wire start_i,",
-        "  output wire ready_o,",
-        "  output wire done_o",
+        "  input  logic clk,",
+        "  input  logic rst_n,",
+        "  input  logic start_i,",
+        "  input  logic [DATA_BUS_BITS-1:0] data_i,",
+        "  output logic [DATA_BUS_BITS-1:0] data_o,",
+        "  output logic ready_o,",
+        "  output logic done_o",
         ");",
         "",
     ]
-    if topology.family == ArchitectureFamily.SEPARATE_ENC_DEC_DATAPATHS:
+
+    if topology.family == ArchitectureFamily.PARALLEL_ENGINES:
+        engine_width = max(1, io.data_bus_bits // topology.engine_count)
         lines.extend(
             [
-                "  // ASIC choice: independent encryption and decryption datapaths.",
-                "  // TODO: instantiate encrypt datapath and decrypt datapath once their RTL generators exist.",
-                "  assign ready_o = 1'b1;",
-                "  assign done_o  = start_i;",
-            ]
-        )
-    elif topology.family == ArchitectureFamily.PARALLEL_ENGINES:
-        lines.extend(
-            [
-                "  // FPGA choice: N parallel engines.",
-                "  // TODO: generate ENGINE_COUNT engine instances and arbitration/fanout logic.",
-                "  assign ready_o = 1'b1;",
-                "  assign done_o  = start_i;",
+                f"  localparam int ENGINE_DATA_BITS = {engine_width};",
+                "  logic [ENGINE_COUNT-1:0] engine_ready;",
+                "  logic [ENGINE_COUNT-1:0] engine_done;",
+                "",
+                "  genvar engine_index;",
+                "  generate",
+                "    for (engine_index = 0; engine_index < ENGINE_COUNT; engine_index = engine_index + 1) begin : gen_engine",
+                f"      {engine_module_name(config)} #(",
+                "        .ENGINE_ID(engine_index),",
+                "        .DATA_BUS_BITS(ENGINE_DATA_BITS)",
+                "      ) u_engine (",
+                "        .clk(clk),",
+                "        .rst_n(rst_n),",
+                "        .start_i(start_i),",
+                "        .data_i(data_i[(engine_index+1)*ENGINE_DATA_BITS-1 -: ENGINE_DATA_BITS]),",
+                "        .data_o(data_o[(engine_index+1)*ENGINE_DATA_BITS-1 -: ENGINE_DATA_BITS]),",
+                "        .ready_o(engine_ready[engine_index]),",
+                "        .done_o(engine_done[engine_index])",
+                "      );",
+                "    end",
+                "  endgenerate",
+                "",
+                "  assign ready_o = &engine_ready;",
+                "  assign done_o  = &engine_done;",
             ]
         )
     else:
         lines.extend(
             [
-                "  // Generic architecture family placeholder.",
-                "  assign ready_o = 1'b1;",
-                "  assign done_o  = start_i;",
+                f"  {engine_module_name(config)} #(",
+                "    .ENGINE_ID(0),",
+                "    .DATA_BUS_BITS(DATA_BUS_BITS)",
+                "  ) u_engine (",
+                "    .clk(clk),",
+                "    .rst_n(rst_n),",
+                "    .start_i(start_i),",
+                "    .data_i(data_i),",
+                "    .data_o(data_o),",
+                "    .ready_o(ready_o),",
+                "    .done_o(done_o)",
+                "  );",
             ]
         )
-    lines.extend(["", "endmodule"])
-    return "\n".join(lines) + "\n"
+    lines.extend(["", "endmodule", ""])
+    return "\n".join(lines)
+
+
+def emit_engine_module(config: ImplementationConfig) -> str:
+    topology = config.topology
+    lines: list[str] = [
+        "// Generated ASCON engine skeleton.",
+        f"// Permutation style: {config.permutation.style.value}",
+        f"// S-box style: {config.permutation.sbox_style.value}",
+        f"// Datapath lane width: {config.datapath.lane_width.bits()}",
+        "",
+        f"module {engine_module_name(config)} #(",
+        "  parameter int ENGINE_ID = 0,",
+        "  parameter int DATA_BUS_BITS = 128",
+        ") (",
+        "  input  logic clk,",
+        "  input  logic rst_n,",
+        "  input  logic start_i,",
+        "  input  logic [DATA_BUS_BITS-1:0] data_i,",
+        "  output logic [DATA_BUS_BITS-1:0] data_o,",
+        "  output logic ready_o,",
+        "  output logic done_o",
+        ");",
+        "",
+        "  logic enc_ready;",
+        "  logic enc_done;",
+        "  logic dec_ready;",
+        "  logic dec_done;",
+        "  logic [DATA_BUS_BITS-1:0] enc_data_o;",
+        "  logic [DATA_BUS_BITS-1:0] dec_data_o;",
+        "",
+    ]
+    if topology.family == ArchitectureFamily.SEPARATE_ENC_DEC_DATAPATHS:
+        lines.extend(
+            [
+                f"  {encrypt_datapath_module_name(config)} #(.DATA_BUS_BITS(DATA_BUS_BITS)) u_encrypt_datapath (",
+                "    .clk(clk), .rst_n(rst_n), .start_i(start_i), .data_i(data_i),",
+                "    .data_o(enc_data_o), .ready_o(enc_ready), .done_o(enc_done)",
+                "  );",
+                "",
+                f"  {decrypt_datapath_module_name(config)} #(.DATA_BUS_BITS(DATA_BUS_BITS)) u_decrypt_datapath (",
+                "    .clk(clk), .rst_n(rst_n), .start_i(start_i), .data_i(data_i),",
+                "    .data_o(dec_data_o), .ready_o(dec_ready), .done_o(dec_done)",
+                "  );",
+                "",
+                "  // Current scaffold exposes aggregate progress; mode-level routing is added in the real engine generator.",
+                "  assign ready_o = enc_ready & dec_ready;",
+                "  assign done_o  = enc_done  & dec_done;",
+                "  assign data_o  = enc_data_o ^ dec_data_o;",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "  // Single logical datapath placeholder for this architecture family.",
+                f"  {permutation_module_name(config)} u_permutation (",
+                "    .state_i({320{1'b0}}),",
+                "    .state_o()",
+                "  );",
+                "",
+                "  assign ready_o = 1'b1;",
+                "  assign done_o  = start_i;",
+                "  assign data_o  = data_i;",
+            ]
+        )
+    lines.extend(["", "endmodule", ""])
+    return "\n".join(lines)
+
+
+def emit_encrypt_datapath_module(config: ImplementationConfig) -> str:
+    return _emit_datapath_module(config, encrypt_datapath_module_name(config), "encrypt")
+
+
+def emit_decrypt_datapath_module(config: ImplementationConfig) -> str:
+    return _emit_datapath_module(config, decrypt_datapath_module_name(config), "decrypt")
+
+
+def _emit_datapath_module(config: ImplementationConfig, module_name: str, direction: str) -> str:
+    return "\n".join(
+        [
+            f"// Generated ASCON {direction} datapath skeleton.",
+            f"// Padding: {config.padding.strategy.value}; length handling: {config.padding.length_handling.value}",
+            f"module {module_name} #(",
+            "  parameter int DATA_BUS_BITS = 128",
+            ") (",
+            "  input  logic clk,",
+            "  input  logic rst_n,",
+            "  input  logic start_i,",
+            "  input  logic [DATA_BUS_BITS-1:0] data_i,",
+            "  output logic [DATA_BUS_BITS-1:0] data_o,",
+            "  output logic ready_o,",
+            "  output logic done_o",
+            ");",
+            "",
+            f"  {permutation_module_name(config)} u_permutation (",
+            "    .state_i({320{1'b0}}),",
+            "    .state_o()",
+            "  );",
+            "",
+            "  assign ready_o = 1'b1;",
+            "  assign done_o  = start_i;",
+            f"  assign data_o  = data_i; // {direction} datapath behavior is implemented in the next RTL phase.",
+            "endmodule",
+            "",
+        ]
+    )
+
+
+def emit_permutation_module(config: ImplementationConfig) -> str:
+    return "\n".join(
+        [
+            "// Generated ASCON permutation wrapper skeleton.",
+            f"// style={config.permutation.style.value}, sbox={config.permutation.sbox_style.value}, rounds_per_cycle={config.permutation.rounds_per_cycle}",
+            f"module {permutation_module_name(config)} (",
+            "  input  logic [319:0] state_i,",
+            "  output logic [319:0] state_o",
+            ");",
+            "  // TODO: bind selected permutation generator implementation here.",
+            "  assign state_o = state_i;",
+            "endmodule",
+            "",
+        ]
+    )
+
+
+def design_metrics(config: ImplementationConfig) -> dict[str, object]:
+    topology = config.topology
+    return {
+        "expected_parallel_operations": topology.expected_parallel_operations(),
+        "engine_count": topology.engine_count,
+        "total_encrypt_datapaths": topology.total_encrypt_datapaths(),
+        "total_decrypt_datapaths": topology.total_decrypt_datapaths(),
+        "permutation_style": config.permutation.style.value,
+        "sbox_style": config.permutation.sbox_style.value,
+        "rounds_per_cycle": config.permutation.rounds_per_cycle,
+        "pipeline_stages": config.permutation.pipeline_stages,
+        "context_count": config.context.context_count,
+        "interleave_depth": config.context.interleave_depth,
+        "data_bus_bits": config.io.data_bus_bits,
+    }
 
 
 def write_design_product(config: ImplementationConfig, output_root: str | Path) -> tuple[Path, ...]:
@@ -76,21 +270,40 @@ def write_design_product(config: ImplementationConfig, output_root: str | Path) 
     config_path.write_text(json.dumps(config.to_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8")
     written.append(config_path)
 
+    rtl_files: list[tuple[str, str]] = [
+        (f"{top_module_name(config)}.sv", emit_top_module(config)),
+        (f"{engine_module_name(config)}.sv", emit_engine_module(config)),
+        (f"{permutation_module_name(config)}.sv", emit_permutation_module(config)),
+    ]
+    if config.topology.family == ArchitectureFamily.SEPARATE_ENC_DEC_DATAPATHS:
+        rtl_files.extend(
+            [
+                (f"{encrypt_datapath_module_name(config)}.sv", emit_encrypt_datapath_module(config)),
+                (f"{decrypt_datapath_module_name(config)}.sv", emit_decrypt_datapath_module(config)),
+            ]
+        )
+
+    for filename, content in rtl_files:
+        path = rtl_dir / filename
+        path.write_text(content, encoding="utf-8")
+        written.append(path)
+
     manifest = {
         "top_module": top_module_name(config),
         "target": config.target.value,
         "family": config.topology.family.value,
         "engine_count": config.topology.engine_count,
         "expected_parallel_operations": config.topology.expected_parallel_operations(),
-        "rtl_files": [f"rtl/{top_module_name(config)}.sv"],
+        "rtl_files": [f"rtl/{filename}" for filename, _ in rtl_files],
+        "metrics": design_metrics(config),
     }
     manifest_path = metadata_dir / "module_manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     written.append(manifest_path)
 
-    rtl_path = rtl_dir / f"{top_module_name(config)}.sv"
-    rtl_path.write_text(emit_top_stub(config), encoding="utf-8")
-    written.append(rtl_path)
+    metrics_path = metadata_dir / "expected_metrics.json"
+    metrics_path.write_text(json.dumps(design_metrics(config), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    written.append(metrics_path)
 
     readme_path = root / "README.md"
     readme_path.write_text(
@@ -99,8 +312,9 @@ def write_design_product(config: ImplementationConfig, output_root: str | Path) 
         f"Target: `{config.target.value}`\n\n"
         f"Architecture family: `{config.topology.family.value}`\n\n"
         f"Expected parallel operations: `{config.topology.expected_parallel_operations()}`\n\n"
+        f"Permutation: `{config.permutation.style.value}` / S-box `{config.permutation.sbox_style.value}`\n\n"
         "This directory is generated from an architecture configuration. "
-        "The current RTL file is a structural placeholder for the next implementation phase.\n",
+        "The current RTL files are structural placeholders that preserve module boundaries for the next implementation phase.\n",
         encoding="utf-8",
     )
     written.append(readme_path)

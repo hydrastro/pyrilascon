@@ -1,5 +1,17 @@
 from ascon_arch.config import ImplementationConfig
-from ascon_arch.enums import ArchitectureFamily, PermutationStyle, SideChannelProtection, TargetTechnology
+from ascon_arch.enums import (
+    AlgorithmFeature,
+    ArchitectureFamily,
+    ContextSchedulingStyle,
+    DatapathWidth,
+    InterfaceStyle,
+    LengthHandling,
+    PaddingStrategy,
+    PermutationStyle,
+    SideChannelProtection,
+    StateStorageStyle,
+    TargetTechnology,
+)
 
 
 class ConfigValidationError(ValueError):
@@ -9,21 +21,73 @@ class ConfigValidationError(ValueError):
 def validate_config(config: ImplementationConfig) -> None:
     topology = config.topology
     permutation = config.permutation
+    datapath = config.datapath
+    context = config.context
+    padding = config.padding
 
     if not config.name:
         raise ConfigValidationError("config name must not be empty")
+    if not config.name.replace("_", "").isalnum():
+        raise ConfigValidationError("config name must contain only letters, numbers, and underscores")
+
     if topology.engine_count < 1:
         raise ConfigValidationError("engine_count must be >= 1")
     if topology.mode_fsm_count_per_engine < 1:
         raise ConfigValidationError("mode_fsm_count_per_engine must be >= 1")
+    if topology.encrypt_datapaths_per_engine < 0 or topology.decrypt_datapaths_per_engine < 0:
+        raise ConfigValidationError("datapath counts must be non-negative")
+
     if config.io.data_bus_bits < 1:
         raise ConfigValidationError("data_bus_bits must be >= 1")
     if config.io.data_bus_bits % 8 != 0:
         raise ConfigValidationError("data_bus_bits must be byte-aligned")
+    if config.io.interface_style == InterfaceStyle.DESCRIPTOR_STREAM:
+        if padding.length_handling != LengthHandling.DESCRIPTOR_BASED:
+            raise ConfigValidationError("descriptor_stream requires descriptor_based length handling")
+
     if permutation.rounds_per_cycle < 1:
         raise ConfigValidationError("rounds_per_cycle must be >= 1")
+    if permutation.rounds_per_cycle > 12:
+        raise ConfigValidationError("rounds_per_cycle must be <= 12")
     if permutation.pipeline_stages < 0:
         raise ConfigValidationError("pipeline_stages must be >= 0")
+    if permutation.unroll_factor < 1 or permutation.unroll_factor > 12:
+        raise ConfigValidationError("unroll_factor must satisfy 1 <= unroll_factor <= 12")
+
+    if datapath.state_width_bits != 320:
+        raise ConfigValidationError("ASCON state_width_bits must be 320")
+    if datapath.key_width_bits != 128:
+        raise ConfigValidationError("current generator supports only 128-bit AEAD keys")
+    if datapath.tag_width_bits != 128:
+        raise ConfigValidationError("current generator supports only 128-bit AEAD tags")
+    if datapath.rate_width_bits not in (64, 128):
+        raise ConfigValidationError("rate_width_bits must be 64 or 128")
+    if datapath.lane_width.bits() not in (8, 16, 32, 64, 128, 320):
+        raise ConfigValidationError("unsupported lane_width")
+    if datapath.absorb_width.bits() not in (64, 128):
+        raise ConfigValidationError("absorb_width must be 64 or 128")
+    if datapath.absorb_width == DatapathWidth.W128 and datapath.rate_width_bits < 128:
+        raise ConfigValidationError("128-bit absorb width requires a 128-bit rate")
+
+    if context.context_count < 1:
+        raise ConfigValidationError("context_count must be >= 1")
+    if context.interleave_depth < 1:
+        raise ConfigValidationError("interleave_depth must be >= 1")
+    if context.scheduling == ContextSchedulingStyle.SINGLE_CONTEXT and context.context_count != 1 and topology.family != ArchitectureFamily.SEPARATE_ENC_DEC_DATAPATHS:
+        raise ConfigValidationError("single_context scheduling requires context_count=1 unless separate datapaths model separate contexts")
+    if context.scheduling != ContextSchedulingStyle.SINGLE_CONTEXT and context.context_count < 2:
+        raise ConfigValidationError("interleaved/dynamic scheduling requires at least two contexts")
+    if context.storage == StateStorageStyle.SINGLE_CONTEXT_REGS and context.context_count > 2:
+        raise ConfigValidationError("single_context_regs should not be used for more than two contexts")
+    if context.context_id_bits < 0:
+        raise ConfigValidationError("context_id_bits must be non-negative")
+    if context.context_count > 1 and (1 << context.context_id_bits) < context.context_count:
+        raise ConfigValidationError("context_id_bits cannot address context_count")
+
+    if padding.supports_bit_granular_lengths and padding.length_handling == LengthHandling.EXTERNAL_LAST_STROBE:
+        raise ConfigValidationError("bit-granular lengths require an internal counter or descriptor length field")
+    if padding.strategy == PaddingStrategy.PREPROCESSOR and padding.length_handling == LengthHandling.INTERNAL_BYTE_COUNTER:
+        raise ConfigValidationError("preprocessor padding should use external or descriptor length handling")
 
     if topology.family == ArchitectureFamily.SHARED_DATAPATH:
         if not topology.shared_encrypt_decrypt_datapath:
@@ -36,6 +100,8 @@ def validate_config(config: ImplementationConfig) -> None:
             raise ConfigValidationError("separate_enc_dec_datapaths requires shared_encrypt_decrypt_datapath=False")
         if topology.encrypt_datapaths_per_engine < 1 or topology.decrypt_datapaths_per_engine < 1:
             raise ConfigValidationError("separate_enc_dec_datapaths requires at least one encrypt and one decrypt datapath")
+        if not config.io.separate_encrypt_decrypt_ports:
+            raise ConfigValidationError("separate_enc_dec_datapaths should expose separate encrypt/decrypt ports")
 
     if topology.family == ArchitectureFamily.SHARED_PERMUTATION_MODE_FSM:
         if not topology.shared_permutation_per_engine:
@@ -46,15 +112,33 @@ def validate_config(config: ImplementationConfig) -> None:
             raise ConfigValidationError("parallel_engines family requires engine_count >= 2")
         if config.target != TargetTechnology.FPGA:
             raise ConfigValidationError("parallel_engines is currently reserved for FPGA-style scaling")
+        if context.context_count < topology.engine_count:
+            raise ConfigValidationError("parallel_engines requires at least one context per engine")
 
     if config.target == TargetTechnology.ASIC and topology.family == ArchitectureFamily.PARALLEL_ENGINES:
         raise ConfigValidationError("ASIC target should not use the FPGA N-parallel-engine topology in this baseline")
 
-    if permutation.style == PermutationStyle.FULLY_UNROLLED_PIPELINED and permutation.pipeline_stages < 1:
-        raise ConfigValidationError("fully_unrolled_pipelined requires at least one pipeline stage")
+    if permutation.style == PermutationStyle.FULLY_UNROLLED_PIPELINED:
+        if permutation.pipeline_stages < 1:
+            raise ConfigValidationError("fully_unrolled_pipelined requires at least one pipeline stage")
+        if not permutation.register_between_rounds:
+            raise ConfigValidationError("fully_unrolled_pipelined requires register_between_rounds=True")
 
-    if permutation.style == PermutationStyle.ROUND_SERIAL and permutation.rounds_per_cycle != 1:
-        raise ConfigValidationError("round_serial requires rounds_per_cycle=1")
+    if permutation.style == PermutationStyle.ROUND_SERIAL:
+        if permutation.rounds_per_cycle != 1:
+            raise ConfigValidationError("round_serial requires rounds_per_cycle=1")
+        if permutation.unroll_factor != 1:
+            raise ConfigValidationError("round_serial requires unroll_factor=1")
+
+    if permutation.style == PermutationStyle.COLUMN_SERIAL:
+        if datapath.lane_width.bits() > 64:
+            raise ConfigValidationError("column_serial should use a narrow datapath lane")
 
     if config.security.side_channel_protection != SideChannelProtection.NONE:
-        raise ConfigValidationError("masked/side-channel-protected variants are not enabled in the current generator skeleton")
+        if config.security.randomness_bits_per_cycle <= 0:
+            raise ConfigValidationError("masked/side-channel-protected variants require randomness_bits_per_cycle > 0")
+        if not padding.supports_partial_blocks:
+            raise ConfigValidationError("side-channel-protected variants should keep partial block handling explicit")
+
+    if AlgorithmFeature.AEAD128 not in config.algorithm.features and (config.algorithm.include_encrypt or config.algorithm.include_decrypt):
+        raise ConfigValidationError("encrypt/decrypt inclusion requires aead128 feature")

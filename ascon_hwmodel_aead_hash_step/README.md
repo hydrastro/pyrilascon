@@ -32,7 +32,7 @@ python -m pytest -q
 Expected result for this step:
 
 ```text
-45 passed
+55 passed
 ```
 
 
@@ -202,6 +202,8 @@ shared_permutation_mode_fsm     medium area, one shared permutation bottleneck
 parallel_engines                N independent engines for high-throughput FPGA scaling
 ```
 
+The architecture config now has typed axes for algorithm support, topology, permutation style, datapath width, context storage/scheduling, padding and length handling, I/O style, security options, and RTL emission metadata. Invalid combinations are rejected before RTL is generated.
+
 Chosen baselines:
 
 ```text
@@ -214,6 +216,8 @@ Generate design-product skeletons with:
 ```bash
 PYTHONPATH=. python tools/generate_design.py --preset asic_two_datapaths
 PYTHONPATH=. python tools/generate_design.py --preset fpga_n_parallel_engines --engine-count 4
+PYTHONPATH=. python tools/generate_design.py --preset asic_shared_datapath
+PYTHONPATH=. python tools/generate_design.py --preset asic_shared_permutation_mode_fsm
 ```
 
 Or use the explicit JSON configs:
@@ -223,4 +227,4 @@ PYTHONPATH=. python tools/generate_design.py --config configs/asic/two_separate_
 PYTHONPATH=. python tools/generate_design.py --config configs/fpga/n_parallel_engines_4.json
 ```
 
-Generated design products are written under `build/`, which is intentionally ignored by git.
+Generated design products are written under `build/`, which is intentionally ignored by git. Each product includes resolved config metadata, expected metrics, a module manifest, and structural SystemVerilog boundaries for the selected architecture.

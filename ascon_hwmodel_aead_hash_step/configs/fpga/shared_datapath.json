@@ -10,8 +10,8 @@
     "include_xof": false
   },
   "context": {
-    "context_count": 2,
-    "context_id_bits": 1,
+    "context_count": 1,
+    "context_id_bits": 0,
     "interleave_depth": 1,
     "scheduling": "single_context",
     "storage": "single_context_regs"
@@ -21,22 +21,22 @@
     "key_width_bits": 128,
     "lane_width": "64",
     "rate_width_bits": 128,
-    "share_key_registers": false,
+    "share_key_registers": true,
     "share_pad_logic": true,
-    "split_encrypt_decrypt_control": true,
+    "split_encrypt_decrypt_control": false,
     "state_width_bits": 320,
     "tag_width_bits": 128
   },
-  "description": "ASIC architecture with independent AEAD encryption and decryption datapaths. This costs more area than a shared datapath but allows one encrypt and one decrypt operation to progress concurrently.",
+  "description": "Single shared AEAD datapath. Lowest/medium area; one operation progresses at a time.",
   "io": {
     "data_bus_bits": 128,
     "flow_control": "valid_ready",
     "interface_style": "stream",
     "separate_ad_text_channels": false,
-    "separate_encrypt_decrypt_ports": true,
+    "separate_encrypt_decrypt_ports": false,
     "supports_backpressure": true
   },
-  "name": "asic_two_datapaths",
+  "name": "fpga_shared_datapath",
   "padding": {
     "length_handling": "internal_byte_counter",
     "strategy": "fsm_assisted",
@@ -65,17 +65,17 @@
     "randomness_bits_per_cycle": 0,
     "side_channel_protection": "none"
   },
-  "target": "asic",
+  "target": "fpga",
   "topology": {
     "decrypt_datapaths_per_engine": 1,
     "encrypt_datapaths_per_engine": 1,
     "engine_capability": "aead_encrypt_decrypt",
     "engine_count": 1,
-    "expected_parallel_operations": 2,
-    "family": "separate_enc_dec_datapaths",
-    "mode_fsm_count_per_engine": 2,
-    "shared_encrypt_decrypt_datapath": false,
-    "shared_permutation_per_engine": false,
+    "expected_parallel_operations": 1,
+    "family": "shared_datapath",
+    "mode_fsm_count_per_engine": 1,
+    "shared_encrypt_decrypt_datapath": true,
+    "shared_permutation_per_engine": true,
     "total_decrypt_datapaths": 1,
     "total_encrypt_datapaths": 1
   }
