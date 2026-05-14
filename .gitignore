@@ -1,0 +1,66 @@
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Build/generated products
+build/
+dist/
+*.egg-info/
+rtl/generated/*
+!rtl/generated/.gitkeep
+docs/generated/*
+!docs/generated/.gitkeep
+vectors/generated/
+
+# Simulation/synthesis outputs
+work/
+transcript
+*.vcd
+*.fst
+*.wlf
+*.jou
+*.log
+*.rpt
+*.dcp
+*.bit
+*.bin
+*.mcs
+*.edf
+*.edif
+*.sdf
+*.spef
+*.saif
+*.fsdb
+*.vpd
+
+# Vendor/project noise
+*.xpr
+*.runs/
+*.cache/
+*.hw/
+*.ip_user_files/
+*.sim/
+*.qpf
+*.qsf
+*.sof
+*.sta.rpt
+
+# Editor/OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
