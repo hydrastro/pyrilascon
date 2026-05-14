@@ -32,6 +32,7 @@ from ascon_arch.enums import (
     SideChannelProtection,
     StateStorageStyle,
     TargetTechnology,
+    TopLevelProfile,
 )
 from ascon_arch.permutation_planning import permutation_config_for_profile
 from ascon_arch.datapath_planning import datapath_config_for_profile
@@ -52,6 +53,8 @@ def shared_datapath_config(target: TargetTechnology, name: str = "shared_datapat
             decrypt_datapaths_per_engine=1,
             shared_permutation_per_engine=True,
             mode_fsm_count_per_engine=1,
+            top_level_profile=TopLevelProfile.SINGLE_CORE,
+            aead_core_count=1,
         ),
         permutation=PermutationConfig(
             style=PermutationStyle.ROUND_SERIAL,
@@ -106,6 +109,8 @@ def asic_two_datapaths_config() -> ImplementationConfig:
             decrypt_datapaths_per_engine=1,
             shared_permutation_per_engine=False,
             mode_fsm_count_per_engine=2,
+            top_level_profile=TopLevelProfile.DUAL_ENC_DEC_CORES,
+            aead_core_count=2,
         ),
         permutation=PermutationConfig(
             style=PermutationStyle.ROUND_SERIAL,
@@ -168,6 +173,8 @@ def shared_permutation_mode_fsm_config(target: TargetTechnology = TargetTechnolo
             decrypt_datapaths_per_engine=1,
             shared_permutation_per_engine=True,
             mode_fsm_count_per_engine=1,
+            top_level_profile=TopLevelProfile.SINGLE_CORE,
+            aead_core_count=1,
         ),
         permutation=PermutationConfig(
             style=PermutationStyle.ROUND_SERIAL,
@@ -217,6 +224,8 @@ def fpga_n_parallel_engines_config(engine_count: int) -> ImplementationConfig:
             decrypt_datapaths_per_engine=1,
             shared_permutation_per_engine=False,
             mode_fsm_count_per_engine=1,
+            top_level_profile=TopLevelProfile.N_IDENTICAL_AEAD_CORES,
+            aead_core_count=engine_count,
         ),
         permutation=permutation_config_for_profile(
             PermutationProfile.FULLY_PIPELINED,
@@ -389,4 +398,160 @@ def fpga_n_parallel_engines_with_context_profile_config(
         fpga_n_parallel_engines_config(engine_count),
         profile,
         contexts_per_engine=contexts_per_engine,
+    )
+
+
+
+def config_with_top_level_profile(
+    config: ImplementationConfig,
+    profile: TopLevelProfile,
+    *,
+    core_count: int | None = None,
+    pipeline_count: int | None = None,
+    contexts_per_pipeline: int | None = None,
+    name_suffix: str | None = None,
+) -> ImplementationConfig:
+    """Return a copy using one top-level core/pipeline organization profile."""
+    suffix = name_suffix or profile.value
+
+    if profile == TopLevelProfile.SINGLE_CORE:
+        topology = replace(
+            config.topology,
+            top_level_profile=profile,
+            engine_count=1,
+            aead_core_count=1,
+            permutation_pipeline_count=0,
+            contexts_per_pipeline=1,
+            shared_pipeline_across_contexts=False,
+        )
+        context = context_config_for_profile(ContextProfile.SINGLE_320_REGISTER, config.target, engine_count=1)
+        io = replace(config.io, data_bus_bits=config.datapath.io_word_width.bits())
+        return replace(config, name=f"{config.name}_{suffix}", topology=topology, context=context, io=io)
+
+    if profile == TopLevelProfile.DUAL_ENC_DEC_CORES:
+        topology = replace(
+            config.topology,
+            family=ArchitectureFamily.SEPARATE_ENC_DEC_DATAPATHS,
+            engine_count=1,
+            engine_capability=EngineCapability.AEAD_ENCRYPT_DECRYPT,
+            shared_encrypt_decrypt_datapath=False,
+            encrypt_datapaths_per_engine=1,
+            decrypt_datapaths_per_engine=1,
+            shared_permutation_per_engine=False,
+            mode_fsm_count_per_engine=2,
+            top_level_profile=profile,
+            aead_core_count=2,
+            permutation_pipeline_count=0,
+            contexts_per_pipeline=1,
+            shared_pipeline_across_contexts=False,
+        )
+        context = context_config_for_profile(ContextProfile.SINGLE_320_REGISTER, config.target, engine_count=2)
+        io = replace(config.io, separate_encrypt_decrypt_ports=True)
+        return replace(config, name=f"{config.name}_{suffix}", topology=topology, context=context, io=io)
+
+    if profile == TopLevelProfile.N_IDENTICAL_AEAD_CORES:
+        n = core_count or config.topology.engine_count
+        topology = replace(
+            config.topology,
+            family=ArchitectureFamily.PARALLEL_ENGINES,
+            engine_count=n,
+            engine_capability=EngineCapability.AEAD_HASH_XOF,
+            top_level_profile=profile,
+            aead_core_count=n,
+            permutation_pipeline_count=0,
+            contexts_per_pipeline=1,
+            shared_pipeline_across_contexts=False,
+        )
+        context = context_config_for_profile(
+            ContextProfile.FPGA_BRAM_LUTRAM if config.target == TargetTechnology.FPGA else ContextProfile.SEPARATE_STATE_PER_CORE,
+            config.target,
+            engine_count=n,
+            contexts_per_engine=config.context.contexts_per_engine,
+            pipeline_stages=config.permutation.pipeline_stages,
+        )
+        io = replace(config.io, data_bus_bits=config.datapath.io_word_width.bits() * n)
+        return replace(config, name=f"{config.name}_{suffix}_{n}", topology=topology, context=context, io=io)
+
+    if profile == TopLevelProfile.ONE_PIPELINED_PERMUTATION_N_CONTEXTS:
+        ctx = contexts_per_pipeline or max(config.context.contexts_per_engine, config.permutation.pipeline_stages, 2)
+        topology = replace(
+            config.topology,
+            family=ArchitectureFamily.SHARED_PERMUTATION_MODE_FSM,
+            engine_count=1,
+            engine_capability=EngineCapability.AEAD_HASH_XOF,
+            shared_encrypt_decrypt_datapath=False,
+            shared_permutation_per_engine=True,
+            mode_fsm_count_per_engine=1,
+            top_level_profile=profile,
+            aead_core_count=1,
+            permutation_pipeline_count=1,
+            contexts_per_pipeline=ctx,
+            shared_pipeline_across_contexts=True,
+        )
+        context = context_config_for_profile(
+            ContextProfile.FPGA_BRAM_LUTRAM,
+            config.target,
+            engine_count=1,
+            contexts_per_engine=ctx,
+            pipeline_stages=max(config.permutation.pipeline_stages, ctx),
+        )
+        io = replace(config.io, data_bus_bits=config.datapath.io_word_width.bits())
+        return replace(config, name=f"{config.name}_{suffix}_{ctx}ctx", topology=topology, context=context, io=io)
+
+    if profile == TopLevelProfile.M_PIPELINES_N_CONTEXTS:
+        m = pipeline_count or max(config.topology.permutation_pipeline_count, 2)
+        ctx = contexts_per_pipeline or max(config.context.contexts_per_engine, config.permutation.pipeline_stages, 2)
+        topology = replace(
+            config.topology,
+            family=ArchitectureFamily.SHARED_PERMUTATION_MODE_FSM,
+            engine_count=m,
+            engine_capability=EngineCapability.AEAD_HASH_XOF,
+            shared_encrypt_decrypt_datapath=False,
+            shared_permutation_per_engine=True,
+            mode_fsm_count_per_engine=1,
+            top_level_profile=profile,
+            aead_core_count=m,
+            permutation_pipeline_count=m,
+            contexts_per_pipeline=ctx,
+            shared_pipeline_across_contexts=True,
+        )
+        context = context_config_for_profile(
+            ContextProfile.FPGA_BRAM_LUTRAM,
+            config.target,
+            engine_count=m,
+            contexts_per_engine=ctx,
+            pipeline_stages=max(config.permutation.pipeline_stages, ctx),
+        )
+        io = replace(config.io, data_bus_bits=config.datapath.io_word_width.bits() * m)
+        return replace(config, name=f"{config.name}_{suffix}_{m}p_{ctx}ctx", topology=topology, context=context, io=io)
+
+    raise ValueError(f"unsupported top-level profile: {profile}")
+
+
+def fpga_one_pipelined_permutation_n_contexts_config(contexts_per_pipeline: int = 12) -> ImplementationConfig:
+    base = fpga_n_parallel_engines_config(2)
+    return config_with_top_level_profile(
+        base,
+        TopLevelProfile.ONE_PIPELINED_PERMUTATION_N_CONTEXTS,
+        contexts_per_pipeline=contexts_per_pipeline,
+        name_suffix="one_pipeline",
+    )
+
+
+def fpga_m_pipelines_n_contexts_config(pipeline_count: int = 2, contexts_per_pipeline: int = 12) -> ImplementationConfig:
+    base = fpga_n_parallel_engines_config(max(2, pipeline_count))
+    return config_with_top_level_profile(
+        base,
+        TopLevelProfile.M_PIPELINES_N_CONTEXTS,
+        pipeline_count=pipeline_count,
+        contexts_per_pipeline=contexts_per_pipeline,
+        name_suffix="m_pipelines",
+    )
+
+
+def asic_dual_enc_dec_cores_config() -> ImplementationConfig:
+    return config_with_top_level_profile(
+        asic_two_datapaths_config(),
+        TopLevelProfile.DUAL_ENC_DEC_CORES,
+        name_suffix="dual_cores",
     )

@@ -13,6 +13,7 @@ from ascon_arch.enums import (
     SideChannelProtection,
     StateStorageStyle,
     TargetTechnology,
+    TopLevelProfile,
 )
 
 
@@ -34,6 +35,12 @@ def validate_config(config: ImplementationConfig) -> None:
 
     if topology.engine_count < 1:
         raise ConfigValidationError("engine_count must be >= 1")
+    if topology.aead_core_count < 1:
+        raise ConfigValidationError("aead_core_count must be >= 1")
+    if topology.permutation_pipeline_count < 0:
+        raise ConfigValidationError("permutation_pipeline_count must be >= 0")
+    if topology.contexts_per_pipeline < 1:
+        raise ConfigValidationError("contexts_per_pipeline must be >= 1")
     if topology.mode_fsm_count_per_engine < 1:
         raise ConfigValidationError("mode_fsm_count_per_engine must be >= 1")
     if topology.encrypt_datapaths_per_engine < 0 or topology.decrypt_datapaths_per_engine < 0:
@@ -133,6 +140,52 @@ def validate_config(config: ImplementationConfig) -> None:
     if context.profile == ContextProfile.SHARED_STATE_RAM_PIPELINED_P8:
         if context.storage != StateStorageStyle.SHARED_STATE_RAM_PIPELINED_P8:
             raise ConfigValidationError("shared_state_ram_pipelined_p8 profile requires matching storage style")
+
+    if topology.top_level_profile == TopLevelProfile.SINGLE_CORE:
+        if topology.aead_core_count != 1:
+            raise ConfigValidationError("single_core profile requires aead_core_count=1")
+        if topology.permutation_pipeline_count not in (0, 1):
+            raise ConfigValidationError("single_core profile should not instantiate multiple permutation pipelines")
+
+    if topology.top_level_profile == TopLevelProfile.DUAL_ENC_DEC_CORES:
+        if topology.family != ArchitectureFamily.SEPARATE_ENC_DEC_DATAPATHS:
+            raise ConfigValidationError("dual_enc_dec_cores requires separate_enc_dec_datapaths topology")
+        if topology.aead_core_count != 2:
+            raise ConfigValidationError("dual_enc_dec_cores requires aead_core_count=2")
+        if topology.encrypt_datapaths_per_engine != 1 or topology.decrypt_datapaths_per_engine != 1:
+            raise ConfigValidationError("dual_enc_dec_cores requires one encrypt and one decrypt datapath")
+
+    if topology.top_level_profile == TopLevelProfile.N_IDENTICAL_AEAD_CORES:
+        if topology.family != ArchitectureFamily.PARALLEL_ENGINES:
+            raise ConfigValidationError("n_identical_aead_cores requires parallel_engines topology")
+        if topology.aead_core_count != topology.engine_count:
+            raise ConfigValidationError("n_identical_aead_cores requires aead_core_count == engine_count")
+        if topology.engine_count < 2:
+            raise ConfigValidationError("n_identical_aead_cores requires at least two cores")
+
+    if topology.top_level_profile == TopLevelProfile.ONE_PIPELINED_PERMUTATION_N_CONTEXTS:
+        if config.target != TargetTechnology.FPGA:
+            raise ConfigValidationError("one_pipelined_permutation_n_contexts is currently an FPGA target profile")
+        if topology.permutation_pipeline_count != 1:
+            raise ConfigValidationError("one_pipelined_permutation_n_contexts requires exactly one permutation pipeline")
+        if topology.contexts_per_pipeline < 2:
+            raise ConfigValidationError("one_pipelined_permutation_n_contexts requires at least two contexts per pipeline")
+        if context.context_count < topology.contexts_per_pipeline:
+            raise ConfigValidationError("context_count must cover contexts_per_pipeline")
+        if permutation.pipeline_initiation_interval is None:
+            raise ConfigValidationError("context-interleaved pipeline topologies require a pipelined permutation config")
+
+    if topology.top_level_profile == TopLevelProfile.M_PIPELINES_N_CONTEXTS:
+        if config.target != TargetTechnology.FPGA:
+            raise ConfigValidationError("m_pipelines_n_contexts is currently an FPGA target profile")
+        if topology.permutation_pipeline_count < 2:
+            raise ConfigValidationError("m_pipelines_n_contexts requires at least two permutation pipelines")
+        if topology.contexts_per_pipeline < 2:
+            raise ConfigValidationError("m_pipelines_n_contexts requires at least two contexts per pipeline")
+        if context.context_count < topology.permutation_pipeline_count * topology.contexts_per_pipeline:
+            raise ConfigValidationError("context_count must cover pipeline_count * contexts_per_pipeline")
+        if permutation.pipeline_initiation_interval is None:
+            raise ConfigValidationError("multi-pipeline context topologies require a pipelined permutation config")
 
     if padding.supports_bit_granular_lengths and padding.length_handling == LengthHandling.EXTERNAL_LAST_STROBE:
         raise ConfigValidationError("bit-granular lengths require an internal counter or descriptor length field")

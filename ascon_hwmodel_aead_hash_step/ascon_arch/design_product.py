@@ -2,10 +2,11 @@ from pathlib import Path
 import json
 
 from ascon_arch.config import ImplementationConfig
-from ascon_arch.enums import ArchitectureFamily, PermutationStyle, ResetStyle
+from ascon_arch.enums import ArchitectureFamily, PermutationStyle, ResetStyle, TopLevelProfile
 from ascon_arch.permutation_planning import estimate_permutation
 from ascon_arch.datapath_planning import estimate_datapath
 from ascon_arch.context_planning import estimate_context_storage
+from ascon_arch.top_level_planning import estimate_top_level
 from ascon_arch.validation import validate_config
 
 
@@ -57,10 +58,16 @@ def emit_top_module(config: ImplementationConfig) -> str:
         f"// Target: {config.target.value}",
         f"// Family: {topology.family.value}",
         f"// Engine count: {topology.engine_count}",
+        f"// Top-level profile: {topology.top_level_profile.value}",
+        f"// AEAD core count: {topology.aead_core_count}",
+        f"// Permutation pipeline count: {topology.permutation_pipeline_count}",
         f"// Expected parallel operations: {topology.expected_parallel_operations()}",
         "",
         f"module {module_name} #(",
         f"  parameter int ENGINE_COUNT = {topology.engine_count},",
+        f"  parameter int AEAD_CORE_COUNT = {topology.aead_core_count},",
+        f"  parameter int PERM_PIPELINE_COUNT = {max(1, topology.permutation_pipeline_count)},",
+        f"  parameter int CONTEXTS_PER_PIPELINE = {topology.contexts_per_pipeline},",
         f"  parameter int DATA_BUS_BITS = {io.data_bus_bits}",
         ") (",
         "  input  logic clk,",
@@ -74,7 +81,40 @@ def emit_top_module(config: ImplementationConfig) -> str:
         "",
     ]
 
-    if topology.family == ArchitectureFamily.PARALLEL_ENGINES:
+    if topology.top_level_profile in (TopLevelProfile.ONE_PIPELINED_PERMUTATION_N_CONTEXTS, TopLevelProfile.M_PIPELINES_N_CONTEXTS):
+        pipeline_count = max(1, topology.permutation_pipeline_count)
+        pipeline_width = max(1, io.data_bus_bits // pipeline_count)
+        lines.extend(
+            [
+                f"  localparam int PIPELINE_COUNT = {pipeline_count};",
+                f"  localparam int PIPELINE_DATA_BITS = {pipeline_width};",
+                "  logic [PIPELINE_COUNT-1:0] pipeline_ready;",
+                "  logic [PIPELINE_COUNT-1:0] pipeline_done;",
+                "  logic [319:0] pipeline_state_o [0:PIPELINE_COUNT-1];",
+                "",
+                "  genvar pipeline_index;",
+                "  generate",
+                "    for (pipeline_index = 0; pipeline_index < PIPELINE_COUNT; pipeline_index = pipeline_index + 1) begin : gen_perm_pipeline",
+                f"      {permutation_module_name(config)} u_perm_pipeline (",
+                "        .clk(clk),",
+                "        .rst_n(rst_n),",
+                "        .start_i(start_i),",
+                "        .rounds_i(2'd2),",
+                "        .state_i(320'b0),",
+                "        .state_o(pipeline_state_o[pipeline_index]),",
+                "        .ready_o(pipeline_ready[pipeline_index]),",
+                "        .done_o(pipeline_done[pipeline_index])",
+                "      );",
+                "    end",
+                "  endgenerate",
+                "",
+                "  // TODO: add context scheduler: maps N session contexts onto the permutation pipeline(s).",
+                "  assign ready_o = &pipeline_ready;",
+                "  assign done_o  = &pipeline_done;",
+                "  assign data_o  = data_i;",
+            ]
+        )
+    elif topology.family == ArchitectureFamily.PARALLEL_ENGINES:
         engine_width = max(1, io.data_bus_bits // topology.engine_count)
         lines.extend(
             [
@@ -375,7 +415,14 @@ def design_metrics(config: ImplementationConfig) -> dict[str, object]:
     perm_estimate = estimate_permutation(config.permutation)
     datapath_estimate = estimate_datapath(config.datapath)
     context_estimate = estimate_context_storage(config.context)
+    top_estimate = estimate_top_level(config)
     return {
+        "top_level_profile": topology.top_level_profile.value,
+        "aead_core_count": topology.aead_core_count,
+        "permutation_pipeline_count": topology.permutation_pipeline_count,
+        "contexts_per_pipeline": topology.contexts_per_pipeline,
+        "shared_pipeline_across_contexts": topology.shared_pipeline_across_contexts,
+        "top_level_estimate": top_estimate.to_dict(),
         "expected_parallel_operations": topology.expected_parallel_operations(),
         "engine_count": topology.engine_count,
         "total_encrypt_datapaths": topology.total_encrypt_datapaths(),
@@ -444,7 +491,10 @@ def write_design_product(config: ImplementationConfig, output_root: str | Path) 
         "top_module": top_module_name(config),
         "target": config.target.value,
         "family": config.topology.family.value,
+        "top_level_profile": config.topology.top_level_profile.value,
         "engine_count": config.topology.engine_count,
+        "aead_core_count": config.topology.aead_core_count,
+        "permutation_pipeline_count": config.topology.permutation_pipeline_count,
         "expected_parallel_operations": config.topology.expected_parallel_operations(),
         "rtl_files": [f"rtl/{filename}" for filename, _ in rtl_files],
         "metrics": design_metrics(config),

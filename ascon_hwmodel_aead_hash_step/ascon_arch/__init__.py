@@ -41,6 +41,7 @@ from ascon_arch.enums import (
     SideChannelProtection,
     StateStorageStyle,
     TargetTechnology,
+    TopLevelProfile,
 )
 from ascon_arch.context_planning import (
     ContextStorageEstimate,
@@ -63,6 +64,10 @@ from ascon_arch.matrix import (
     MatrixEntry,
     enumerate_valid_matrix,
 )
+from ascon_arch.top_level_planning import (
+    TopLevelEstimate,
+    estimate_top_level,
+)
 from ascon_arch.permutation_planning import (
     PermutationLatencyEstimate,
     cycles_for_permutation,
@@ -78,10 +83,14 @@ from ascon_arch.presets import (
     config_with_datapath_profile,
     asic_two_datapaths_two_rounds_per_cycle_config,
     config_with_permutation_profile,
+    asic_dual_enc_dec_cores_config,
+    config_with_top_level_profile,
+    fpga_m_pipelines_n_contexts_config,
     fpga_n_parallel_engines_config,
     fpga_n_parallel_engines_with_context_profile_config,
     fpga_n_parallel_engines_with_datapath_profile_config,
     fpga_n_parallel_engines_with_profile_config,
+    fpga_one_pipelined_permutation_n_contexts_config,
     shared_datapath_config,
     shared_permutation_mode_fsm_config,
 )
@@ -124,12 +133,16 @@ __all__ = [
     "SideChannelProtection",
     "StateStorageStyle",
     "TargetTechnology",
+    "TopLevelProfile",
+    "TopLevelEstimate",
     "asic_two_datapaths_column_serial_config",
     "asic_two_datapaths_config",
+    "asic_dual_enc_dec_cores_config",
     "asic_two_datapaths_with_datapath_profile_config",
     "config_with_datapath_profile",
     "asic_two_datapaths_two_rounds_per_cycle_config",
     "config_with_permutation_profile",
+    "config_with_top_level_profile",
     "cycles_for_permutation",
     "datapath_config_for_profile",
     "decrypt_datapath_module_name",
@@ -140,9 +153,12 @@ __all__ = [
     "enumerate_valid_matrix",
     "estimate_datapath",
     "estimate_permutation",
+    "estimate_top_level",
+    "fpga_m_pipelines_n_contexts_config",
     "fpga_n_parallel_engines_config",
     "fpga_n_parallel_engines_with_datapath_profile_config",
     "fpga_n_parallel_engines_with_profile_config",
+    "fpga_one_pipelined_permutation_n_contexts_config",
     "permutation_config_for_profile",
     "recommended_datapath_profile",
     "recommended_permutation_profile_for_datapath",

@@ -13,6 +13,16 @@ class ArchitectureFamily(str, Enum):
     PARALLEL_ENGINES = "parallel_engines"
 
 
+
+
+class TopLevelProfile(str, Enum):
+    SINGLE_CORE = "single_core"
+    DUAL_ENC_DEC_CORES = "dual_enc_dec_cores"
+    N_IDENTICAL_AEAD_CORES = "n_identical_aead_cores"
+    ONE_PIPELINED_PERMUTATION_N_CONTEXTS = "one_pipelined_permutation_n_contexts"
+    M_PIPELINES_N_CONTEXTS = "m_pipelines_n_contexts"
+
+
 class EngineCapability(str, Enum):
     AEAD_ENCRYPT_ONLY = "aead_encrypt_only"
     AEAD_DECRYPT_ONLY = "aead_decrypt_only"

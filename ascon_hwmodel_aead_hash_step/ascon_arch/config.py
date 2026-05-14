@@ -22,6 +22,7 @@ from ascon_arch.enums import (
     SideChannelProtection,
     StateStorageStyle,
     TargetTechnology,
+    TopLevelProfile,
 )
 
 
@@ -281,8 +282,22 @@ class DatapathTopology:
     decrypt_datapaths_per_engine: int
     shared_permutation_per_engine: bool
     mode_fsm_count_per_engine: int
+    top_level_profile: TopLevelProfile = TopLevelProfile.SINGLE_CORE
+    aead_core_count: int = 1
+    permutation_pipeline_count: int = 0
+    contexts_per_pipeline: int = 1
+    shared_pipeline_across_contexts: bool = False
 
     def expected_parallel_operations(self) -> int:
+        if self.top_level_profile == TopLevelProfile.DUAL_ENC_DEC_CORES:
+            return self.engine_count * (self.encrypt_datapaths_per_engine + self.decrypt_datapaths_per_engine)
+        if self.top_level_profile == TopLevelProfile.N_IDENTICAL_AEAD_CORES:
+            return self.aead_core_count
+        if self.top_level_profile in (
+            TopLevelProfile.ONE_PIPELINED_PERMUTATION_N_CONTEXTS,
+            TopLevelProfile.M_PIPELINES_N_CONTEXTS,
+        ):
+            return max(1, self.permutation_pipeline_count)
         if self.family == ArchitectureFamily.PARALLEL_ENGINES:
             return self.engine_count
         if self.family == ArchitectureFamily.SEPARATE_ENC_DEC_DATAPATHS:
@@ -295,6 +310,12 @@ class DatapathTopology:
     def total_decrypt_datapaths(self) -> int:
         return self.engine_count * self.decrypt_datapaths_per_engine
 
+    def total_aead_cores(self) -> int:
+        return self.aead_core_count
+
+    def total_permutation_pipelines(self) -> int:
+        return max(0, self.permutation_pipeline_count)
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "family": self.family.value,
@@ -305,22 +326,44 @@ class DatapathTopology:
             "decrypt_datapaths_per_engine": self.decrypt_datapaths_per_engine,
             "shared_permutation_per_engine": self.shared_permutation_per_engine,
             "mode_fsm_count_per_engine": self.mode_fsm_count_per_engine,
+            "top_level_profile": self.top_level_profile.value,
+            "aead_core_count": self.aead_core_count,
+            "permutation_pipeline_count": self.permutation_pipeline_count,
+            "contexts_per_pipeline": self.contexts_per_pipeline,
+            "shared_pipeline_across_contexts": self.shared_pipeline_across_contexts,
             "expected_parallel_operations": self.expected_parallel_operations(),
             "total_encrypt_datapaths": self.total_encrypt_datapaths(),
             "total_decrypt_datapaths": self.total_decrypt_datapaths(),
+            "total_aead_cores": self.total_aead_cores(),
+            "total_permutation_pipelines": self.total_permutation_pipelines(),
         }
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> "DatapathTopology":
+        family = ArchitectureFamily(str(data["family"]))
+        if "top_level_profile" in data:
+            top_level_profile = TopLevelProfile(str(data["top_level_profile"]))
+        elif family == ArchitectureFamily.PARALLEL_ENGINES:
+            top_level_profile = TopLevelProfile.N_IDENTICAL_AEAD_CORES
+        elif family == ArchitectureFamily.SEPARATE_ENC_DEC_DATAPATHS:
+            top_level_profile = TopLevelProfile.DUAL_ENC_DEC_CORES
+        else:
+            top_level_profile = TopLevelProfile.SINGLE_CORE
+        engine_count = int(data["engine_count"])
         return cls(
-            family=ArchitectureFamily(str(data["family"])),
-            engine_count=int(data["engine_count"]),
+            family=family,
+            engine_count=engine_count,
             engine_capability=EngineCapability(str(data["engine_capability"])),
             shared_encrypt_decrypt_datapath=bool(data["shared_encrypt_decrypt_datapath"]),
             encrypt_datapaths_per_engine=int(data["encrypt_datapaths_per_engine"]),
             decrypt_datapaths_per_engine=int(data["decrypt_datapaths_per_engine"]),
             shared_permutation_per_engine=bool(data["shared_permutation_per_engine"]),
             mode_fsm_count_per_engine=int(data["mode_fsm_count_per_engine"]),
+            top_level_profile=top_level_profile,
+            aead_core_count=int(data.get("aead_core_count", engine_count)),
+            permutation_pipeline_count=int(data.get("permutation_pipeline_count", 0)),
+            contexts_per_pipeline=int(data.get("contexts_per_pipeline", 1)),
+            shared_pipeline_across_contexts=bool(data.get("shared_pipeline_across_contexts", False)),
         )
 
 
