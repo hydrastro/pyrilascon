@@ -19,6 +19,7 @@ Implemented so far:
 - split permutation wrappers: `p6.py`, `p8.py`, `p12.py`
 - Verilog emission colocated with the Python model object/layer it describes
 - generated `.vh` include fragments and standalone `.v` combinational wrappers
+- byte-aligned known-answer tests for NIST AEAD128, Hash256, XOF128, and CXOF128
 
 ## Run tests
 
@@ -31,8 +32,53 @@ python -m pytest -q
 Expected result for this step:
 
 ```text
-34 passed
+58 passed
 ```
+
+
+
+## Configurable architecture generation
+
+The repository now separates the golden specification model from implementation choices:
+
+```text
+ascon_hwmodel/   # typed golden model and reference Verilog helpers
+ascon_arch/      # architecture/configuration vocabulary and validation
+configs/         # concrete ASIC/FPGA configuration examples
+tools/           # design and Verilog generation entry points
+build/           # generated design products, ignored by git
+```
+
+Generate the ASIC baseline with separate encryption/decryption datapaths:
+
+```bash
+PYTHONPATH=. python tools/generate_design.py --preset asic_two_datapaths
+```
+
+Generate the ASIC two-datapath variant with two rounds per cycle:
+
+```bash
+PYTHONPATH=. python tools/generate_design.py   --preset asic_two_datapaths   --permutation-profile two_rounds_per_cycle
+```
+
+Generate an FPGA design with N parallel engines and a selected permutation profile:
+
+```bash
+PYTHONPATH=. python tools/generate_design.py   --preset fpga_n_parallel_engines   --engine-count 4   --permutation-profile four_rounds_per_cycle
+```
+
+Permutation profiles are documented in `docs/permutation_architecture.md`.
+
+## Known-answer tests
+
+`tests/test_known_answer_vectors.py` embeds a compact byte-aligned KAT subset:
+
+- Ascon-AEAD128 encrypt/decrypt vectors from the official `ascon/ascon-c` LWC KAT file
+- Ascon-Hash256 empty-message digest
+- Ascon-XOF128 empty-message 512-bit output
+- Ascon-CXOF128 single-byte message with empty customization string
+
+The current test scope is deliberately byte-aligned. Full ACVP bit-length coverage will require bit-granular hash/XOF wrappers on top of `bitstring.py`.
 
 ## Endianness convention
 
@@ -174,3 +220,84 @@ ascon_cxof128(message, output_bytes, customization)
 ```
 
 These currently expose byte-aligned APIs. Bit-granular output can be layered on top of `bitstring.py` later.
+
+## Architecture configuration layer
+
+The repository now has a first implementation-architecture layer under `ascon_arch/`.
+The ASCON specification model remains in `ascon_hwmodel/`; architecture choices are represented separately as typed configs.
+
+Current architecture families:
+
+```text
+shared_datapath                 low/medium area, one operation at a time
+separate_enc_dec_datapaths      higher area, encrypt and decrypt datapaths can progress independently
+shared_permutation_mode_fsm     medium area, one shared permutation bottleneck
+parallel_engines                N independent engines for high-throughput FPGA scaling
+```
+
+The architecture config now has typed axes for algorithm support, topology, permutation style, datapath width, context storage/scheduling, padding and length handling, I/O style, security options, and RTL emission metadata. Invalid combinations are rejected before RTL is generated.
+
+Chosen baselines:
+
+```text
+ASIC: asic_two_datapaths
+FPGA: fpga_N_parallel_engines, with configurable N
+```
+
+Generate design-product skeletons with:
+
+```bash
+PYTHONPATH=. python tools/generate_design.py --preset asic_two_datapaths
+PYTHONPATH=. python tools/generate_design.py --preset fpga_n_parallel_engines --engine-count 4
+PYTHONPATH=. python tools/generate_design.py --preset asic_shared_datapath
+PYTHONPATH=. python tools/generate_design.py --preset asic_shared_permutation_mode_fsm
+```
+
+Or use the explicit JSON configs:
+
+```bash
+PYTHONPATH=. python tools/generate_design.py --config configs/asic/two_separate_datapaths.json
+PYTHONPATH=. python tools/generate_design.py --config configs/fpga/n_parallel_engines_4.json
+```
+
+Generated design products are written under `build/`, which is intentionally ignored by git. Each product includes resolved config metadata, expected metrics, a module manifest, and structural SystemVerilog boundaries for the selected architecture.
+
+## State/context organization axis
+
+The architecture generator now includes explicit state/context profiles:
+
+```text
+single_320_register
+state_plus_shadow
+multi_context_registers
+fpga_bram_lutram
+separate_state_per_core
+shared_state_ram_pipelined_p8
+```
+
+Project defaults:
+
+```text
+ASIC: single_320_register
+FPGA: fpga_bram_lutram with multi-context interleaving
+```
+
+Generate the FPGA baseline with explicit context profile:
+
+```bash
+PYTHONPATH=. python tools/generate_design.py \
+  --preset fpga_n_parallel_engines \
+  --engine-count 4 \
+  --context-profile fpga_bram_lutram \
+  --contexts-per-engine 12
+```
+
+Generate the ASIC single-state baseline:
+
+```bash
+PYTHONPATH=. python tools/generate_design.py \
+  --preset asic_two_datapaths \
+  --context-profile single_320_register
+```
+
+See `docs/context_architecture.md` for the detailed profile meanings.
