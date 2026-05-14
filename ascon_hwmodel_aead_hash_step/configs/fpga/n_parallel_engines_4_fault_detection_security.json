@@ -61,7 +61,7 @@
     "separate_encrypt_decrypt_ports": false,
     "supports_backpressure": true
   },
-  "name": "fpga_4_parallel_engines",
+  "name": "fpga_4_parallel_engines_fpga_fault_detect_rand_counter_consttime_tag",
   "padding": {
     "final_bytemask": true,
     "final_bytemask_width": 64,

@@ -58,7 +58,7 @@
     "separate_encrypt_decrypt_ports": true,
     "supports_backpressure": true
   },
-  "name": "asic_two_datapaths_dual_cores",
+  "name": "asic_two_datapaths_dual_cores_asic_rand_counter_consttime_tag",
   "padding": {
     "final_bytemask": false,
     "final_bytemask_width": 0,

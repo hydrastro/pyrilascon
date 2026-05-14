@@ -63,10 +63,18 @@
   },
   "name": "fpga_4_parallel_engines_dma_fed",
   "padding": {
+    "final_bytemask": false,
+    "final_bytemask_width": 0,
     "length_handling": "descriptor_based",
-    "strategy": "inline_combinational",
+    "pad_in_core": true,
+    "partial_block_buffer_bytes": 64,
+    "profile": "full_arbitrary_bytelength",
+    "requires_total_length": true,
+    "strategy": "fsm_assisted",
+    "supports_arbitrary_byte_lengths": true,
     "supports_bit_granular_lengths": false,
-    "supports_partial_blocks": true
+    "supports_partial_blocks": true,
+    "tracks_byte_count": true
   },
   "permutation": {
     "context_interleaving_required": true,
@@ -89,9 +97,20 @@
   "security": {
     "clear_state_on_done": true,
     "constant_time_control": true,
-    "duplicate_control_fsm_checks": false,
+    "constant_time_decrypt_failure": true,
+    "constant_time_tag_compare": true,
+    "decryption_release_policy": "buffer_until_tag_verify",
+    "duplicate_compute_check": true,
+    "duplicate_control_fsm_checks": true,
+    "fault_detection": "duplicate_compute",
+    "plaintext_buffer_capacity_bytes": 65536,
+    "plaintext_buffer_storage": "bram_fifo",
+    "plaintext_buffer_until_tag_verified": true,
+    "profile": "fpga_fault_detect_rand_counter_consttime_tag",
+    "randomized_counter_hardening": true,
     "randomness_bits_per_cycle": 0,
-    "side_channel_protection": "none"
+    "side_channel_protection": "none",
+    "zeroize_plaintext_buffer_on_failure": true
   },
   "target": "fpga",
   "topology": {

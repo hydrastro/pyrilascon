@@ -58,7 +58,7 @@
     "separate_encrypt_decrypt_ports": true,
     "supports_backpressure": true
   },
-  "name": "asic_two_datapaths_dual_cores",
+  "name": "asic_two_datapaths_dual_cores_rtl_performed",
   "padding": {
     "final_bytemask": false,
     "final_bytemask_width": 0,
@@ -94,9 +94,20 @@
   "security": {
     "clear_state_on_done": true,
     "constant_time_control": true,
+    "constant_time_decrypt_failure": true,
+    "constant_time_tag_compare": true,
+    "decryption_release_policy": "buffer_until_tag_verify",
+    "duplicate_compute_check": false,
     "duplicate_control_fsm_checks": false,
+    "fault_detection": "none",
+    "plaintext_buffer_capacity_bytes": 4096,
+    "plaintext_buffer_storage": "sram_fifo",
+    "plaintext_buffer_until_tag_verified": true,
+    "profile": "asic_rand_counter_consttime_tag",
+    "randomized_counter_hardening": true,
     "randomness_bits_per_cycle": 0,
-    "side_channel_protection": "none"
+    "side_channel_protection": "none",
+    "zeroize_plaintext_buffer_on_failure": true
   },
   "target": "asic",
   "topology": {
