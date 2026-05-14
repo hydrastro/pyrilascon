@@ -8,6 +8,7 @@ from ascon_arch.datapath_planning import estimate_datapath
 from ascon_arch.context_planning import estimate_context_storage
 from ascon_arch.top_level_planning import estimate_top_level
 from ascon_arch.control_planning import estimate_control
+from ascon_arch.padding_planning import estimate_padding
 from ascon_arch.validation import validate_config
 
 
@@ -37,6 +38,10 @@ def state_context_module_name(config: ImplementationConfig) -> str:
 
 def control_module_name(config: ImplementationConfig) -> str:
     return f"ascon_{config.name}_control"
+
+
+def padding_module_name(config: ImplementationConfig) -> str:
+    return f"ascon_{config.name}_padding"
 
 
 def _reset_condition(config: ImplementationConfig) -> str:
@@ -428,6 +433,44 @@ def emit_permutation_module(config: ImplementationConfig) -> str:
     return "\n".join(lines)
 
 
+def emit_padding_module(config: ImplementationConfig) -> str:
+    padding = config.padding
+    estimate = estimate_padding(padding)
+    keep_width = max(1, padding.final_bytemask_width if padding.final_bytemask else config.io.data_bus_bits // 8)
+    return "\n".join(
+        [
+            "// Generated ASCON padding/final-block skeleton.",
+            f"// profile={padding.profile.value}, strategy={padding.strategy.value}, length_handling={padding.length_handling.value}",
+            f"// area_class={estimate.area_class}, flexibility={estimate.flexibility_class}, streaming_efficiency={estimate.streaming_efficiency}",
+            f"// final_bytemask={str(padding.final_bytemask).lower()}, final_bytemask_width={padding.final_bytemask_width}",
+            f"module {padding_module_name(config)} #(",
+            f"  parameter int DATA_BUS_BITS = {config.io.data_bus_bits},",
+            f"  parameter int KEEP_BITS = {keep_width},",
+            f"  parameter int PARTIAL_BLOCK_BUFFER_BYTES = {padding.partial_block_buffer_bytes}",
+            ") (",
+            "  input  logic clk,",
+            "  input  logic rst_n,",
+            "  input  logic valid_i,",
+            "  input  logic last_i,",
+            "  input  logic [DATA_BUS_BITS-1:0] data_i,",
+            "  input  logic [KEEP_BITS-1:0] keep_i,",
+            "  output logic valid_o,",
+            "  output logic [DATA_BUS_BITS-1:0] data_o,",
+            "  output logic [KEEP_BITS-1:0] keep_o",
+            ");",
+            "",
+            "  // TODO: implement selected padding backend.",
+            "  // For streaming_final_bytemask, keep_i marks valid bytes on the final beat.",
+            "  // For rtl_performed, the FSM/counter determines the pad10* insertion point internally.",
+            "  assign valid_o = valid_i;",
+            "  assign data_o  = data_i;",
+            "  assign keep_o  = keep_i;",
+            "endmodule",
+            "",
+        ]
+    )
+
+
 def emit_control_module(config: ImplementationConfig) -> str:
     control = config.control
     estimate = estimate_control(control)
@@ -466,7 +509,19 @@ def design_metrics(config: ImplementationConfig) -> dict[str, object]:
     context_estimate = estimate_context_storage(config.context)
     top_estimate = estimate_top_level(config)
     control_estimate = estimate_control(config.control)
+    padding_estimate = estimate_padding(config.padding)
     return {
+        "padding_profile": config.padding.profile.value,
+        "padding_strategy": config.padding.strategy.value,
+        "padding_length_handling": config.padding.length_handling.value,
+        "padding_supports_partial_blocks": config.padding.supports_partial_blocks,
+        "padding_supports_arbitrary_byte_lengths": config.padding.supports_arbitrary_byte_lengths,
+        "padding_final_bytemask": config.padding.final_bytemask,
+        "padding_final_bytemask_width": config.padding.final_bytemask_width,
+        "padding_pad_in_core": config.padding.pad_in_core,
+        "padding_tracks_byte_count": config.padding.tracks_byte_count,
+        "padding_requires_total_length": config.padding.requires_total_length,
+        "padding_estimate": padding_estimate.to_dict(),
         "control_profile": config.control.profile.value,
         "control_microcode_words": config.control.microcode_words,
         "control_command_fifo_depth": config.control.command_fifo_depth,
@@ -535,6 +590,7 @@ def write_design_product(config: ImplementationConfig, output_root: str | Path) 
         (f"{permutation_module_name(config)}.sv", emit_permutation_module(config)),
         (f"{state_context_module_name(config)}.sv", emit_state_context_module(config)),
         (f"{control_module_name(config)}.sv", emit_control_module(config)),
+        (f"{padding_module_name(config)}.sv", emit_padding_module(config)),
     ]
     if config.topology.family == ArchitectureFamily.SEPARATE_ENC_DEC_DATAPATHS:
         rtl_files.extend(
@@ -579,6 +635,7 @@ def write_design_product(config: ImplementationConfig, output_root: str | Path) 
         f"Expected parallel operations: `{config.topology.expected_parallel_operations()}`\n\n"
         f"Permutation: `{config.permutation.style.value}` / S-box `{config.permutation.sbox_style.value}`\n\n"
         f"Control: `{config.control.profile.value}`\n\n"
+        f"Padding: `{config.padding.profile.value}` / length `{config.padding.length_handling.value}`\n\n"
         "This directory is generated from an architecture configuration. "
         "The current RTL files are structural placeholders that preserve module boundaries for the next implementation phase.\n",
         encoding="utf-8",

@@ -9,6 +9,7 @@ from ascon_arch.enums import (
     DatapathWidth,
     InterfaceStyle,
     LengthHandling,
+    PaddingProfile,
     PaddingStrategy,
     PermutationStyle,
     SideChannelProtection,
@@ -53,8 +54,8 @@ def validate_config(config: ImplementationConfig) -> None:
     if config.io.data_bus_bits % 8 != 0:
         raise ConfigValidationError("data_bus_bits must be byte-aligned")
     if config.io.interface_style == InterfaceStyle.DESCRIPTOR_STREAM:
-        if padding.length_handling != LengthHandling.DESCRIPTOR_BASED:
-            raise ConfigValidationError("descriptor_stream requires descriptor_based length handling")
+        if padding.length_handling not in (LengthHandling.DESCRIPTOR_BASED, LengthHandling.STREAMING_FINAL_BYTEMASK):
+            raise ConfigValidationError("descriptor_stream requires descriptor_based or streaming_final_bytemask length handling")
 
 
 
@@ -236,7 +237,39 @@ def validate_config(config: ImplementationConfig) -> None:
         if permutation.pipeline_initiation_interval is None:
             raise ConfigValidationError("multi-pipeline context topologies require a pipelined permutation config")
 
-    if padding.supports_bit_granular_lengths and padding.length_handling == LengthHandling.EXTERNAL_LAST_STROBE:
+
+    if padding.final_bytemask_width < 0:
+        raise ConfigValidationError("final_bytemask_width must be non-negative")
+    if padding.partial_block_buffer_bytes < 1:
+        raise ConfigValidationError("partial_block_buffer_bytes must be positive")
+    if padding.profile == PaddingProfile.RTL_PERFORMED:
+        if not padding.pad_in_core:
+            raise ConfigValidationError("rtl_performed padding requires pad_in_core=True")
+        if padding.final_bytemask:
+            raise ConfigValidationError("rtl_performed padding should not require a final byte mask")
+        if padding.length_handling not in (LengthHandling.INTERNAL_BYTE_COUNTER, LengthHandling.DESCRIPTOR_BASED):
+            raise ConfigValidationError("rtl_performed padding requires internal_byte_counter or descriptor_based length handling")
+    if padding.profile == PaddingProfile.FULL_ARBITRARY_BYTELENGTH:
+        if not padding.supports_arbitrary_byte_lengths:
+            raise ConfigValidationError("full_arbitrary_bytelength profile must support arbitrary byte lengths")
+        if not padding.requires_total_length:
+            raise ConfigValidationError("full_arbitrary_bytelength profile requires an explicit total length")
+        if padding.length_handling != LengthHandling.DESCRIPTOR_BASED:
+            raise ConfigValidationError("full_arbitrary_bytelength profile requires descriptor_based length handling")
+    if padding.profile == PaddingProfile.STREAMING_FINAL_BYTEMASK:
+        if not padding.final_bytemask:
+            raise ConfigValidationError("streaming_final_bytemask profile requires final_bytemask=True")
+        if padding.final_bytemask_width < 1:
+            raise ConfigValidationError("streaming_final_bytemask profile requires a positive final_bytemask_width")
+        if padding.length_handling != LengthHandling.STREAMING_FINAL_BYTEMASK:
+            raise ConfigValidationError("streaming_final_bytemask profile requires matching length handling")
+        if not config.io.supports_backpressure or config.io.flow_control.value != "valid_ready":
+            raise ConfigValidationError("streaming_final_bytemask is intended for valid/ready streaming interfaces")
+        expected_keep_bits = max(1, config.io.data_bus_bits // 8)
+        if padding.final_bytemask_width != expected_keep_bits:
+            raise ConfigValidationError("final_bytemask_width must match data_bus_bits / 8")
+
+    if padding.supports_bit_granular_lengths and padding.length_handling in (LengthHandling.EXTERNAL_LAST_STROBE, LengthHandling.STREAMING_FINAL_BYTEMASK):
         raise ConfigValidationError("bit-granular lengths require an internal counter or descriptor length field")
     if padding.strategy == PaddingStrategy.PREPROCESSOR and padding.length_handling == LengthHandling.INTERNAL_BYTE_COUNTER:
         raise ConfigValidationError("preprocessor padding should use external or descriptor length handling")

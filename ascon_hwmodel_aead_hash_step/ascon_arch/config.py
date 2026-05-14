@@ -15,6 +15,7 @@ from ascon_arch.enums import (
     FlowControlStyle,
     InterfaceStyle,
     LengthHandling,
+    PaddingProfile,
     PaddingStrategy,
     PermutationStyle,
     ResetStyle,
@@ -248,17 +249,41 @@ class ContextConfig:
 
 @dataclass(frozen=True, slots=True)
 class PaddingConfig:
-    strategy: PaddingStrategy = PaddingStrategy.INLINE_COMBINATIONAL
-    length_handling: LengthHandling = LengthHandling.EXTERNAL_LAST_STROBE
+    """Padding and final-block length handling for an implementation.
+
+    profile captures the architectural intent. strategy describes where the
+    padding operation physically lives. length_handling describes how the core
+    discovers the final block length. For streaming_final_bytemask, the stream
+    presents last_i plus a byte-valid mask for the final beat.
+    """
+
+    profile: PaddingProfile = PaddingProfile.RTL_PERFORMED
+    strategy: PaddingStrategy = PaddingStrategy.FSM_ASSISTED
+    length_handling: LengthHandling = LengthHandling.INTERNAL_BYTE_COUNTER
     supports_partial_blocks: bool = True
     supports_bit_granular_lengths: bool = False
+    supports_arbitrary_byte_lengths: bool = True
+    final_bytemask: bool = False
+    final_bytemask_width: int = 0
+    pad_in_core: bool = True
+    tracks_byte_count: bool = True
+    requires_total_length: bool = False
+    partial_block_buffer_bytes: int = 16
 
     def to_dict(self) -> dict[str, Any]:
         return {
+            "profile": self.profile.value,
             "strategy": self.strategy.value,
             "length_handling": self.length_handling.value,
             "supports_partial_blocks": self.supports_partial_blocks,
             "supports_bit_granular_lengths": self.supports_bit_granular_lengths,
+            "supports_arbitrary_byte_lengths": self.supports_arbitrary_byte_lengths,
+            "final_bytemask": self.final_bytemask,
+            "final_bytemask_width": self.final_bytemask_width,
+            "pad_in_core": self.pad_in_core,
+            "tracks_byte_count": self.tracks_byte_count,
+            "requires_total_length": self.requires_total_length,
+            "partial_block_buffer_bytes": self.partial_block_buffer_bytes,
         }
 
     @classmethod
@@ -266,10 +291,18 @@ class PaddingConfig:
         if data is None:
             return cls()
         return cls(
-            strategy=PaddingStrategy(str(data.get("strategy", PaddingStrategy.INLINE_COMBINATIONAL.value))),
-            length_handling=LengthHandling(str(data.get("length_handling", LengthHandling.EXTERNAL_LAST_STROBE.value))),
+            profile=PaddingProfile(str(data.get("profile", PaddingProfile.RTL_PERFORMED.value))),
+            strategy=PaddingStrategy(str(data.get("strategy", PaddingStrategy.FSM_ASSISTED.value))),
+            length_handling=LengthHandling(str(data.get("length_handling", LengthHandling.INTERNAL_BYTE_COUNTER.value))),
             supports_partial_blocks=bool(data.get("supports_partial_blocks", True)),
             supports_bit_granular_lengths=bool(data.get("supports_bit_granular_lengths", False)),
+            supports_arbitrary_byte_lengths=bool(data.get("supports_arbitrary_byte_lengths", True)),
+            final_bytemask=bool(data.get("final_bytemask", False)),
+            final_bytemask_width=int(data.get("final_bytemask_width", 0)),
+            pad_in_core=bool(data.get("pad_in_core", True)),
+            tracks_byte_count=bool(data.get("tracks_byte_count", True)),
+            requires_total_length=bool(data.get("requires_total_length", False)),
+            partial_block_buffer_bytes=int(data.get("partial_block_buffer_bytes", 16)),
         )
 
 

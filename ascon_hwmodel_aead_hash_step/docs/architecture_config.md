@@ -85,3 +85,7 @@ The current RTL files are structural skeletons. They intentionally preserve modu
 ## Further architecture notes
 
 See [`permutation_architecture.md`](permutation_architecture.md) for the current permutation microarchitecture profiles and their latency/resource tradeoffs.
+
+Additional notes:
+
+- [`padding_length_architecture.md`](padding_length_architecture.md) describes RTL-performed padding, descriptor-based arbitrary byte lengths, and streaming final bytemask handling.

@@ -25,6 +25,7 @@ from ascon_arch.enums import (
     FlowControlStyle,
     InterfaceStyle,
     LengthHandling,
+    PaddingProfile,
     PaddingStrategy,
     PermutationProfile,
     PermutationStyle,
@@ -40,6 +41,7 @@ from ascon_arch.permutation_planning import permutation_config_for_profile
 from ascon_arch.datapath_planning import datapath_config_for_profile
 from ascon_arch.context_planning import context_config_for_profile
 from ascon_arch.control_planning import control_config_for_profile
+from ascon_arch.padding_planning import padding_config_for_profile
 
 
 def shared_datapath_config(target: TargetTechnology, name: str = "shared_datapath") -> ImplementationConfig:
@@ -78,9 +80,10 @@ def shared_datapath_config(target: TargetTechnology, name: str = "shared_datapat
             target,
             engine_count=1,
         ),
-        padding=PaddingConfig(
-            strategy=PaddingStrategy.FSM_ASSISTED,
-            length_handling=LengthHandling.INTERNAL_BYTE_COUNTER,
+        padding=padding_config_for_profile(
+            PaddingProfile.RTL_PERFORMED,
+            target,
+            data_bus_bits=128,
         ),
         io=IOConfig(
             interface_style=InterfaceStyle.STREAM,
@@ -140,10 +143,10 @@ def asic_two_datapaths_config() -> ImplementationConfig:
             engine_count=2,
             contexts_per_engine=1,
         ),
-        padding=PaddingConfig(
-            strategy=PaddingStrategy.FSM_ASSISTED,
-            length_handling=LengthHandling.INTERNAL_BYTE_COUNTER,
-            supports_partial_blocks=True,
+        padding=padding_config_for_profile(
+            PaddingProfile.RTL_PERFORMED,
+            TargetTechnology.ASIC,
+            data_bus_bits=128,
         ),
         io=IOConfig(
             interface_style=InterfaceStyle.STREAM,
@@ -202,7 +205,11 @@ def shared_permutation_mode_fsm_config(target: TargetTechnology = TargetTechnolo
             target,
             engine_count=1,
         ),
-        padding=PaddingConfig(strategy=PaddingStrategy.FSM_ASSISTED, length_handling=LengthHandling.INTERNAL_BYTE_COUNTER),
+        padding=padding_config_for_profile(
+            PaddingProfile.RTL_PERFORMED,
+            target,
+            data_bus_bits=128,
+        ),
         io=IOConfig(interface_style=InterfaceStyle.STREAM, data_bus_bits=128, supports_backpressure=True),
         control=control_config_for_profile(
             ControlProfile.HARDCODED_FSM if target == TargetTechnology.ASIC else ControlProfile.MICROCODED_SEQUENCER,
@@ -257,10 +264,10 @@ def fpga_n_parallel_engines_config(engine_count: int) -> ImplementationConfig:
             contexts_per_engine=12,
             pipeline_stages=12,
         ),
-        padding=PaddingConfig(
-            strategy=PaddingStrategy.INLINE_COMBINATIONAL,
-            length_handling=LengthHandling.DESCRIPTOR_BASED,
-            supports_partial_blocks=True,
+        padding=padding_config_for_profile(
+            PaddingProfile.STREAMING_FINAL_BYTEMASK,
+            TargetTechnology.FPGA,
+            data_bus_bits=128 * engine_count,
         ),
         io=IOConfig(
             interface_style=InterfaceStyle.DESCRIPTOR_STREAM,
@@ -344,7 +351,10 @@ def config_with_datapath_profile(
     suffix = name_suffix or profile.value
     data_bus_bits = datapath.io_word_width.bits() * config.topology.engine_count
     io = replace(config.io, data_bus_bits=data_bus_bits)
-    return replace(config, name=f"{config.name}_{suffix}", datapath=datapath, io=io)
+    padding = config.padding
+    if padding.final_bytemask:
+        padding = replace(padding, final_bytemask_width=max(1, data_bus_bits // 8))
+    return replace(config, name=f"{config.name}_{suffix}", datapath=datapath, io=io, padding=padding)
 
 
 def asic_two_datapaths_with_datapath_profile_config(profile: DatapathProfile) -> ImplementationConfig:
@@ -424,7 +434,14 @@ def config_with_control_profile(
     """Return a copy using one named control/sequencing organization profile."""
     control = control_config_for_profile(profile, config.target)
     suffix = name_suffix or profile.value
-    return replace(config, name=f"{config.name}_{suffix}", control=control)
+    padding = config.padding
+    if profile == ControlProfile.DMA_FED:
+        padding = padding_config_for_profile(
+            PaddingProfile.FULL_ARBITRARY_BYTELENGTH,
+            config.target,
+            data_bus_bits=config.io.data_bus_bits,
+        )
+    return replace(config, name=f"{config.name}_{suffix}", control=control, padding=padding)
 
 
 def asic_two_datapaths_hardcoded_fsm_config() -> ImplementationConfig:
@@ -433,6 +450,30 @@ def asic_two_datapaths_hardcoded_fsm_config() -> ImplementationConfig:
 
 def fpga_n_parallel_engines_with_control_profile_config(engine_count: int, profile: ControlProfile) -> ImplementationConfig:
     return config_with_control_profile(fpga_n_parallel_engines_config(engine_count), profile)
+
+
+
+
+def config_with_padding_profile(
+    config: ImplementationConfig,
+    profile: PaddingProfile,
+    *,
+    name_suffix: str | None = None,
+) -> ImplementationConfig:
+    """Return a copy using one named padding/final-length handling profile."""
+    padding = padding_config_for_profile(
+        profile,
+        config.target,
+        data_bus_bits=config.io.data_bus_bits,
+    )
+    suffix = name_suffix or profile.value
+    return replace(config, name=f"{config.name}_{suffix}", padding=padding)
+
+
+def _resize_padding_for_io(config: ImplementationConfig, io: IOConfig) -> PaddingConfig:
+    if not config.padding.final_bytemask:
+        return config.padding
+    return replace(config.padding, final_bytemask_width=max(1, io.data_bus_bits // 8))
 
 
 def config_with_top_level_profile(
@@ -459,7 +500,7 @@ def config_with_top_level_profile(
         )
         context = context_config_for_profile(ContextProfile.SINGLE_320_REGISTER, config.target, engine_count=1)
         io = replace(config.io, data_bus_bits=config.datapath.io_word_width.bits())
-        return replace(config, name=f"{config.name}_{suffix}", topology=topology, context=context, io=io)
+        return replace(config, name=f"{config.name}_{suffix}", topology=topology, context=context, io=io, padding=_resize_padding_for_io(config, io))
 
     if profile == TopLevelProfile.DUAL_ENC_DEC_CORES:
         topology = replace(
@@ -480,7 +521,7 @@ def config_with_top_level_profile(
         )
         context = context_config_for_profile(ContextProfile.SINGLE_320_REGISTER, config.target, engine_count=2)
         io = replace(config.io, separate_encrypt_decrypt_ports=True)
-        return replace(config, name=f"{config.name}_{suffix}", topology=topology, context=context, io=io)
+        return replace(config, name=f"{config.name}_{suffix}", topology=topology, context=context, io=io, padding=_resize_padding_for_io(config, io))
 
     if profile == TopLevelProfile.N_IDENTICAL_AEAD_CORES:
         n = core_count or config.topology.engine_count
@@ -503,7 +544,7 @@ def config_with_top_level_profile(
             pipeline_stages=config.permutation.pipeline_stages,
         )
         io = replace(config.io, data_bus_bits=config.datapath.io_word_width.bits() * n)
-        return replace(config, name=f"{config.name}_{suffix}_{n}", topology=topology, context=context, io=io)
+        return replace(config, name=f"{config.name}_{suffix}_{n}", topology=topology, context=context, io=io, padding=_resize_padding_for_io(config, io))
 
     if profile == TopLevelProfile.ONE_PIPELINED_PERMUTATION_N_CONTEXTS:
         ctx = contexts_per_pipeline or max(config.context.contexts_per_engine, config.permutation.pipeline_stages, 2)
@@ -529,7 +570,7 @@ def config_with_top_level_profile(
             pipeline_stages=max(config.permutation.pipeline_stages, ctx),
         )
         io = replace(config.io, data_bus_bits=config.datapath.io_word_width.bits())
-        return replace(config, name=f"{config.name}_{suffix}_{ctx}ctx", topology=topology, context=context, io=io)
+        return replace(config, name=f"{config.name}_{suffix}_{ctx}ctx", topology=topology, context=context, io=io, padding=_resize_padding_for_io(config, io))
 
     if profile == TopLevelProfile.M_PIPELINES_N_CONTEXTS:
         m = pipeline_count or max(config.topology.permutation_pipeline_count, 2)
@@ -556,7 +597,7 @@ def config_with_top_level_profile(
             pipeline_stages=max(config.permutation.pipeline_stages, ctx),
         )
         io = replace(config.io, data_bus_bits=config.datapath.io_word_width.bits() * m)
-        return replace(config, name=f"{config.name}_{suffix}_{m}p_{ctx}ctx", topology=topology, context=context, io=io)
+        return replace(config, name=f"{config.name}_{suffix}_{m}p_{ctx}ctx", topology=topology, context=context, io=io, padding=_resize_padding_for_io(config, io))
 
     raise ValueError(f"unsupported top-level profile: {profile}")
 

@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 from ascon_arch.config import ImplementationConfig
-from ascon_arch.enums import ContextProfile, ControlProfile, DatapathProfile, PermutationProfile, TargetTechnology, TopLevelProfile
+from ascon_arch.enums import ContextProfile, ControlProfile, DatapathProfile, PaddingProfile, PermutationProfile, TargetTechnology, TopLevelProfile
 from ascon_arch.presets import (
     asic_two_datapaths_column_serial_config,
     asic_dual_enc_dec_cores_config,
@@ -12,6 +12,7 @@ from ascon_arch.presets import (
     config_with_control_profile,
     config_with_datapath_profile,
     asic_two_datapaths_two_rounds_per_cycle_config,
+    config_with_padding_profile,
     config_with_permutation_profile,
     config_with_top_level_profile,
     fpga_m_pipelines_n_contexts_config,
@@ -75,6 +76,11 @@ def build_arg_parser() -> ArgumentParser:
         "--control-profile",
         choices=tuple(profile.value for profile in ControlProfile),
         help="Override the control/sequencer organization while preserving the rest of the architecture.",
+    )
+    parser.add_argument(
+        "--padding-profile",
+        choices=tuple(profile.value for profile in PaddingProfile),
+        help="Override padding/final-length handling while preserving the rest of the architecture.",
     )
     parser.add_argument("--out", type=Path, default=Path("build"), help="Output root directory.")
     return parser
@@ -169,6 +175,12 @@ def apply_control_profile(config: ImplementationConfig, profile_value: str | Non
     return config_with_control_profile(config, ControlProfile(profile_value))
 
 
+def apply_padding_profile(config: ImplementationConfig, profile_value: str | None) -> ImplementationConfig:
+    if profile_value is None:
+        return config
+    return config_with_padding_profile(config, PaddingProfile(profile_value))
+
+
 def main() -> None:
     args = build_arg_parser().parse_args()
     if args.config is not None:
@@ -183,6 +195,7 @@ def main() -> None:
     config = apply_top_level_profile(config, args.top_level_profile, args.engine_count, args.pipeline_count, args.contexts_per_engine)
     config = apply_context_profile(config, args.context_profile, args.contexts_per_engine)
     config = apply_control_profile(config, args.control_profile)
+    config = apply_padding_profile(config, args.padding_profile)
     written = write_design_product(config, args.out)
     for path in written:
         print(path)

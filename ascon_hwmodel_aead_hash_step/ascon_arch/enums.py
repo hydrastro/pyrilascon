@@ -134,6 +134,12 @@ class ControlProfile(str, Enum):
     CSR_REGISTER_FILE = "csr_register_file"
     DMA_FED = "dma_fed"
 
+class PaddingProfile(str, Enum):
+    RTL_PERFORMED = "rtl_performed"
+    FULL_ARBITRARY_BYTELENGTH = "full_arbitrary_bytelength"
+    STREAMING_FINAL_BYTEMASK = "streaming_final_bytemask"
+
+
 class PaddingStrategy(str, Enum):
     INLINE_COMBINATIONAL = "inline_combinational"
     FSM_ASSISTED = "fsm_assisted"
@@ -144,6 +150,7 @@ class LengthHandling(str, Enum):
     EXTERNAL_LAST_STROBE = "external_last_strobe"
     INTERNAL_BYTE_COUNTER = "internal_byte_counter"
     DESCRIPTOR_BASED = "descriptor_based"
+    STREAMING_FINAL_BYTEMASK = "streaming_final_bytemask"
 
 
 class InterfaceStyle(str, Enum):
