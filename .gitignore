@@ -1,4 +1,4 @@
-# Python caches
+# Python bytecode and caches
 __pycache__/
 *.py[cod]
 *$py.class
@@ -14,53 +14,50 @@ venv/
 env/
 ENV/
 
-# Build/generated products
+# Packaging/build artifacts
 build/
 dist/
 *.egg-info/
+
+# Generated RTL and vectors; regenerate with tools/generate_*.py
 rtl/generated/*
 !rtl/generated/.gitkeep
-docs/generated/*
-!docs/generated/.gitkeep
 vectors/generated/
 
-# Simulation/synthesis outputs
-work/
-transcript
+# Simulator/synthesis artifacts
 *.vcd
 *.fst
+*.fsdb
 *.wlf
-*.jou
 *.log
+*.jou
 *.rpt
 *.dcp
 *.bit
 *.bin
-*.mcs
-*.edf
-*.edif
+*.svf
 *.sdf
 *.spef
 *.saif
-*.fsdb
-*.vpd
+work/
+INCA_libs/
+xcelium.d/
+simv
+simv.daidir/
+csrc/
+obj_dir/
 
-# Vendor/project noise
-*.xpr
-*.runs/
-*.cache/
-*.hw/
-*.ip_user_files/
-*.sim/
-*.qpf
-*.qsf
-*.sof
-*.sta.rpt
-
-# Editor/OS files
+# Editor/OS noise
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
 *.swp
 *.swo
+# Generated documentation/reports
+docs/generated/*
+!docs/generated/.gitkeep
+# Local archives / accidental nested repo payloads
+*.zip
+repo.zip
+ascon_hwmodel_aead_hash_step/
