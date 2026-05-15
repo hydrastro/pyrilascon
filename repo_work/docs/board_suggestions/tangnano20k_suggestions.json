@@ -1,0 +1,60 @@
+{
+  "assumptions": [
+    "Larger Gowin device should allow either 8RPC with more buffering or a small pipelined context engine.",
+    "Use 128-bit AXI Stream as the default data plane."
+  ],
+  "board_class": "tangnano20k",
+  "candidates": [
+    {
+      "context_profile": "fpga_bram_lutram",
+      "contexts_per_engine": 12,
+      "control_profile": "axi_stream_microcoded_hybrid",
+      "data_plane": "axi_stream_128",
+      "datapath_profile": "128_bit",
+      "engine_count": 1,
+      "name": "tn20k_axis128_fully_pipelined_12ctx",
+      "notes": [
+        "Best match for context-interleaved high-throughput FPGA architecture."
+      ],
+      "padding_profile": "streaming_final_bytemask",
+      "permutation_profile": "fully_pipelined",
+      "priority": 1,
+      "security_profile": "none",
+      "summary": "One fully pipelined permutation with 12 interleaved contexts.",
+      "top_level_profile": "one_pipelined_permutation_n_contexts"
+    },
+    {
+      "context_profile": "multi_context_registers",
+      "contexts_per_engine": 4,
+      "control_profile": "axi_stream_microcoded_hybrid",
+      "data_plane": "axi_stream_128",
+      "datapath_profile": "128_bit",
+      "engine_count": 1,
+      "name": "tn20k_axis128_8rpc_single_or_small_context",
+      "notes": [],
+      "padding_profile": "streaming_final_bytemask",
+      "permutation_profile": "eight_rounds_per_cycle",
+      "priority": 2,
+      "security_profile": "none",
+      "summary": "8 rounds per cycle with optional small context interleaving.",
+      "top_level_profile": "single_core"
+    },
+    {
+      "context_profile": "separate_state_per_core",
+      "contexts_per_engine": 1,
+      "control_profile": "axi_stream_microcoded_hybrid",
+      "data_plane": "axi_stream_128",
+      "datapath_profile": "128_bit",
+      "engine_count": 2,
+      "name": "tn20k_axis128_two_identical_cores",
+      "notes": [],
+      "padding_profile": "streaming_final_bytemask",
+      "permutation_profile": "four_rounds_per_cycle",
+      "priority": 3,
+      "security_profile": "fpga_fault_detect_rand_counter_consttime_tag",
+      "summary": "Two complete AEAD cores for simple packet-level scaling.",
+      "top_level_profile": "n_identical_aead_cores"
+    }
+  ],
+  "goal": "maximum_throughput_that_fits"
+}

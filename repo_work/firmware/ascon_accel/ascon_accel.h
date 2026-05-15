@@ -44,9 +44,15 @@ typedef enum {
   ASCON_ACCEL_ERR_HARDWARE_ERROR = -6,
 } ascon_accel_status_t;
 
+typedef enum {
+  ASCON_ACCEL_DATA_PLANE_MMIO_WORD = 0,
+  ASCON_ACCEL_DATA_PLANE_AXI_STREAM_EXTERNAL = 1,
+} ascon_accel_data_plane_t;
+
 typedef struct {
   uintptr_t base_addr;
   uint32_t timeout_cycles;
+  ascon_accel_data_plane_t data_plane;
 } ascon_accel_t;
 
 typedef struct {
@@ -70,6 +76,7 @@ typedef struct {
 } ascon_accel_hash_request_t;
 
 void ascon_accel_init(ascon_accel_t *dev, uintptr_t base_addr, uint32_t timeout_cycles);
+void ascon_accel_set_data_plane(ascon_accel_t *dev, ascon_accel_data_plane_t data_plane);
 void ascon_accel_reset(const ascon_accel_t *dev);
 
 uint32_t ascon_accel_abi_version(const ascon_accel_t *dev);

@@ -7,7 +7,12 @@
 #   make NEORV32_HOME=/path/to/neorv32
 
 NEORV32_HOME ?= ../../external/neorv32
-APP_SRC      += main.c ../ascon_accel/ascon_accel.c
+APP_SRC      += main.c \
+                ../ascon_accel/ascon_accel.c \
+                ../ascon_accel/ascon_accel_control.c \
+                ../ascon_accel/ascon_accel_caps.c \
+                ../ascon_accel/ascon_accel_mmio_data.c \
+                ../ascon_accel/ascon_accel_axis_data.c
 APP_INC      += -I../ascon_accel
 APP_CFLAGS   += -Wall -Wextra
 
