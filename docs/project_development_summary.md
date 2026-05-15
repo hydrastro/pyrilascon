@@ -255,7 +255,7 @@ The uploaded repository was unpacked and tested.
 
 Observed state:
 
-- root `pytest` now passes: **180 tests passing**;
+- root `pytest` now passes: **188 tests passing**;
 - `make verify` now passes after repairing the Makefile/tool compatibility issue around `--algorithms requested`;
 - generated docs/config reports are produced under `docs/generated/`;
 - generated RTL is produced under `rtl/generated/`.
@@ -420,3 +420,21 @@ For a development-process report, the strongest narrative is:
 ## 12. One-line project summary
 
 We designed a configurable ASCON FPGA/ASIC accelerator generator with a stable firmware ABI, pluggable data planes, selectable datapath/permutation/control/security architectures, board-aware FPGA prototypes, and a unified benchmarking path for comparing hardware acceleration against software execution.
+
+## 9. Streaming encryption RTL backend added
+
+The next implementation slice adds `rtl/stream/ascon_aead128_stream_encrypt.v`,
+an encryption-only NIST Ascon-AEAD128 backend that consumes validated AXI stream
+AD/plaintext packets and emits ciphertext beats without complete-message
+buffering.
+
+This is the first stream-native RTL backend in the repository. It uses
+`ascon_axis_framer` for protocol validation, keeps the frozen CSR/MMIO control
+contract for key/nonce/length/mode, and schedules one Ascon round per cycle. It
+is intentionally not yet the authenticated decrypt backend and does not replace
+the older bounded AXI top-level wrapper yet.
+
+Current validation after this slice:
+
+- `python -m pytest -q`: **188 passed**;
+- `make verify`: **188 passed**, then config/docs/RTL generation completes.
