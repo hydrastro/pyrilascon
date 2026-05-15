@@ -1,21 +1,49 @@
-# NEORV32 ASCON accelerator firmware demo
+# NEORV32 ASCON Accelerator Demo Firmware
 
-This is a firmware scaffold for the frozen ASCON accelerator ABI.
+This directory contains the first firmware demo for the pyrilascon accelerator
+ABI. It is written for NEORV32 CFS integration and assumes the ASCON accelerator
+is visible at the CFS base address:
 
-It is intended to be copied into a NEORV32 software project once the CFS wrapper
-is integrated into the hardware design. It uses the shared driver in
-`firmware/ascon_accel/`.
+```c
+#define ASCON_ACCEL_BASE_ADDR 0xFFEB0000u
+```
 
-Current status:
+## Current behavior
 
-- The driver and register definitions compile as host C.
-- This demo references `neorv32.h`, so it is meant for the NEORV32 software tree.
-- The hardware-side MMIO register bank exists in `rtl/common/ascon_accel_mmio_regs.v`.
-- The cryptographic CFS backend is still to be connected to the real AEAD128 core.
+`main.c`:
 
-The demo checks:
+1. initializes the NEORV32 runtime and UART0,
+2. probes `ABI_VERSION` and `CAPABILITIES`,
+3. checks that `AEAD128` is supported,
+4. writes key, nonce, associated data, and plaintext through the portable driver,
+5. starts encryption,
+6. prints ciphertext, tag, and hardware cycle count.
 
-1. ABI version.
-2. Hardware capabilities.
-3. AEAD128 availability.
-4. One encrypt call through the software driver.
+## Build
+
+Point `NEORV32_HOME` at a checked-out NEORV32 repository:
+
+```bash
+make NEORV32_HOME=/path/to/neorv32 clean_all exe
+```
+
+The Makefile uses NEORV32's normal software build system and adds the portable
+accelerator driver from `firmware/ascon_accel`.
+
+## Hardware requirement
+
+This firmware requires the CFS replacement:
+
+```text
+rtl/neorv32/neorv32_cfs_ascon.vhd
+```
+
+plus the Verilog accelerator backend listed in:
+
+```text
+rtl/neorv32/ascon_cfs_file_list.f
+```
+
+The standalone Tang Nano 9K LED tests do not use this firmware. They are direct
+RTL self-tests. This firmware is for the next milestone: running ASCON through a
+NEORV32 CPU and printing the result over UART.
