@@ -32,3 +32,20 @@ make prog-sram
 
 This target runs both a fixed encryption KAT and a fixed decryption KAT. It is the
 current standalone full-AEAD smoke test before NEORV32 integration.
+
+## ascon_aead128_mmio_slow
+
+This target exercises the frozen 32-bit accelerator MMIO register map on the FPGA.
+It is the bridge target before NEORV32 integration: an on-chip test controller
+writes the same registers that firmware will write, then verifies encryption and
+decryption KAT outputs.
+
+```bash
+cd boards/tangnano9k/ascon_aead128_mmio_slow
+make clean
+make tools
+make
+make prog-sram
+```
+
+Expected pass indication: LED1, LED2, LED4, and LED5 on; LED3 off; LED0 blinking.

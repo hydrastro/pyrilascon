@@ -50,6 +50,7 @@ module ascon_accel_mmio_regs #(
   output reg          core_data_in_pulse_o,
   output wire [31:0]  core_data_in_o,
   output wire [31:0]  core_data_in_ctrl_o,
+  output reg          core_data_out_read_pulse_o,
 
   // Status/data returned by the implementation core.
   input  wire         core_busy_i,
@@ -75,8 +76,6 @@ module ascon_accel_mmio_regs #(
 
   reg [31:0] data_in_q;
   reg [31:0] data_in_ctrl_q;
-  reg [31:0] data_out_q;
-  reg [31:0] data_out_ctrl_q;
 
   reg [63:0] cycle_count_q;
   reg [31:0] error_code_q;
@@ -130,8 +129,6 @@ module ascon_accel_mmio_regs #(
       custom_len_q <= 32'h00000000;
       data_in_q <= 32'h00000000;
       data_in_ctrl_q <= 32'h00000000;
-      data_out_q <= 32'h00000000;
-      data_out_ctrl_q <= 32'h00000000;
       cycle_count_q <= 64'h0000000000000000;
       error_code_q <= `ASCON_ERROR_NONE;
       done_q <= 1'b0;
@@ -140,6 +137,7 @@ module ascon_accel_mmio_regs #(
       core_start_o <= 1'b0;
       core_clear_o <= 1'b0;
       core_data_in_pulse_o <= 1'b0;
+      core_data_out_read_pulse_o <= 1'b0;
       for (i = 0; i < 4; i = i + 1) begin
         key_q[i] <= 32'h00000000;
         nonce_q[i] <= 32'h00000000;
@@ -149,6 +147,11 @@ module ascon_accel_mmio_regs #(
       core_start_o <= 1'b0;
       core_clear_o <= 1'b0;
       core_data_in_pulse_o <= 1'b0;
+      core_data_out_read_pulse_o <= 1'b0;
+
+      if (read_access_w && (bus_addr_i == `ASCON_REG_DATA_OUT)) begin
+        core_data_out_read_pulse_o <= 1'b1;
+      end
 
       if (core_busy_i) begin
         cycle_count_q <= cycle_count_q + 64'h0000000000000001;
@@ -160,8 +163,6 @@ module ascon_accel_mmio_regs #(
         tag_valid_q <= 1'b0;
         error_q <= 1'b0;
         error_code_q <= `ASCON_ERROR_NONE;
-        data_out_q <= 32'h00000000;
-        data_out_ctrl_q <= 32'h00000000;
         cycle_count_q <= 64'h0000000000000000;
         core_clear_o <= 1'b1;
       end else begin
@@ -215,8 +216,6 @@ module ascon_accel_mmio_regs #(
           tag_valid_q <= core_tag_valid_i;
           error_q <= core_error_i;
           error_code_q <= core_error_i ? core_error_code_i : `ASCON_ERROR_NONE;
-          data_out_q <= core_data_out_i;
-          data_out_ctrl_q <= core_data_out_ctrl_i;
           if (!core_decrypt_o) begin
             tag_q[0] <= core_generated_tag_i[31:0];
             tag_q[1] <= core_generated_tag_i[63:32];
@@ -238,7 +237,7 @@ module ascon_accel_mmio_regs #(
                                                 (tag_valid_q ? `ASCON_STATUS_TAG_VALID : 32'h00000000) |
                                                 (error_q ? `ASCON_STATUS_ERROR : 32'h00000000) |
                                                 `ASCON_STATUS_IN_READY |
-                                                ((data_out_ctrl_q & `ASCON_DATA_VALID) ? `ASCON_STATUS_OUT_VALID : 32'h00000000);
+                                                ((core_data_out_ctrl_i & `ASCON_DATA_VALID) ? `ASCON_STATUS_OUT_VALID : 32'h00000000);
         `ASCON_REG_MODE:           bus_rdata_o = mode_q;
         `ASCON_REG_CAPABILITIES:   bus_rdata_o = CAPABILITIES;
         `ASCON_REG_AD_LEN:         bus_rdata_o = ad_len_q;
@@ -255,8 +254,8 @@ module ascon_accel_mmio_regs #(
         `ASCON_REG_NONCE3:         bus_rdata_o = nonce_q[3];
         `ASCON_REG_DATA_IN:        bus_rdata_o = data_in_q;
         `ASCON_REG_DATA_IN_CTRL:   bus_rdata_o = data_in_ctrl_q;
-        `ASCON_REG_DATA_OUT:       bus_rdata_o = data_out_q;
-        `ASCON_REG_DATA_OUT_CTRL:  bus_rdata_o = data_out_ctrl_q;
+        `ASCON_REG_DATA_OUT:       bus_rdata_o = core_data_out_i;
+        `ASCON_REG_DATA_OUT_CTRL:  bus_rdata_o = core_data_out_ctrl_i;
         `ASCON_REG_TAG0:           bus_rdata_o = tag_q[0];
         `ASCON_REG_TAG1:           bus_rdata_o = tag_q[1];
         `ASCON_REG_TAG2:           bus_rdata_o = tag_q[2];

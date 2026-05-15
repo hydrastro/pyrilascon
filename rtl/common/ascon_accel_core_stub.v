@@ -25,6 +25,7 @@ module ascon_accel_core_stub #(
   input  wire         data_in_pulse_i,
   input  wire [31:0]  data_in_i,
   input  wire [31:0]  data_in_ctrl_i,
+  input  wire         data_out_read_pulse_i,
   output reg          busy_o,
   output reg          done_o,
   output reg          tag_valid_o,

@@ -1,9 +1,10 @@
-`ifndef ASCON_ACCEL_MMIO_STUB_TOP_V
-`define ASCON_ACCEL_MMIO_STUB_TOP_V
+`ifndef ASCON_ACCEL_MMIO_AEAD128_TOP_V
+`define ASCON_ACCEL_MMIO_AEAD128_TOP_V
 
 `include "ascon_accel_regs.vh"
 
-module ascon_accel_mmio_stub_top (
+// Frozen-ABI MMIO top connected to the first real AEAD128 backend.
+module ascon_accel_mmio_aead128_top (
   input  wire        clk_i,
   input  wire        rstn_i,
   input  wire        bus_valid_i,
@@ -81,7 +82,7 @@ module ascon_accel_mmio_stub_top (
     .core_generated_tag_i(core_generated_tag_w)
   );
 
-  ascon_accel_core_stub stub_i (
+  ascon_aead128_mmio_backend backend_i (
     .clk_i(clk_i),
     .rstn_i(rstn_i),
     .start_i(core_start_w),
