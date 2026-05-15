@@ -12,6 +12,8 @@ def test_firmware_driver_is_split_into_control_and_data_planes() -> None:
         "ascon_accel_caps.c",
         "ascon_accel_mmio_data.c",
         "ascon_accel_axis_data.c",
+        "ascon_accel_benchmark.c",
+        "ascon_accel_benchmark.h",
         "ascon_accel_internal.h",
     }
     assert expected.issubset({path.name for path in FW.iterdir()})
@@ -35,6 +37,7 @@ def test_neorv32_demo_makefile_builds_all_driver_translation_units() -> None:
         "ascon_accel_caps.c",
         "ascon_accel_mmio_data.c",
         "ascon_accel_axis_data.c",
+        "ascon_accel_benchmark.c",
     ):
         assert name in makefile
 
@@ -48,6 +51,7 @@ def test_host_c_driver_files_compile(tmp_path: Path) -> None:
         "ascon_accel_mmio_data.c",
         "ascon_accel_axis_data.c",
         "ascon_accel_axis_mock_transport.c",
+        "ascon_accel_benchmark.c",
         "main_demo.c",
     ):
         obj = tmp_path / f"{source}.o"

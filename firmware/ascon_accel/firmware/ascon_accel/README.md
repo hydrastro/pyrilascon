@@ -15,6 +15,7 @@ The driver is intentionally split into a stable public API and separate control/
 | `ascon_accel_mmio_data.c` | Register-based DATA_IN/DATA_OUT transport |
 | `ascon_accel_axis_data.c` | External AXI Stream/DMA transport callback dispatch |
 | `ascon_accel.c` | High-level AEAD/hash/XOF API composition |
+| `ascon_accel_benchmark.h/.c` | Cycle-count wrappers and benchmark result helpers |
 | `main_demo.c` | Host-buildable API smoke example |
 
 ## Data-plane rule
@@ -41,3 +42,10 @@ ascon_accel_axis_mock_transport.c
 ```
 
 The mock records AD/text/customization streams separately and provides a preloadable RX buffer. See `docs/axis_transport_mocking.md`.
+
+
+## Benchmark helpers
+
+`ascon_accel_benchmark.h` wraps the normal AEAD API and records accelerator cycle-counter values before and after the operation. The helper reports elapsed cycles and milli-cycles-per-byte so the same firmware can compare slow MMIO, AXI Stream, DMA, and future multi-context cores through one result structure.
+
+The benchmark helper measures accelerator-visible cycles. A NEORV32 demo should also measure the software reference using the CPU cycle counter, then report both values. The acceptance rule for hardware acceleration is simple: the accelerator configuration must beat the NEORV32 software implementation for every mode it claims through `ASCON_REG_CAPABILITIES`.

@@ -113,6 +113,19 @@ from ascon_arch.board_suggestions import (
     board_suggestions,
     write_board_suggestions,
 )
+
+from ascon_arch.benchmarking import (
+    AEAD128_RATE_BITS,
+    AEAD128_RATE_BYTES,
+    AeadBenchmarkShape,
+    AeadCycleEstimate,
+    BenchmarkResult,
+    ThroughputEstimate,
+    aead128_cycle_estimate,
+    estimate_config_throughput,
+    throughput_estimate,
+)
+
 from ascon_arch.presets import (
     asic_two_datapaths_column_serial_config,
     asic_two_datapaths_config,
@@ -139,6 +152,15 @@ from ascon_arch.presets import (
 from ascon_arch.validation import ConfigValidationError, validate_config
 
 __all__ = [
+    "AEAD128_RATE_BITS",
+    "AEAD128_RATE_BYTES",
+    "AeadBenchmarkShape",
+    "AeadCycleEstimate",
+    "BenchmarkResult",
+    "ThroughputEstimate",
+    "aead128_cycle_estimate",
+    "estimate_config_throughput",
+    "throughput_estimate",
     "ASIC_DATAPATH_MATRIX",
     "ASIC_PERMUTATION_MATRIX",
     "AlgorithmConfig",
