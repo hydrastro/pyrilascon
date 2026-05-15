@@ -1,1 +1,0 @@
-PYTHONPATH=. python tools/list_valid_configs.py --target bothp
