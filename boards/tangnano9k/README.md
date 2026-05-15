@@ -49,3 +49,18 @@ make prog-sram
 ```
 
 Expected pass indication: LED1, LED2, LED4, and LED5 on; LED3 off; LED0 blinking.
+
+
+## ascon_aead128_axis_slow
+
+Validates the FPGA-facing split interface: CSR/MMIO control plus AXI Stream payload data.  This is the first board-level AXI Stream smoke test and should pass before replacing the backend with a higher-throughput implementation.
+
+```sh
+cd boards/tangnano9k/ascon_aead128_axis_slow
+make clean
+make tools
+make
+make prog-sram
+```
+
+Expected LEDs: LED0 blinking, LED1/LED2/LED4/LED5 on, LED3 off.
