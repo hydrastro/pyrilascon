@@ -1,17 +1,32 @@
+# Python caches
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
 .venv/
 venv/
+env/
+ENV/
+.direnv/
+
+# Generated design/build products
 build/
-boards/*/*/build/
 rtl/generated/*
 !rtl/generated/.gitkeep
 docs/generated/*
 !docs/generated/.gitkeep
-vectors/generated/
+vectors/generated/*
+!vectors/generated/.gitkeep
+boards/**/build/
+
+# FPGA/simulation/synthesis artifacts
+work/
+transcript
 *.vcd
 *.fst
 *.wlf
@@ -20,7 +35,6 @@ vectors/generated/
 *.rpt
 *.dcp
 *.bit
-*.fs
 *.bin
 *.mcs
 *.edf
@@ -30,6 +44,27 @@ vectors/generated/
 *.saif
 *.fsdb
 *.vpd
+*.json
+*.pnr.json
+*.fs
+
+# Gowin / vendor project noise
+*.xpr
+*.runs/
+*.cache/
+*.hw/
+*.ip_user_files/
+*.sim/
+*.qpf
+*.qsf
+*.sof
+*.sta.rpt
+
+# Local scratch folders
+ignore/
+fixed_make_repo/
+
+# Editor/OS files
 .DS_Store
 Thumbs.db
 .vscode/
