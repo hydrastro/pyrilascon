@@ -255,7 +255,7 @@ The uploaded repository was unpacked and tested.
 
 Observed state:
 
-- root `pytest` now passes: **175 tests passing**;
+- root `pytest` now passes: **180 tests passing**;
 - `make verify` now passes after repairing the Makefile/tool compatibility issue around `--algorithms requested`;
 - generated docs/config reports are produced under `docs/generated/`;
 - generated RTL is produced under `rtl/generated/`.

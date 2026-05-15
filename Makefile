@@ -1,5 +1,6 @@
 SHELL := /bin/sh
 PYTHON ?= python
+PYTEST ?= pytest
 PYTEST_FLAGS ?= -q
 ENGINE_COUNT ?= 4
 PIPELINE_COUNT ?= 2
@@ -10,7 +11,7 @@ ALGOS ?= requested
 
 ENV := PYTHONPATH=.
 PY := $(ENV) $(PYTHON)
-PYTEST := $(ENV) $(PYTHON) -m pytest
+PYTEST_CMD := $(ENV) $(PYTEST)
 
 .PHONY: help env check-layout test test-all test-kat test-spec test-arch \
         generate-verilog list-configs list-configs-csv list-configs-json docs-configs \
@@ -20,7 +21,7 @@ PYTEST := $(ENV) $(PYTHON) -m pytest
 help:
 	@echo "ASCON repo targets"
 	@echo ""
-	@echo "  make test                  Run root tests only: python -m pytest tests"
+	@echo "  make test                  Run root tests only: pytest tests"
 	@echo "  make test-kat              Run known-answer tests only"
 	@echo "  make test-spec             Run spec/model tests"
 	@echo "  make test-arch             Run architecture/config tests"
@@ -35,12 +36,12 @@ help:
 	@echo "  make repair                clean-nested + clean + test"
 	@echo "  make verify                Run tests, docs-configs, and Verilog generation"
 	@echo ""
-	@echo "Variables: PYTHON, PYTEST_FLAGS, ENGINE_COUNT, PIPELINE_COUNT, CONTEXTS_PER_ENGINE, BUILD_DIR, ALGOS"
+	@echo "Variables: PYTHON, PYTEST, PYTEST_FLAGS, ENGINE_COUNT, PIPELINE_COUNT, CONTEXTS_PER_ENGINE, BUILD_DIR, ALGOS"
 	@echo "Example: make list-configs ALGOS=aead128,hash256,xof128,cxof128"
 
 env:
 	@$(PYTHON) --version
-	@$(PYTEST) --version
+	@$(PYTEST_CMD) --version
 
 check-layout:
 	@test -d ascon_hwmodel || (echo "Missing ascon_hwmodel/. Run from repo root."; exit 1)
@@ -49,15 +50,15 @@ check-layout:
 	@if [ -d ascon_hwmodel_aead_hash_step ]; then echo "Warning: nested ascon_hwmodel_aead_hash_step/ exists; run 'make clean-nested' to delete it."; fi
 
 test: check-layout clean-cache
-	$(PYTEST) $(PYTEST_FLAGS) tests
+	$(PYTEST_CMD) $(PYTEST_FLAGS) tests
 
 test-all: test
 
 test-kat: check-layout clean-cache
-	$(PYTEST) $(PYTEST_FLAGS) tests/test_known_answer_vectors.py
+	$(PYTEST_CMD) $(PYTEST_FLAGS) tests/test_known_answer_vectors.py
 
 test-spec: check-layout clean-cache
-	$(PYTEST) $(PYTEST_FLAGS) \
+	$(PYTEST_CMD) $(PYTEST_FLAGS) \
 		tests/test_iv.py \
 		tests/test_state.py \
 		tests/test_auxiliary.py \
@@ -69,7 +70,7 @@ test-spec: check-layout clean-cache
 		tests/test_known_answer_vectors.py
 
 test-arch: check-layout clean-cache
-	$(PYTEST) $(PYTEST_FLAGS) tests/test_arch_config.py tests/test_example_configs_validate.py tests/test_valid_config_listing.py tests/test_control_profiles.py tests/test_padding_profiles.py tests/test_security_profiles.py tests/test_top_level_profiles.py
+	$(PYTEST_CMD) $(PYTEST_FLAGS) tests/test_arch_config.py tests/test_example_configs_validate.py tests/test_valid_config_listing.py tests/test_control_profiles.py tests/test_padding_profiles.py tests/test_security_profiles.py tests/test_top_level_profiles.py
 
 generate-verilog: check-layout
 	$(PY) tools/generate_verilog.py
