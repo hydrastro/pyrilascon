@@ -1,46 +1,5 @@
 #include "ascon_accel.h"
 
-#define ASCON_REG_CONTROL       0x00u
-#define ASCON_REG_STATUS        0x04u
-#define ASCON_REG_MODE          0x08u
-#define ASCON_REG_AD_LEN        0x0Cu
-#define ASCON_REG_TEXT_LEN      0x10u
-#define ASCON_REG_OUT_LEN       0x14u
-#define ASCON_REG_KEY0          0x20u
-#define ASCON_REG_KEY1          0x24u
-#define ASCON_REG_KEY2          0x28u
-#define ASCON_REG_KEY3          0x2Cu
-#define ASCON_REG_NONCE0        0x30u
-#define ASCON_REG_NONCE1        0x34u
-#define ASCON_REG_NONCE2        0x38u
-#define ASCON_REG_NONCE3        0x3Cu
-#define ASCON_REG_DATA_IN       0x40u
-#define ASCON_REG_DATA_IN_CTRL  0x44u
-#define ASCON_REG_DATA_OUT      0x48u
-#define ASCON_REG_DATA_OUT_CTRL 0x4Cu
-#define ASCON_REG_TAG0          0x60u
-#define ASCON_REG_TAG1          0x64u
-#define ASCON_REG_TAG2          0x68u
-#define ASCON_REG_TAG3          0x6Cu
-
-#define ASCON_CONTROL_START     (1u << 0)
-#define ASCON_CONTROL_DECRYPT   (1u << 1)
-#define ASCON_CONTROL_HASH      (1u << 2)
-#define ASCON_CONTROL_XOF       (1u << 3)
-#define ASCON_CONTROL_CXOF      (1u << 4)
-#define ASCON_CONTROL_CLEAR     (1u << 8)
-
-#define ASCON_STATUS_BUSY       (1u << 0)
-#define ASCON_STATUS_DONE       (1u << 1)
-#define ASCON_STATUS_TAG_VALID  (1u << 2)
-#define ASCON_STATUS_ERROR      (1u << 3)
-
-#define ASCON_DATA_LAST         (1u << 0)
-#define ASCON_DATA_VALID        (1u << 1)
-#define ASCON_DATA_AD           (1u << 2)
-#define ASCON_DATA_TEXT         (1u << 3)
-#define ASCON_DATA_CUSTOM       (1u << 4)
-
 static volatile uint32_t *ascon_reg(const ascon_accel_t *dev, uint32_t offset) {
   return (volatile uint32_t *)(dev->base_addr + (uintptr_t)offset);
 }
@@ -67,7 +26,7 @@ static void store32_le(uint8_t *p, uint32_t x) {
   p[3] = (uint8_t)((x >> 24) & 0xffu);
 }
 
-static bool is_supported_mode(ascon_accel_mode_t mode) {
+static bool is_valid_mode(ascon_accel_mode_t mode) {
   switch (mode) {
     case ASCON_ACCEL_MODE_AEAD128:
     case ASCON_ACCEL_MODE_AEAD128A:
@@ -83,10 +42,42 @@ static bool is_supported_mode(ascon_accel_mode_t mode) {
   }
 }
 
+static uint32_t capability_bit_for_mode(ascon_accel_mode_t mode) {
+  switch (mode) {
+    case ASCON_ACCEL_MODE_AEAD128:
+      return ASCON_CAP_AEAD128;
+    case ASCON_ACCEL_MODE_AEAD128A:
+      return ASCON_CAP_AEAD128A;
+    case ASCON_ACCEL_MODE_AEAD128PQ:
+      return ASCON_CAP_AEAD128PQ;
+    case ASCON_ACCEL_MODE_HASH:
+      return ASCON_CAP_HASH;
+    case ASCON_ACCEL_MODE_HASHA:
+      return ASCON_CAP_HASHA;
+    case ASCON_ACCEL_MODE_XOF:
+      return ASCON_CAP_XOF;
+    case ASCON_ACCEL_MODE_XOFA:
+      return ASCON_CAP_XOFA;
+    case ASCON_ACCEL_MODE_CXOF128:
+      return ASCON_CAP_CXOF128;
+    default:
+      return 0u;
+  }
+}
+
+static bool is_aead_mode(ascon_accel_mode_t mode) {
+  return mode == ASCON_ACCEL_MODE_AEAD128 ||
+         mode == ASCON_ACCEL_MODE_AEAD128A ||
+         mode == ASCON_ACCEL_MODE_AEAD128PQ;
+}
+
 static ascon_accel_status_t wait_done(const ascon_accel_t *dev) {
   uint32_t timeout = dev->timeout_cycles;
   while (timeout-- != 0u) {
     uint32_t status = read_reg(dev, ASCON_REG_STATUS);
+    if ((status & ASCON_STATUS_ERROR) != 0u) {
+      return ASCON_ACCEL_ERR_HARDWARE_ERROR;
+    }
     if ((status & ASCON_STATUS_DONE) != 0u) {
       return ASCON_ACCEL_OK;
     }
@@ -163,6 +154,38 @@ void ascon_accel_reset(const ascon_accel_t *dev) {
   write_reg(dev, ASCON_REG_CONTROL, ASCON_CONTROL_CLEAR);
 }
 
+uint32_t ascon_accel_abi_version(const ascon_accel_t *dev) {
+  return read_reg(dev, ASCON_REG_ABI_VERSION);
+}
+
+uint32_t ascon_accel_capabilities(const ascon_accel_t *dev) {
+  return read_reg(dev, ASCON_REG_CAPABILITIES);
+}
+
+uint32_t ascon_accel_error_code(const ascon_accel_t *dev) {
+  return read_reg(dev, ASCON_REG_ERROR_CODE);
+}
+
+uint64_t ascon_accel_cycle_count(const ascon_accel_t *dev) {
+  uint32_t hi0;
+  uint32_t lo;
+  uint32_t hi1;
+  do {
+    hi0 = read_reg(dev, ASCON_REG_CYCLE_COUNT_HI);
+    lo = read_reg(dev, ASCON_REG_CYCLE_COUNT_LO);
+    hi1 = read_reg(dev, ASCON_REG_CYCLE_COUNT_HI);
+  } while (hi0 != hi1);
+  return ((uint64_t)hi1 << 32) | (uint64_t)lo;
+}
+
+bool ascon_accel_supports(const ascon_accel_t *dev, ascon_accel_mode_t mode) {
+  uint32_t cap = capability_bit_for_mode(mode);
+  if (dev == 0 || cap == 0u) {
+    return false;
+  }
+  return (ascon_accel_capabilities(dev) & cap) != 0u;
+}
+
 bool ascon_accel_busy(const ascon_accel_t *dev) {
   return (read_reg(dev, ASCON_REG_STATUS) & ASCON_STATUS_BUSY) != 0u;
 }
@@ -182,7 +205,13 @@ ascon_accel_status_t ascon_accel_encrypt(
   if (dev == 0 || req == 0 || req->key == 0 || req->nonce == 0 || req->output == 0) {
     return ASCON_ACCEL_ERR_BAD_ARGUMENT;
   }
-  if (!is_supported_mode(mode)) {
+  if ((req->ad_len != 0u && req->ad == 0) || (req->input_len != 0u && req->input == 0)) {
+    return ASCON_ACCEL_ERR_BAD_ARGUMENT;
+  }
+  if ((req->ad_len != 0u && req->ad == 0) || (req->input_len != 0u && req->input == 0)) {
+    return ASCON_ACCEL_ERR_BAD_ARGUMENT;
+  }
+  if (!is_valid_mode(mode) || !ascon_accel_supports(dev, mode) || !is_aead_mode(mode)) {
     return ASCON_ACCEL_ERR_UNSUPPORTED_MODE;
   }
 
@@ -212,7 +241,7 @@ ascon_accel_status_t ascon_accel_decrypt(
   if (dev == 0 || req == 0 || req->key == 0 || req->nonce == 0 || req->output == 0) {
     return ASCON_ACCEL_ERR_BAD_ARGUMENT;
   }
-  if (!is_supported_mode(mode)) {
+  if (!is_valid_mode(mode) || !ascon_accel_supports(dev, mode) || !is_aead_mode(mode)) {
     return ASCON_ACCEL_ERR_UNSUPPORTED_MODE;
   }
 
@@ -248,7 +277,11 @@ ascon_accel_status_t ascon_accel_hash_or_xof(
   if (dev == 0 || req == 0 || req->output == 0) {
     return ASCON_ACCEL_ERR_BAD_ARGUMENT;
   }
-  if (!is_supported_mode(mode)) {
+  if ((req->message_len != 0u && req->message == 0) ||
+      (req->customization_len != 0u && req->customization == 0)) {
+    return ASCON_ACCEL_ERR_BAD_ARGUMENT;
+  }
+  if (!is_valid_mode(mode) || !ascon_accel_supports(dev, mode)) {
     return ASCON_ACCEL_ERR_UNSUPPORTED_MODE;
   }
 
@@ -267,6 +300,7 @@ ascon_accel_status_t ascon_accel_hash_or_xof(
   write_reg(dev, ASCON_REG_MODE, (uint32_t)mode);
   write_reg(dev, ASCON_REG_TEXT_LEN, (uint32_t)req->message_len);
   write_reg(dev, ASCON_REG_OUT_LEN, (uint32_t)req->output_len);
+  write_reg(dev, ASCON_REG_CUSTOM_LEN, (uint32_t)req->customization_len);
   if (mode == ASCON_ACCEL_MODE_CXOF128) {
     stream_bytes(dev, req->customization, req->customization_len, ASCON_DATA_CUSTOM);
   }

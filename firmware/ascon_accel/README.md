@@ -34,3 +34,20 @@ Current implementation status:
 The driver fixes the software-facing contract early: register names, command bits,
 mode identifiers, length registers, stream semantics, tag registers, and timeout
 handling. The RTL wrapper can now be written against a known firmware interface.
+
+## Frozen MMIO ABI
+
+The software-visible register map is frozen in:
+
+- `ascon_arch/register_map.py` — source of truth
+- `firmware/ascon_accel/ascon_accel_regs.h` — generated C constants
+- `rtl/common/ascon_accel_regs.vh` — generated Verilog constants
+- `docs/ascon_accel_register_map.md` — generated ABI document
+
+Regenerate these files with:
+
+```bash
+python tools/generate_accel_regs.py
+```
+
+Firmware must check `ASCON_REG_ABI_VERSION` and `ASCON_REG_CAPABILITIES` before using optional modes. Faster or board-specific RTL implementations should preserve this ABI and only change latency/throughput.

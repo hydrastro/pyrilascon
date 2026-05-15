@@ -5,8 +5,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "ascon_accel_regs.h"
+
 #ifndef ASCON_ACCEL_BASE_ADDR
-#define ASCON_ACCEL_BASE_ADDR 0xFFFFFF00u
+#define ASCON_ACCEL_BASE_ADDR 0xFFEB0000u
 #endif
 
 #ifdef __cplusplus
@@ -14,14 +16,14 @@ extern "C" {
 #endif
 
 typedef enum {
-  ASCON_ACCEL_MODE_AEAD128 = 0,
-  ASCON_ACCEL_MODE_AEAD128A = 1,
-  ASCON_ACCEL_MODE_AEAD128PQ = 2,
-  ASCON_ACCEL_MODE_HASH = 3,
-  ASCON_ACCEL_MODE_HASHA = 4,
-  ASCON_ACCEL_MODE_XOF = 5,
-  ASCON_ACCEL_MODE_XOFA = 6,
-  ASCON_ACCEL_MODE_CXOF128 = 7,
+  ASCON_ACCEL_MODE_AEAD128 = ASCON_MODE_AEAD128,
+  ASCON_ACCEL_MODE_AEAD128A = ASCON_MODE_AEAD128A,
+  ASCON_ACCEL_MODE_AEAD128PQ = ASCON_MODE_AEAD128PQ,
+  ASCON_ACCEL_MODE_HASH = ASCON_MODE_HASH,
+  ASCON_ACCEL_MODE_HASHA = ASCON_MODE_HASHA,
+  ASCON_ACCEL_MODE_XOF = ASCON_MODE_XOF,
+  ASCON_ACCEL_MODE_XOFA = ASCON_MODE_XOFA,
+  ASCON_ACCEL_MODE_CXOF128 = ASCON_MODE_CXOF128,
 } ascon_accel_mode_t;
 
 typedef enum {
@@ -38,6 +40,8 @@ typedef enum {
   ASCON_ACCEL_ERR_TIMEOUT = -2,
   ASCON_ACCEL_ERR_TAG_INVALID = -3,
   ASCON_ACCEL_ERR_UNSUPPORTED_MODE = -4,
+  ASCON_ACCEL_ERR_ABI_MISMATCH = -5,
+  ASCON_ACCEL_ERR_HARDWARE_ERROR = -6,
 } ascon_accel_status_t;
 
 typedef struct {
@@ -67,6 +71,13 @@ typedef struct {
 
 void ascon_accel_init(ascon_accel_t *dev, uintptr_t base_addr, uint32_t timeout_cycles);
 void ascon_accel_reset(const ascon_accel_t *dev);
+
+uint32_t ascon_accel_abi_version(const ascon_accel_t *dev);
+uint32_t ascon_accel_capabilities(const ascon_accel_t *dev);
+uint32_t ascon_accel_error_code(const ascon_accel_t *dev);
+uint64_t ascon_accel_cycle_count(const ascon_accel_t *dev);
+bool ascon_accel_supports(const ascon_accel_t *dev, ascon_accel_mode_t mode);
+
 bool ascon_accel_busy(const ascon_accel_t *dev);
 bool ascon_accel_done(const ascon_accel_t *dev);
 bool ascon_accel_tag_valid(const ascon_accel_t *dev);
