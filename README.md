@@ -32,7 +32,7 @@ python -m pytest -q
 Expected result for this step:
 
 ```text
-58 passed
+169 passed
 ```
 
 

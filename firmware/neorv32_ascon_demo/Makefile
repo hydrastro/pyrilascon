@@ -12,7 +12,8 @@ APP_SRC      += main.c \
                 ../ascon_accel/ascon_accel_control.c \
                 ../ascon_accel/ascon_accel_caps.c \
                 ../ascon_accel/ascon_accel_mmio_data.c \
-                ../ascon_accel/ascon_accel_axis_data.c
+                ../ascon_accel/ascon_accel_axis_data.c \
+                ../ascon_accel/ascon_accel_benchmark.c
 APP_INC      += -I../ascon_accel
 APP_CFLAGS   += -Wall -Wextra
 

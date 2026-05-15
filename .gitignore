@@ -7,15 +7,19 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Virtual environments
+# Python build outputs
+build/
+dist/
+*.egg-info/
+
+# Virtual environments / direnv
 .venv/
 venv/
 env/
 ENV/
 .direnv/
 
-# Generated design/build products
-build/
+# Generated design products
 rtl/generated/*
 !rtl/generated/.gitkeep
 docs/generated/*
@@ -24,7 +28,10 @@ vectors/generated/*
 !vectors/generated/.gitkeep
 boards/**/build/
 
-# FPGA/simulation/synthesis artifacts
+# Local object files
+*.o
+
+# FPGA / synthesis / simulation artifacts
 work/
 transcript
 *.vcd
@@ -47,7 +54,7 @@ transcript
 *.pnr.json
 *.fs
 
-# Gowin / vendor project noise
+# Vendor/project noise
 *.xpr
 *.runs/
 *.cache/

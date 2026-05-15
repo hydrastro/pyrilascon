@@ -172,6 +172,15 @@ def main() -> None:
     parser.add_argument("--engine-count", type=int, default=4)
     parser.add_argument("--pipeline-count", type=int, default=2)
     parser.add_argument("--contexts-per-pipeline", type=int, default=12)
+    parser.add_argument(
+        "--algorithms",
+        default="requested",
+        help=(
+            "Reserved compatibility option for Makefile/docs flows. "
+            "The current selected-config sweep is architecture-focused; "
+            "algorithm support remains encoded in each preset."
+        ),
+    )
     parser.add_argument("--include-invalid", action="store_true")
     parser.add_argument("--format", choices=("json", "csv", "text"), default="text")
     parser.add_argument("--out", type=Path)
