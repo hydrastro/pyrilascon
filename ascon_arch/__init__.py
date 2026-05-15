@@ -104,6 +104,15 @@ from ascon_arch.permutation_planning import (
     estimate_permutation,
     permutation_config_for_profile,
 )
+
+from ascon_arch.board_suggestions import (
+    BoardCandidate,
+    BoardClass,
+    BoardSuggestionProfile,
+    all_board_suggestions,
+    board_suggestions,
+    write_board_suggestions,
+)
 from ascon_arch.presets import (
     asic_two_datapaths_column_serial_config,
     asic_two_datapaths_config,
@@ -134,6 +143,12 @@ __all__ = [
     "ASIC_PERMUTATION_MATRIX",
     "AlgorithmConfig",
     "AlgorithmFeature",
+    "write_board_suggestions",
+    "board_suggestions",
+    "all_board_suggestions",
+    "BoardSuggestionProfile",
+    "BoardClass",
+    "BoardCandidate",
     "ArchitectureFamily",
     "ConfigValidationError",
     "ContextConfig",

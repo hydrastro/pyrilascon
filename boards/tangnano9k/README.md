@@ -80,3 +80,18 @@ This target is the first high-throughput FPGA candidate after the AXI Stream
 smoke test. It uses a 128-bit AXI Stream-style payload interface and a
 four-rounds-per-cycle permutation backend while preserving the frozen CSR/MMIO
 control ABI.
+
+## ASCON AEAD128 128-bit AXI Stream 8RPC candidate
+
+```bash
+cd boards/tangnano9k/ascon_aead128_axis128_8rpc
+make clean
+make tools
+make
+make prog-sram
+```
+
+This target is the next throughput candidate after 4RPC. It keeps the same
+128-bit AXI Stream-style payload interface and frozen CSR/MMIO control ABI, but
+uses an eight-rounds-per-cycle permutation slice. Expected pass indication:
+LED0 blinking, LED1/LED2/LED4/LED5 on, LED3 off.

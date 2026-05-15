@@ -1,53 +1,27 @@
-# NEORV32 ASCON accelerator firmware scaffold
+# ASCON accelerator firmware driver
 
-This directory contains a C driver scaffold for the future NEORV32 CFS/MMIO ASCON
-accelerator. It is not used by the standalone Tang Nano 9K KAT targets.
+This directory contains the portable C driver for the pyrilascon accelerator ABI.
+The driver is intentionally split into a stable public API and separate control/data-plane layers so the same firmware can target slow MMIO cores, AXI Stream/DMA-backed FPGA cores, and future NEORV32/Xilinx wrappers.
 
-## Supported API modes
+## Files
 
-The API already names all requested modes:
+| File | Purpose |
+| --- | --- |
+| `ascon_accel.h` | Public API, mode enums, request structures, data-plane selection |
+| `ascon_accel_regs.h` | Generated register/capability constants from `ascon_arch/register_map.py` |
+| `ascon_accel_internal.h` | Private helper declarations shared by the driver translation units |
+| `ascon_accel_control.c` | Register access, reset, cycle counter, key/nonce/tag helpers |
+| `ascon_accel_caps.c` | ABI version, capability probing, mode classification |
+| `ascon_accel_mmio_data.c` | Register-based DATA_IN/DATA_OUT transport |
+| `ascon_accel_axis_data.c` | Placeholder for external AXI Stream/DMA transport hooks |
+| `ascon_accel.c` | High-level AEAD/hash/XOF API composition |
+| `main_demo.c` | Host-buildable API smoke example |
 
-- `ASCON_ACCEL_MODE_AEAD128`
-- `ASCON_ACCEL_MODE_AEAD128A`
-- `ASCON_ACCEL_MODE_AEAD128PQ`
-- `ASCON_ACCEL_MODE_HASH`
-- `ASCON_ACCEL_MODE_HASHA`
-- `ASCON_ACCEL_MODE_XOF`
-- `ASCON_ACCEL_MODE_XOFA`
-- `ASCON_ACCEL_MODE_CXOF128`
+## Data-plane rule
 
-Current implementation status:
+The public API remains stable. The selected data plane controls how payload bytes move:
 
-| Mode | Firmware API | RTL status |
-| --- | --- | --- |
-| AEAD128 | present | standalone KAT target present; CFS wrapper pending |
-| AEAD128a | present | pending |
-| AEAD128pq | present | pending |
-| HASH | present | pending |
-| HASHA | present | pending |
-| XOF | present | pending |
-| XOFA | present | pending |
-| CXOF128 | present | pending |
+- `ASCON_ACCEL_DATA_PLANE_MMIO_WORD`: CPU writes/reads `DATA_IN` and `DATA_OUT` registers. This is the NEORV32/CFS baseline and the default.
+- `ASCON_ACCEL_DATA_PLANE_AXI_STREAM_EXTERNAL`: control is still CSR/MMIO, but payload movement is expected to be provided by an external AXI Stream/DMA path. The hook exists now; platform-specific transport code is still pending.
 
-## Why firmware now if there is no NEORV32 wrapper yet?
-
-The driver fixes the software-facing contract early: register names, command bits,
-mode identifiers, length registers, stream semantics, tag registers, and timeout
-handling. The RTL wrapper can now be written against a known firmware interface.
-
-## Frozen MMIO ABI
-
-The software-visible register map is frozen in:
-
-- `ascon_arch/register_map.py` — source of truth
-- `firmware/ascon_accel/ascon_accel_regs.h` — generated C constants
-- `rtl/common/ascon_accel_regs.vh` — generated Verilog constants
-- `docs/ascon_accel_register_map.md` — generated ABI document
-
-Regenerate these files with:
-
-```bash
-python tools/generate_accel_regs.py
-```
-
-Firmware must check `ASCON_REG_ABI_VERSION` and `ASCON_REG_CAPABILITIES` before using optional modes. Faster or board-specific RTL implementations should preserve this ABI and only change latency/throughput.
+Firmware must check `ASCON_REG_ABI_VERSION` and `ASCON_REG_CAPABILITIES` before using optional modes. Faster FPGA cores should preserve the ABI and only change latency/throughput/capability bits.

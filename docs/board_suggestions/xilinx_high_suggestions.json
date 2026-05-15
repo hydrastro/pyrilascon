@@ -1,0 +1,44 @@
+{
+  "assumptions": [
+    "I/O and packet scheduling are likely to become the bottleneck before the permutation logic.",
+    "Scale by increasing pipeline count and stream aggregation width."
+  ],
+  "board_class": "xilinx_high",
+  "candidates": [
+    {
+      "context_profile": "fpga_bram_lutram",
+      "contexts_per_engine": 12,
+      "control_profile": "dma_fed",
+      "data_plane": "axi_stream_256_dma",
+      "datapath_profile": "128_bit",
+      "engine_count": 4,
+      "name": "xilinx_high_four_pipelines_12ctx_axis256",
+      "notes": [],
+      "padding_profile": "streaming_final_bytemask",
+      "permutation_profile": "fully_pipelined",
+      "priority": 1,
+      "security_profile": "fpga_fault_detect_rand_counter_consttime_tag",
+      "summary": "Four fully pipelined engines with 12 contexts each and aggregated 256-bit stream ingress.",
+      "top_level_profile": "m_pipelines_n_contexts"
+    },
+    {
+      "context_profile": "fpga_bram_lutram",
+      "contexts_per_engine": 12,
+      "control_profile": "dma_fed",
+      "data_plane": "multi_axi_stream_dma",
+      "datapath_profile": "128_bit",
+      "engine_count": 8,
+      "name": "xilinx_high_eight_pipelines_12ctx_extreme",
+      "notes": [
+        "Use only when the host/DMA subsystem can feed enough independent packets."
+      ],
+      "padding_profile": "streaming_final_bytemask",
+      "permutation_profile": "fully_pipelined",
+      "priority": 2,
+      "security_profile": "fpga_fault_detect_rand_counter_consttime_tag",
+      "summary": "Extreme scaling point: eight pipelines and 96 contexts total.",
+      "top_level_profile": "m_pipelines_n_contexts"
+    }
+  ],
+  "goal": "maximum_throughput_that_fits"
+}
