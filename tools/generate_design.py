@@ -2,14 +2,13 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 from ascon_arch.config import ImplementationConfig
-from ascon_arch.enums import AlgorithmFeature, ContextProfile, ControlProfile, DatapathProfile, PaddingProfile, PermutationProfile, SecurityProfile, TargetTechnology, TopLevelProfile
+from ascon_arch.enums import ContextProfile, ControlProfile, DatapathProfile, PaddingProfile, PermutationProfile, SecurityProfile, TargetTechnology, TopLevelProfile
 from ascon_arch.presets import (
     asic_two_datapaths_column_serial_config,
     asic_dual_enc_dec_cores_config,
     asic_two_datapaths_config,
     asic_two_datapaths_with_datapath_profile_config,
     config_with_context_profile,
-    config_with_algorithm_feature,
     config_with_control_profile,
     config_with_datapath_profile,
     asic_two_datapaths_two_rounds_per_cycle_config,
@@ -89,11 +88,6 @@ def build_arg_parser() -> ArgumentParser:
         choices=tuple(profile.value for profile in SecurityProfile),
         help="Override side-channel/fault/security profile. Safe decrypt buffering remains enforced.",
     )
-    parser.add_argument(
-        "--algorithm-feature",
-        choices=tuple(feature.value for feature in AlgorithmFeature),
-        help="Override the algorithm feature while preserving the rest of the architecture.",
-    )
     parser.add_argument("--out", type=Path, default=Path("build"), help="Output root directory.")
     return parser
 
@@ -139,12 +133,6 @@ def apply_profile(config: ImplementationConfig, profile_value: str | None, engin
         from ascon_arch.enums import SBoxStyle
         sbox = SBoxStyle.LUT5
     return config_with_permutation_profile(config, profile, sbox_style=sbox)
-
-
-def apply_algorithm_feature(config: ImplementationConfig, feature_value: str | None) -> ImplementationConfig:
-    if feature_value is None:
-        return config
-    return config_with_algorithm_feature(config, AlgorithmFeature(feature_value))
 
 
 def apply_datapath_profile(config: ImplementationConfig, profile_value: str | None, engine_count: int) -> ImplementationConfig:
@@ -214,7 +202,6 @@ def main() -> None:
     else:
         raise SystemExit("provide either --config or --preset")
 
-    config = apply_algorithm_feature(config, args.algorithm_feature)
     config = apply_datapath_profile(config, args.datapath_profile, args.engine_count)
     config = apply_profile(config, args.permutation_profile, args.engine_count)
     config = apply_top_level_profile(config, args.top_level_profile, args.engine_count, args.pipeline_count, args.contexts_per_engine)

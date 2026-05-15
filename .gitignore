@@ -1,37 +1,17 @@
-# Python caches
 __pycache__/
 *.py[cod]
-*$py.class
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-.coverage
-htmlcov/
-
-# Virtual environments
 .venv/
 venv/
-env/
-ENV/
-
-# Build/generated products
 build/
-dist/
-*.egg-info/
+boards/*/*/build/
 rtl/generated/*
 !rtl/generated/.gitkeep
 docs/generated/*
 !docs/generated/.gitkeep
-vectors/generated/*
-!vectors/generated/.gitkeep
-
-# Local archives / accidental nested snapshots
-*.zip
-ignore/
-
-# Simulation/synthesis outputs
-work/
-transcript
+vectors/generated/
 *.vcd
 *.fst
 *.wlf
@@ -40,6 +20,7 @@ transcript
 *.rpt
 *.dcp
 *.bit
+*.fs
 *.bin
 *.mcs
 *.edf
@@ -49,20 +30,6 @@ transcript
 *.saif
 *.fsdb
 *.vpd
-
-# Vendor/project noise
-*.xpr
-*.runs/
-*.cache/
-*.hw/
-*.ip_user_files/
-*.sim/
-*.qpf
-*.qsf
-*.sof
-*.sta.rpt
-
-# Editor/OS files
 .DS_Store
 Thumbs.db
 .vscode/

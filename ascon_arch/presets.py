@@ -44,11 +44,6 @@ from ascon_arch.context_planning import context_config_for_profile
 from ascon_arch.control_planning import control_config_for_profile
 from ascon_arch.padding_planning import padding_config_for_profile
 from ascon_arch.security_planning import security_config_for_profile
-from ascon_arch.algorithm_planning import (
-    algorithm_config_for_feature,
-    algorithm_name_suffix,
-    requested_multi_algorithm_config,
-)
 
 
 def shared_datapath_config(target: TargetTechnology, name: str = "shared_datapath") -> ImplementationConfig:
@@ -290,23 +285,6 @@ def fpga_n_parallel_engines_config(engine_count: int) -> ImplementationConfig:
         ),
     )
 
-
-
-def config_with_algorithm_feature(
-    config: ImplementationConfig,
-    feature: AlgorithmFeature,
-    *,
-    name_suffix: str | None = None,
-) -> ImplementationConfig:
-    """Return a copy of a design config targeting one algorithm feature."""
-    algorithm = algorithm_config_for_feature(feature)
-    suffix = name_suffix or algorithm_name_suffix(feature)
-    return replace(config, name=f"{config.name}_{suffix}", algorithm=algorithm)
-
-
-def config_with_requested_algorithm_suite(config: ImplementationConfig, *, name_suffix: str = "requested_algo_suite") -> ImplementationConfig:
-    """Return a copy supporting the requested AEAD/HASH/XOF/CXOF design-space set."""
-    return replace(config, name=f"{config.name}_{name_suffix}", algorithm=requested_multi_algorithm_config())
 
 
 def config_with_permutation_profile(

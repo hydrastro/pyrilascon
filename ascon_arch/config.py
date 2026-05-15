@@ -69,23 +69,13 @@ class AlgorithmConfig:
         if data is None:
             return cls()
         features = _enum_list(AlgorithmFeature, data.get("features"), (AlgorithmFeature.AEAD128,))
-        hash_features = (AlgorithmFeature.HASH, AlgorithmFeature.HASH256, AlgorithmFeature.HASHA)
-        xof_features = (AlgorithmFeature.XOF, AlgorithmFeature.XOF128, AlgorithmFeature.XOFA)
-        cxof_features = (AlgorithmFeature.CXOF, AlgorithmFeature.CXOF128)
-        aead_features = (
-            AlgorithmFeature.AEAD128,
-            AlgorithmFeature.AEAD128A,
-            AlgorithmFeature.AEAD80PQ,
-            AlgorithmFeature.LEGACY_AEAD128A,
-            AlgorithmFeature.LEGACY_AEAD80PQ,
-        )
         return cls(
             features=features,
-            include_encrypt=bool(data.get("include_encrypt", any(feature in features for feature in aead_features))),
-            include_decrypt=bool(data.get("include_decrypt", any(feature in features for feature in aead_features))),
-            include_hash=bool(data.get("include_hash", any(feature in features for feature in hash_features))),
-            include_xof=bool(data.get("include_xof", any(feature in features for feature in xof_features))),
-            include_cxof=bool(data.get("include_cxof", any(feature in features for feature in cxof_features))),
+            include_encrypt=bool(data.get("include_encrypt", True)),
+            include_decrypt=bool(data.get("include_decrypt", True)),
+            include_hash=bool(data.get("include_hash", AlgorithmFeature.HASH256 in features)),
+            include_xof=bool(data.get("include_xof", AlgorithmFeature.XOF128 in features)),
+            include_cxof=bool(data.get("include_cxof", AlgorithmFeature.CXOF128 in features)),
         )
 
 

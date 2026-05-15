@@ -301,3 +301,15 @@ PYTHONPATH=. python tools/generate_design.py \
 ```
 
 See `docs/context_architecture.md` for the detailed profile meanings.
+
+## Tang Nano 9K full AEAD128 hardware target
+
+The first board-level target is a complete Ascon-AEAD128 fixed-vector smoke test:
+
+```sh
+cd boards/tangnano9k/ascon_aead128_kat_slow
+make
+make prog-sram
+```
+
+This target is intentionally slow and simple: one Ascon round per clock. It exercises initialization, associated-data processing, plaintext processing, finalization, and ciphertext/tag comparison in RTL.
