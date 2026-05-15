@@ -255,7 +255,7 @@ The uploaded repository was unpacked and tested.
 
 Observed state:
 
-- root `pytest` now passes: **169 tests passing**;
+- root `pytest` now passes: **175 tests passing**;
 - `make verify` now passes after repairing the Makefile/tool compatibility issue around `--algorithms requested`;
 - generated docs/config reports are produced under `docs/generated/`;
 - generated RTL is produced under `rtl/generated/`.
@@ -274,9 +274,25 @@ to `tools/list_valid_configs.py`, but that CLI did not accept the option.
 
 The fix keeps the Makefile interface stable by adding a reserved compatibility `--algorithms` argument to `list_valid_configs.py`. The current selected-config sweep remains architecture-focused; algorithm support is still encoded in each preset. A regression test was added so this does not break again.
 
-## 7. What is not finished yet
+## 7. Streaming AEAD128 reference model added
 
-### 7.1 True unbounded streaming AEAD128 core
+A host-side AXI-stream AEAD128 transaction model now exists in
+`ascon_hwmodel/aead_stream.py`. It models the intended FPGA data-plane contract
+without the old 32-byte backend limit:
+
+- AD and TEXT are packed into fixed-width stream beats;
+- `keep` must be a contiguous low-byte final bytemask;
+- only the final beat may be partial;
+- stream payload length must match the CSR length register;
+- scalar AEAD128 encryption/decryption is used as the oracle;
+- decrypt returns plaintext beats only after the tag is valid.
+
+This is not the final RTL backend yet. It is the executable reference that the
+next true streaming RTL core should match.
+
+## 8. What is not finished yet
+
+### 8.1 True unbounded streaming AEAD128 core
 
 Current AXI Stream wrappers still feed bounded register-buffered backends. They establish the interface shape but do not yet implement a true unbounded streaming backend.
 
@@ -289,7 +305,7 @@ Missing:
 - decrypt buffering until tag validation;
 - robust AXI backpressure behavior inside the real AEAD pipeline.
 
-### 7.2 High-throughput FPGA core
+### 8.2 High-throughput FPGA core
 
 The real performance target is not finished.
 
@@ -301,7 +317,7 @@ Missing:
 - direct 128-bit stream consumption without 32-bit serialization;
 - DMA-suitable descriptor/frontend design.
 
-### 7.3 NEORV32 full system integration
+### 8.3 NEORV32 full system integration
 
 The project has CFS and firmware scaffolding, but the full system is not complete.
 
@@ -312,7 +328,7 @@ Missing:
 - hardware accelerator mapped through the actual CFS path;
 - firmware execution on the softcore rather than only host-side compilation/testing.
 
-### 7.4 Hardware benchmark demonstration
+### 8.4 Hardware benchmark demonstration
 
 The intended benchmark story is not complete.
 
@@ -325,7 +341,7 @@ Missing:
 - report throughput;
 - report hardware speedup over software.
 
-### 7.5 Real AXI DMA transport
+### 8.5 Real AXI DMA transport
 
 The current AXI transport is abstracted and mockable but not connected to a real DMA engine.
 
@@ -336,7 +352,7 @@ Missing:
 - descriptor queues;
 - host/CPU-visible DMA buffer management.
 
-### 7.6 Full algorithm-family hardware support
+### 8.6 Full algorithm-family hardware support
 
 The model contains HASH/XOF/CXOF helpers and the architecture layer tracks multiple algorithm families, but production RTL support is currently centered on AEAD128.
 
@@ -348,7 +364,7 @@ Planned or partial features:
 - XOF / XOF128 / XOFA;
 - CXOF / CXOF128.
 
-### 7.7 ASIC-specific implementations
+### 8.7 ASIC-specific implementations
 
 ASIC architecture planning exists, but actual area-minimized ASIC RTL is still future work.
 
@@ -360,21 +376,21 @@ Missing:
 - synthesis-oriented area comparison;
 - advanced masking/fault-hardening implementation.
 
-## 8. Immediate next engineering plan
+## 9. Immediate next engineering plan
 
 The recommended next step is to implement the true streaming AEAD128 backend before attempting full NEORV32 board integration. The reason is that the current AXI wrappers already expose the final intended interface, but they still serialize into bounded MMIO-style storage internally. Replacing that backend is the cleanest way to move from prototype to real accelerator.
 
 Recommended order:
 
-1. Define a strict streaming AEAD128 backend contract.
-2. Implement encryption-only streaming first.
+1. Use `ascon_hwmodel/aead_stream.py` as the strict streaming AEAD128 backend contract.
+2. Implement encryption-only streaming RTL first.
 3. Add arbitrary-length associated-data handling.
 4. Add final-block `tkeep`/byte-mask behavior.
 5. Add decryption with buffer-until-tag-valid policy.
 6. Add tests around AXI backpressure and partial final blocks.
 7. Only then connect the backend to NEORV32 or DMA flows.
 
-## 9. Benchmark rule
+## 10. Benchmark rule
 
 The key performance rule remains:
 
@@ -388,7 +404,7 @@ The minimum comparison metrics should be:
 - speedup versus software;
 - area/resource usage for the selected FPGA target.
 
-## 10. Report/documentation angle
+## 11. Report/documentation angle
 
 For a development-process report, the strongest narrative is:
 
@@ -401,6 +417,6 @@ For a development-process report, the strongest narrative is:
 7. Use architecture configs to document tradeoffs instead of hardcoding one implementation.
 8. Use benchmarks to prove when a hardware architecture becomes worthwhile.
 
-## 11. One-line project summary
+## 12. One-line project summary
 
 We designed a configurable ASCON FPGA/ASIC accelerator generator with a stable firmware ABI, pluggable data planes, selectable datapath/permutation/control/security architectures, board-aware FPGA prototypes, and a unified benchmarking path for comparing hardware acceleration against software execution.

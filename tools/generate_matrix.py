@@ -1,6 +1,14 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
 from argparse import ArgumentParser
 from pathlib import Path
 import json
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from ascon_arch.design_product import write_design_product
 from ascon_arch.enums import TargetTechnology

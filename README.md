@@ -20,6 +20,7 @@ Implemented so far:
 - Verilog emission colocated with the Python model object/layer it describes
 - generated `.vh` include fragments and standalone `.v` combinational wrappers
 - byte-aligned known-answer tests for NIST AEAD128, Hash256, XOF128, and CXOF128
+- AXI-stream AEAD128 transaction oracle for unbounded AD/plaintext/ciphertext framing
 
 ## Run tests
 
@@ -32,7 +33,7 @@ python -m pytest -q
 Expected result for this step:
 
 ```text
-169 passed
+175 passed
 ```
 
 

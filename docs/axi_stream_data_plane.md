@@ -81,3 +81,23 @@ The NEORV32 CFS itself is a memory-mapped custom-function interface, not an AXI
 Stream master. Therefore the first NEORV32 integration can still use the MMIO data
 registers. A later FPGA SoC can add a CFS control block plus a stream/DMA feeder,
 using the same frozen control ABI and the AXI Stream data plane.
+
+
+## Host-side transaction oracle
+
+`ascon_hwmodel/aead_stream.py` is the executable reference for the intended
+unbounded AEAD128 stream backend. It is deliberately byte-oriented and mirrors
+the frozen ABI split: key, nonce, lengths, mode, and tag remain on the control
+plane; AD and TEXT are packed into stream beats.
+
+The oracle enforces the FPGA stream rules before running the scalar AEAD model:
+
+- `tkeep`/bytemask must be contiguous from byte 0;
+- non-final beats must be completely full;
+- every non-empty stream must end with exactly one `last` beat;
+- the stream length must match the CSR length register;
+- decryption suppresses plaintext output unless tag verification succeeds.
+
+The old bounded RTL backend remains in place. The next RTL milestone is to make
+`ascon_aead128_stream_backend` match this oracle for arbitrary AD and TEXT
+lengths, then replace the bounded backend inside the AXI wrappers.

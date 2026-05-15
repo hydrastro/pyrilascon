@@ -107,6 +107,7 @@ from ascon_hwmodel.word import Block64, Block128, Key128, Nonce128, Tag128
 __all__: list[str] = [
     "AEAD_DOMAIN_SEPARATOR_BIT_INDEX",
     "AEAD_DOMAIN_SEPARATOR_X4_MASK",
+    "AeadStreamKind",
     "AsconState",
     "AsconVariant",
     "Bit",
@@ -150,6 +151,15 @@ __all__: list[str] = [
     "ascon_permutation_trace",
     "ascon_round",
     "assert_iv_table",
+    "AxisAeadDecryptionResult",
+    "AxisAeadEncryptionResult",
+    "AxisStreamBeat",
+    "axis_aead128_decrypt",
+    "axis_aead128_encrypt",
+    "keep_mask",
+    "pack_axis_beats",
+    "unpack_axis_beats",
+    "valid_byte_count_from_keep",
     "bytes_to_u64_le",
     "bytes_to_words64_le",
     "check_rounds",
@@ -239,3 +249,16 @@ from ascon_hwmodel.rate import rate_bytes_from_state, replace_rate_bytes, xor_ra
 
 # NIST hash/XOF byte-oriented model
 from ascon_hwmodel.hash_xof import HashXofConfig, HashXofVariant, ascon_hash256, ascon_xof128, ascon_cxof128
+
+from ascon_hwmodel.aead_stream import (
+    AeadStreamKind,
+    AxisAeadDecryptionResult,
+    AxisAeadEncryptionResult,
+    AxisStreamBeat,
+    axis_aead128_decrypt,
+    axis_aead128_encrypt,
+    keep_mask,
+    pack_axis_beats,
+    unpack_axis_beats,
+    valid_byte_count_from_keep,
+)
