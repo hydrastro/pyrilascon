@@ -255,7 +255,7 @@ The uploaded repository was unpacked and tested.
 
 Observed state:
 
-- root `pytest` now passes: **188 tests passing**;
+- root `pytest` now passes: **191 tests passing, plus 5 optional RTL simulation tests skipped when `iverilog`/`vvp` are unavailable**;
 - `make verify` now passes after repairing the Makefile/tool compatibility issue around `--algorithms requested`;
 - generated docs/config reports are produced under `docs/generated/`;
 - generated RTL is produced under `rtl/generated/`.
@@ -421,7 +421,7 @@ For a development-process report, the strongest narrative is:
 
 We designed a configurable ASCON FPGA/ASIC accelerator generator with a stable firmware ABI, pluggable data planes, selectable datapath/permutation/control/security architectures, board-aware FPGA prototypes, and a unified benchmarking path for comparing hardware acceleration against software execution.
 
-## 9. Streaming encryption RTL backend added
+## 13. Streaming encryption RTL backend added
 
 The next implementation slice adds `rtl/stream/ascon_aead128_stream_encrypt.v`,
 an encryption-only NIST Ascon-AEAD128 backend that consumes validated AXI stream
@@ -436,5 +436,23 @@ the older bounded AXI top-level wrapper yet.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **188 passed**;
-- `make verify`: **188 passed**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **191 passed, 5 skipped**;
+- `make verify`: **191 passed, 5 skipped**, then config/docs/RTL generation completes.
+
+## 14. Behavioral simulation harness added
+
+The follow-up slice adds `tools/run_stream_encrypt_vector.py` and
+`tests/test_aead128_stream_encrypt_sim.py`. The tool generates a
+vector-specific Verilog testbench for `ascon_aead128_stream_encrypt`, runs it
+through Icarus Verilog when `iverilog`/`vvp` are available, parses the emitted
+AXI output beats and generated tag, and compares them against the Python golden
+stream model.
+
+The simulation tests are optional in environments without a Verilog simulator;
+they are skipped rather than making the normal model/config verification flow
+depend on external EDA packages.
+
+Current validation after this slice:
+
+- `python -m pytest -q`: **191 passed, 5 skipped**;
+- `make verify`: **191 passed, 5 skipped**, then config/docs/RTL generation completes.

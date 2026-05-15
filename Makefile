@@ -15,7 +15,7 @@ PYTEST_CMD := $(ENV) $(PYTEST)
 
 .PHONY: help env check-layout test test-all test-kat test-spec test-arch \
         generate-verilog list-configs list-configs-csv list-configs-json docs-configs \
-        matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
+        stream-encrypt-sim matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
         clean clean-cache clean-generated clean-build clean-nested repair verify all
 
 help:
@@ -28,6 +28,7 @@ help:
 	@echo "  make generate-verilog      Regenerate rtl/generated/*.v[h]"
 	@echo "  make list-configs          Print selected valid configs"
 	@echo "  make docs-configs          Write config reports under docs/generated/"
+	@echo "  make stream-encrypt-sim    Run one optional Icarus RTL sim vector for the stream encrypt backend"
 	@echo "  make design-asic           Generate default ASIC design product"
 	@echo "  make design-fpga           Generate default FPGA N-engine product"
 	@echo "  make matrix                Generate selected ASIC/FPGA design matrix"
@@ -88,6 +89,9 @@ list-configs-json: check-layout
 
 docs-configs: list-configs-csv list-configs-json
 	$(PY) tools/list_valid_configs.py --target both --algorithms $(ALGOS) --format text --out docs/generated/selected_valid_configs.txt --engine-count $(ENGINE_COUNT) --pipeline-count $(PIPELINE_COUNT) --contexts-per-pipeline $(CONTEXTS_PER_PIPELINE)
+
+stream-encrypt-sim: check-layout
+	$(PY) tools/run_stream_encrypt_vector.py --key-hex 000102030405060708090a0b0c0d0e0f --nonce-hex 101112131415161718191a1b1c1d1e1f --ad-hex aabbccddeeff --plaintext-hex 000102030405060708090a0b0c0d0e0f101112
 
 design-asic: check-layout
 	$(PY) tools/generate_design.py --preset asic_dual_enc_dec_cores --out $(BUILD_DIR)

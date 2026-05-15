@@ -1,4 +1,3 @@
-# Python caches
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -7,73 +6,10 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Python build outputs
 build/
-dist/
-*.egg-info/
-
-# Virtual environments / direnv
-.venv/
-venv/
-env/
-ENV/
-.direnv/
-
-# Generated design products
-rtl/generated/*
-!rtl/generated/.gitkeep
-docs/generated/*
-!docs/generated/.gitkeep
-vectors/generated/*
-!vectors/generated/.gitkeep
-boards/**/build/
-
-# Local object files
 *.o
-
-# FPGA / synthesis / simulation artifacts
-work/
-transcript
+*.vvp
 *.vcd
-*.fst
-*.wlf
-*.jou
-*.log
-*.rpt
-*.dcp
-*.bit
-*.bin
-*.mcs
-*.edf
-*.edif
-*.sdf
-*.spef
-*.saif
-*.fsdb
-*.vpd
-*.pnr.json
-*.fs
 
-# Vendor/project noise
-*.xpr
-*.runs/
-*.cache/
-*.hw/
-*.ip_user_files/
-*.sim/
-*.qpf
-*.qsf
-*.sof
-*.sta.rpt
-
-# Local scratch folders
-ignore/
-fixed_make_repo/
-
-# Editor/OS files
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
-*.swp
-*.swo
+repo*.zip
+*_updated.zip

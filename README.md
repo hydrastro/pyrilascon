@@ -33,7 +33,7 @@ python -m pytest -q
 Expected result for this step:
 
 ```text
-188 passed
+191 passed, 5 skipped
 ```
 
 
