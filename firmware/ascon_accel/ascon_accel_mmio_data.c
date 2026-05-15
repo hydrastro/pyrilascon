@@ -4,7 +4,7 @@ void ascon_accel_mmio_stream_bytes(
     const ascon_accel_t *dev,
     const uint8_t *data,
     size_t len,
-    uint32_t stream_kind) {
+    ascon_accel_stream_kind_t stream_kind) {
   size_t offset = 0;
   while (offset < len) {
     uint32_t word = 0;
