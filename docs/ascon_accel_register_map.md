@@ -104,6 +104,7 @@ All registers are 32-bit little-endian words at byte offsets from the accelerato
 | 19 | `ASCON_CAP_FAULT_DETECTION` | Fault-detection mechanism is implemented. |
 | 20 | `ASCON_CAP_STREAMING_BYTEMASK` | Input stream supports final-byte keep mask. |
 | 21 | `ASCON_CAP_CYCLE_COUNTER` | Cycle counter registers are implemented. |
+| 22 | `ASCON_CAP_AXI_STREAM_DATA` | Bulk data can be moved through an AXI4-Stream-style data interface. |
 
 ## Error codes
 

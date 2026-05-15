@@ -114,6 +114,7 @@ CAPABILITY_BITS: Final[tuple[BitDef, ...]] = (
     BitDef("FAULT_DETECTION", 19, "Fault-detection mechanism is implemented."),
     BitDef("STREAMING_BYTEMASK", 20, "Input stream supports final-byte keep mask."),
     BitDef("CYCLE_COUNTER", 21, "Cycle counter registers are implemented."),
+    BitDef("AXI_STREAM_DATA", 22, "Bulk data can be moved through an AXI4-Stream-style data interface."),
 )
 
 ERROR_ENUMS: Final[tuple[EnumDef, ...]] = (

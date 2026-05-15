@@ -87,6 +87,7 @@
 #define ASCON_CAP_FAULT_DETECTION        (1u << 19)
 #define ASCON_CAP_STREAMING_BYTEMASK     (1u << 20)
 #define ASCON_CAP_CYCLE_COUNTER          (1u << 21)
+#define ASCON_CAP_AXI_STREAM_DATA        (1u << 22)
 
 /* ERROR_CODE values. */
 #define ASCON_ERROR_NONE               0u

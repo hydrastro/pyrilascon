@@ -133,3 +133,19 @@ This is the first CFS integration step. It provides the VHDL CFS replacement and
 connects the real AEAD128 MMIO backend, but it does not yet include a full
 Tang-Nano-9K NEORV32 SoC build script. The next milestone is a board-level
 NEORV32 top, firmware image generation, and UART demo.
+
+## AXI Stream data-plane direction
+
+The NEORV32 CFS integration is still useful as a simple CPU-controlled baseline,
+but it is not the final high-throughput FPGA data path. The project now separates
+control and data movement:
+
+```text
+CFS/MMIO/CSR: control, status, key, nonce, lengths, tags, capabilities
+AXI Stream:  associated data, plaintext, ciphertext, and future hash/XOF data
+```
+
+The current CFS wrapper can use the compatibility `DATA_IN`/`DATA_OUT` registers.
+Future FPGA wrappers should instantiate `ascon_accel_axis_aead128_top` or a wider
+successor and feed its stream ports from a DMA/stream fabric while keeping the
+same frozen control ABI.
