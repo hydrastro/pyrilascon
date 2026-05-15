@@ -21,3 +21,14 @@ make prog-sram
 ```
 
 This is only a high-throughput permutation experiment. It is useful later, but it is not a full AEAD accelerator.
+
+## Full AEAD128 encrypt+decrypt slow KAT
+
+```sh
+cd boards/tangnano9k/ascon_aead128_full_slow
+make
+make prog-sram
+```
+
+This target runs both a fixed encryption KAT and a fixed decryption KAT. It is the
+current standalone full-AEAD smoke test before NEORV32 integration.
