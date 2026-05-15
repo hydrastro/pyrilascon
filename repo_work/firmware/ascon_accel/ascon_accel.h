@@ -42,6 +42,7 @@ typedef enum {
   ASCON_ACCEL_ERR_UNSUPPORTED_MODE = -4,
   ASCON_ACCEL_ERR_ABI_MISMATCH = -5,
   ASCON_ACCEL_ERR_HARDWARE_ERROR = -6,
+  ASCON_ACCEL_ERR_TRANSPORT = -7,
 } ascon_accel_status_t;
 
 typedef enum {
@@ -49,10 +50,27 @@ typedef enum {
   ASCON_ACCEL_DATA_PLANE_AXI_STREAM_EXTERNAL = 1,
 } ascon_accel_data_plane_t;
 
+typedef enum {
+  ASCON_ACCEL_STREAM_AD = ASCON_DATA_AD,
+  ASCON_ACCEL_STREAM_TEXT = ASCON_DATA_TEXT,
+  ASCON_ACCEL_STREAM_CUSTOM = ASCON_DATA_CUSTOM,
+} ascon_accel_stream_kind_t;
+
+typedef struct {
+  void *ctx;
+  ascon_accel_status_t (*send)(
+      void *ctx,
+      const uint8_t *data,
+      size_t len,
+      ascon_accel_stream_kind_t stream_kind);
+  ascon_accel_status_t (*recv)(void *ctx, uint8_t *data, size_t len);
+} ascon_accel_axis_transport_t;
+
 typedef struct {
   uintptr_t base_addr;
   uint32_t timeout_cycles;
   ascon_accel_data_plane_t data_plane;
+  ascon_accel_axis_transport_t axis_transport;
 } ascon_accel_t;
 
 typedef struct {
@@ -77,6 +95,10 @@ typedef struct {
 
 void ascon_accel_init(ascon_accel_t *dev, uintptr_t base_addr, uint32_t timeout_cycles);
 void ascon_accel_set_data_plane(ascon_accel_t *dev, ascon_accel_data_plane_t data_plane);
+void ascon_accel_set_axis_transport(
+    ascon_accel_t *dev,
+    const ascon_accel_axis_transport_t *transport);
+bool ascon_accel_axis_transport_configured(const ascon_accel_t *dev);
 void ascon_accel_reset(const ascon_accel_t *dev);
 
 uint32_t ascon_accel_abi_version(const ascon_accel_t *dev);

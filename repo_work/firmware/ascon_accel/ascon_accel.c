@@ -10,7 +10,7 @@ static ascon_accel_status_t send_payload(
     const ascon_accel_t *dev,
     const uint8_t *data,
     size_t len,
-    uint32_t stream_kind) {
+    ascon_accel_stream_kind_t stream_kind) {
   if (request_uses_mmio_data_plane(dev)) {
     ascon_accel_mmio_stream_bytes(dev, data, len, stream_kind);
     return ASCON_ACCEL_OK;
@@ -47,11 +47,11 @@ ascon_accel_status_t ascon_accel_encrypt(
   ascon_accel_write_reg(dev, ASCON_REG_AD_LEN, (uint32_t)req->ad_len);
   ascon_accel_write_reg(dev, ASCON_REG_TEXT_LEN, (uint32_t)req->input_len);
 
-  ascon_accel_status_t status = send_payload(dev, req->ad, req->ad_len, ASCON_DATA_AD);
+  ascon_accel_status_t status = send_payload(dev, req->ad, req->ad_len, ASCON_ACCEL_STREAM_AD);
   if (status != ASCON_ACCEL_OK) {
     return status;
   }
-  status = send_payload(dev, req->input, req->input_len, ASCON_DATA_TEXT);
+  status = send_payload(dev, req->input, req->input_len, ASCON_ACCEL_STREAM_TEXT);
   if (status != ASCON_ACCEL_OK) {
     return status;
   }
@@ -91,11 +91,11 @@ ascon_accel_status_t ascon_accel_decrypt(
   ascon_accel_write_reg(dev, ASCON_REG_TEXT_LEN, (uint32_t)req->input_len);
   ascon_accel_write_expected_tag_128(dev, req->tag);
 
-  ascon_accel_status_t status = send_payload(dev, req->ad, req->ad_len, ASCON_DATA_AD);
+  ascon_accel_status_t status = send_payload(dev, req->ad, req->ad_len, ASCON_ACCEL_STREAM_AD);
   if (status != ASCON_ACCEL_OK) {
     return status;
   }
-  status = send_payload(dev, req->input, req->input_len, ASCON_DATA_TEXT);
+  status = send_payload(dev, req->input, req->input_len, ASCON_ACCEL_STREAM_TEXT);
   if (status != ASCON_ACCEL_OK) {
     return status;
   }
@@ -143,12 +143,12 @@ ascon_accel_status_t ascon_accel_hash_or_xof(
   ascon_accel_write_reg(dev, ASCON_REG_OUT_LEN, (uint32_t)req->output_len);
   ascon_accel_write_reg(dev, ASCON_REG_CUSTOM_LEN, (uint32_t)req->customization_len);
   if (mode == ASCON_ACCEL_MODE_CXOF128) {
-    ascon_accel_status_t custom_status = send_payload(dev, req->customization, req->customization_len, ASCON_DATA_CUSTOM);
+    ascon_accel_status_t custom_status = send_payload(dev, req->customization, req->customization_len, ASCON_ACCEL_STREAM_CUSTOM);
     if (custom_status != ASCON_ACCEL_OK) {
       return custom_status;
     }
   }
-  ascon_accel_status_t message_status = send_payload(dev, req->message, req->message_len, ASCON_DATA_TEXT);
+  ascon_accel_status_t message_status = send_payload(dev, req->message, req->message_len, ASCON_ACCEL_STREAM_TEXT);
   if (message_status != ASCON_ACCEL_OK) {
     return message_status;
   }

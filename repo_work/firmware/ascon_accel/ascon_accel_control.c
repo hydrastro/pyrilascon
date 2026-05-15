@@ -47,6 +47,9 @@ void ascon_accel_init(ascon_accel_t *dev, uintptr_t base_addr, uint32_t timeout_
   dev->base_addr = base_addr;
   dev->timeout_cycles = timeout_cycles;
   dev->data_plane = ASCON_ACCEL_DATA_PLANE_MMIO_WORD;
+  dev->axis_transport.ctx = 0;
+  dev->axis_transport.send = 0;
+  dev->axis_transport.recv = 0;
 }
 
 void ascon_accel_set_data_plane(ascon_accel_t *dev, ascon_accel_data_plane_t data_plane) {

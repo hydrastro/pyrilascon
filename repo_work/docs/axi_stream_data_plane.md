@@ -69,7 +69,11 @@ ASCON_CAP_AXI_STREAM_DATA
 
 Software should still probe `CAPABILITIES`. A CPU-only CFS integration can use
 the MMIO data registers, while an FPGA wrapper with DMA or stream fabric can use
-AXI Stream for the payload.
+AXI Stream for the payload. The portable firmware driver exposes this through
+`ascon_accel_axis_transport_t` callbacks rather than hardcoding a specific DMA IP.
+If `ASCON_CAP_AXI_STREAM_DATA` is missing, stream transport is rejected. If the
+capability is present but callbacks are not installed, the driver returns
+`ASCON_ACCEL_ERR_TRANSPORT`.
 
 ## NEORV32 note
 

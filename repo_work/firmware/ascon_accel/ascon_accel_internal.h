@@ -28,14 +28,14 @@ void ascon_accel_mmio_stream_bytes(
     const ascon_accel_t *dev,
     const uint8_t *data,
     size_t len,
-    uint32_t stream_kind);
+    ascon_accel_stream_kind_t stream_kind);
 void ascon_accel_mmio_read_bytes(const ascon_accel_t *dev, uint8_t *data, size_t len);
 
 ascon_accel_status_t ascon_accel_axis_stream_bytes(
     const ascon_accel_t *dev,
     const uint8_t *data,
     size_t len,
-    uint32_t stream_kind);
+    ascon_accel_stream_kind_t stream_kind);
 ascon_accel_status_t ascon_accel_axis_read_bytes(const ascon_accel_t *dev, uint8_t *data, size_t len);
 
 #ifdef __cplusplus
