@@ -64,3 +64,19 @@ make prog-sram
 ```
 
 Expected LEDs: LED0 blinking, LED1/LED2/LED4/LED5 on, LED3 off.
+
+
+## ASCON AEAD128 128-bit AXI Stream 4RPC candidate
+
+```bash
+cd boards/tangnano9k/ascon_aead128_axis128_4rpc
+make clean
+make tools
+make
+make prog-sram
+```
+
+This target is the first high-throughput FPGA candidate after the AXI Stream
+smoke test. It uses a 128-bit AXI Stream-style payload interface and a
+four-rounds-per-cycle permutation backend while preserving the frozen CSR/MMIO
+control ABI.
