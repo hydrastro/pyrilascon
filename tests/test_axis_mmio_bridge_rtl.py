@@ -36,19 +36,24 @@ def test_axis_mmio_bridge_rtl_matches_firmware_register_contract() -> None:
     assert "STATUS_RX_VALID = 32'h00000002" in text
     assert "STATUS_RX_LAST  = 32'h00000004" in text
     assert "STATUS_ERROR    = 32'h80000000" in text
+    assert "bits[15:8] RX_LEVEL" in text
     assert "RX_CTRL_POP     = 32'h00000001" in text
 
 
-def test_axis_mmio_bridge_has_one_beat_tx_and_rx_backpressure() -> None:
+def test_axis_mmio_bridge_has_single_tx_hold_and_fifo_backed_rx() -> None:
     text = BRIDGE.read_text(encoding="utf-8")
+    assert "parameter integer RX_FIFO_DEPTH = 4" in text
     assert "reg       tx_valid_q" in text
-    assert "reg       rx_valid_q" in text
     assert "assign m_axis_tvalid = tx_valid_q" in text
-    assert "assign s_axis_tready = ~rx_valid_q" in text
     assert "wire tx_fire_w      = tx_valid_q & m_axis_tready" in text
-    assert "wire rx_fire_w      = s_axis_tvalid & s_axis_tready" in text
-    assert "tx_valid_q <= 1'b1" in text
-    assert "rx_valid_q <= 1'b0" in text
+    assert "reg [DATA_WIDTH-1:0] rx_data_fifo_q" in text
+    assert "reg [RX_PTR_BITS-1:0] rx_rd_ptr_q" in text
+    assert "reg [RX_PTR_BITS-1:0] rx_wr_ptr_q" in text
+    assert "reg [RX_CNT_BITS-1:0] rx_count_q" in text
+    assert "assign s_axis_tready = ~rx_fifo_full_w" in text
+    assert "STATUS_RX_VALID" in text
+    assert "rx_level_word_w" in text
+    assert "RX_CTRL_POP" in text
     assert "error_q <= 1'b1" in text
 
 
@@ -63,6 +68,8 @@ def test_axis_mmio_system_wrapper_connects_bridge_to_stream_soc_top() -> None:
     assert ".s_axis_tdata(core_to_bridge_tdata_w)" in text
     assert ".s_axis_tdata(bridge_to_core_tdata_w)" in text
     assert ".m_axis_tdata(core_to_bridge_tdata_w)" in text
+    assert "parameter integer RX_FIFO_DEPTH  = 4" in text
+    assert ".RX_FIFO_DEPTH(RX_FIFO_DEPTH)" in text
 
 
 def test_axis_mmio_system_file_list_contains_required_rtl_in_order() -> None:
@@ -86,6 +93,7 @@ def test_axis_mmio_bridge_rtl_documentation_mentions_two_mmio_windows() -> None:
     assert "ASCON_ACCEL_AXIS_MMIO_BASE_ADDR" in doc
     assert "TX_CTRL.VALID" in doc
     assert "RX_CTRL.POP" in doc
+    assert "RX FIFO" in doc
     assert "DMA-fed AXI-stream frontend" in doc
 
 

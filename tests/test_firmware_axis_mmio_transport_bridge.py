@@ -165,5 +165,6 @@ def test_axis_mmio_transport_is_documented_as_neorv32_bridge_transport() -> None
     assert "ASCON_ACCEL_AXIS_MMIO_BASE_ADDR" in header
     assert "ASCON_AXIS_MMIO_TX_CTRL_VALID" in header
     assert "ASCON_AXIS_MMIO_RX_CTRL_POP" in header
+    assert "ASCON_AXIS_MMIO_STATUS_RX_LEVEL_MASK" in header
     assert "keep_is_contiguous_low" in source
     assert "ASCON_AXIS_MMIO_DATA_BYTES" in source

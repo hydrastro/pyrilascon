@@ -22,15 +22,15 @@ callback table. Platform code initializes the bridge transport, installs it with
 ## Bridge register contract
 
 The bridge is intentionally tiny and 128-bit wide. TX registers carry one stream
-beat into the accelerator, and RX registers expose one stream beat produced by
-the accelerator.
+beat into the accelerator, and RX registers expose the oldest beat queued in the
+bridge RX FIFO.
 
 ```text
 TX_DATA0..TX_DATA3   128-bit little-endian beat payload
 TX_KEEP              16-bit contiguous low-byte keep mask
 TX_USER              stream kind: AD, TEXT, or CUSTOM
 TX_CTRL              VALID and LAST
-STATUS               TX_READY, RX_VALID, RX_LAST, ERROR
+STATUS               TX_READY, RX_VALID, RX_LAST, RX_LEVEL, ERROR
 RX_DATA0..RX_DATA3   128-bit little-endian output beat payload
 RX_KEEP              16-bit contiguous low-byte keep mask
 RX_USER              output stream kind
@@ -40,7 +40,8 @@ RX_CTRL              POP acknowledgement
 The firmware transport chunks arbitrary byte strings into 16-byte beats. It does
 not emit dummy beats for zero-length streams. For receive, it requires contiguous
 low-byte `RX_KEEP`, exact byte count agreement with the caller's requested
-length, and `RX_LAST` on the final beat.
+length, and `RX_LAST` on the final beat. `RX_LEVEL` is exposed for diagnostics;
+the transport only requires the existing `RX_VALID`/`POP` flow for correctness.
 
 ## Why this exists before DMA
 

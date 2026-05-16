@@ -27,7 +27,7 @@ Implemented so far:
 - host-side AXI Stream reference emulator for end-to-end firmware validation
 - host-side firmware stream benchmark tool for pre-board NEORV32/SoC smoke testing
 - CPU-driven AXI-stream MMIO transport for NEORV32/bring-up bridge integration
-- RTL MMIO-to-AXI-stream bridge and integrated stream AEAD128 system wrapper
+- FIFO-backed RTL MMIO-to-AXI-stream bridge and integrated stream AEAD128 system wrapper
 - NEORV32 benchmark firmware can select the stream-native MMIO bridge path with `USE_AXIS_MMIO=1`
 
 ## Run tests
@@ -41,14 +41,14 @@ python -m pytest -q
 Expected result for this step in an environment without `iverilog`/`vvp`:
 
 ```text
-247 passed, 18 skipped
+248 passed, 19 skipped
 ```
 
 With Icarus Verilog installed, the optional RTL simulation tests run instead of
 skipping, so the expected total is:
 
 ```text
-265 passed
+267 passed
 ```
 
 

@@ -95,17 +95,17 @@ docs-configs: list-configs-csv list-configs-json
 	$(PY) tools/list_valid_configs.py --target both --algorithms $(ALGOS) --format text --out docs/generated/selected_valid_configs.txt --engine-count $(ENGINE_COUNT) --pipeline-count $(PIPELINE_COUNT) --contexts-per-pipeline $(CONTEXTS_PER_PIPELINE)
 
 stream-encrypt-sim: check-layout
-	$(PY) tools/run_stream_encrypt_vector.py --key-hex 000102030405060708090a0b0c0d0e0f --nonce-hex 101112131415161718191a1b1c1d1e1f --ad-hex aabbccddeeff --plaintext-hex 000102030405060708090a0b0c0d0e0f101112
+	$(PY) tools/run_stream_encrypt_vector.py --key-hex 000102030405060708090a0b0c0d0e0f --nonce-hex 101112131415161718191a1b1c1d1e1f --ad-hex aabbccddeeff --plaintext-hex 000102030405060708090a0b0c0d0e0f10111208090a0b0c0d0e0f101112
 
 stream-decrypt-sim: check-layout
-	$(PY) tools/run_stream_decrypt_vector.py --key-hex 000102030405060708090a0b0c0d0e0f --nonce-hex 101112131415161718191a1b1c1d1e1f --ad-hex aabbccddeeff --plaintext-hex 000102030405060708090a0b0c0d0e0f101112
+	$(PY) tools/run_stream_decrypt_vector.py --key-hex 000102030405060708090a0b0c0d0e0f --nonce-hex 101112131415161718191a1b1c1d1e1f --ad-hex aabbccddeeff --plaintext-hex 000102030405060708090a0b0c0d0e0f10111208090a0b0c0d0e0f101112
 	$(PY) tools/run_stream_decrypt_vector.py --corrupt-tag --key-hex 000102030405060708090a0b0c0d0e0f --nonce-hex 101112131415161718191a1b1c1d1e1f --ad-hex 6d65746164617461 --plaintext-hex 73656372657420706c61696e74657874
 
 axis-mmio-bridge-sim: check-layout
 	$(PY) tools/run_axis_mmio_bridge_vector.py --json
 
 stream-axis-mmio-system-sim: check-layout
-	$(PY) tools/run_stream_axis_mmio_system_vector.py --key-hex 000102030405060708090a0b0c0d0e0f --nonce-hex 101112131415161718191a1b1c1d1e1f --ad-hex aabbccddeeff --plaintext-hex 0001020304050607
+	$(PY) tools/run_stream_axis_mmio_system_vector.py --key-hex 000102030405060708090a0b0c0d0e0f --nonce-hex 101112131415161718191a1b1c1d1e1f --ad-hex aabbccddeeff --plaintext-hex 000102030405060708090a0b0c0d0e0f101112
 
 firmware-stream-ref-bench: check-layout
 	$(PY) tools/run_firmware_stream_ref_benchmark.py --json

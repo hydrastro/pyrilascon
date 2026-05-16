@@ -13,7 +13,8 @@ module ascon_accel_stream_aead128_axis_mmio_system #(
   parameter integer DATA_BYTES     = 16,
   parameter integer DATA_WIDTH     = DATA_BYTES * 8,
   parameter integer MAX_TEXT_BYTES = 1024,
-  parameter integer MAX_TEXT_BITS  = MAX_TEXT_BYTES * 8
+  parameter integer MAX_TEXT_BITS  = MAX_TEXT_BYTES * 8,
+  parameter integer RX_FIFO_DEPTH  = 4
 ) (
   input  wire                    clk_i,
   input  wire                    rstn_i,
@@ -56,7 +57,8 @@ module ascon_accel_stream_aead128_axis_mmio_system #(
 
   ascon_axis_mmio_bridge #(
     .DATA_BYTES(DATA_BYTES),
-    .DATA_WIDTH(DATA_WIDTH)
+    .DATA_WIDTH(DATA_WIDTH),
+    .RX_FIFO_DEPTH(RX_FIFO_DEPTH)
   ) axis_bridge_i (
     .clk_i(clk_i),
     .rstn_i(rstn_i),

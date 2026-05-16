@@ -682,13 +682,15 @@ This slice adds the hardware side of the CPU-driven stream bridge introduced for
 NEORV32 and Tang Nano bring-up. The new `rtl/common/ascon_axis_mmio_bridge.v`
 module implements the same register contract used by
 `ascon_accel_axis_mmio_transport.c`: TX data/keep/user/control registers commit
-one 128-bit AXI-stream beat, while RX data/keep/user/status registers expose one
-held output beat until firmware writes `RX_CTRL.POP`.
+one 128-bit AXI-stream beat, while RX data/keep/user/status registers expose
+the oldest output beat queued in a small RX FIFO until firmware writes `RX_CTRL.POP`.
 
-The bridge is intentionally one beat deep on each side. It is designed for
-correctness, register-contract validation, and early board smoke tests rather
-than peak throughput. Future high-throughput systems can replace it with DMA
-while keeping the stream-native AEAD backend and firmware ABI intact.
+The bridge keeps TX one beat deep but now gives RX a small FIFO. It is designed
+for correctness, register-contract validation, and early board smoke tests rather
+than peak throughput. The RX FIFO avoids the immediate CPU-driven full-duplex
+deadlock for small multi-beat ciphertext/plaintext outputs. Future
+high-throughput systems can still replace it with DMA while keeping the
+stream-native AEAD backend and firmware ABI intact.
 
 The slice also adds `rtl/common/ascon_accel_stream_aead128_axis_mmio_system.v`,
 a NEORV32-oriented integration wrapper with two independent MMIO windows:
@@ -723,4 +725,19 @@ Validation in this environment: `python -m pytest -q` reports **243 passed, 14 s
 Added an integration-level RTL smoke simulation for `ascon_accel_stream_aead128_axis_mmio_system`. The testbench drives the frozen CSR/MMIO window plus the CPU-driven AXI-MMIO bridge window, starts the stream backend, feeds AD/TEXT beats through the bridge, reads ciphertext back through the bridge RX register, and checks the generated tag through the ABI tag registers.
 
 Validation in this environment: `python -m pytest -q` reports **247 passed, 18 skipped**. On a machine with `iverilog/vvp`, the optional simulator tests run for an expected total of **265 passed**.
+
+### Added: FIFO-backed RX path for the AXI-MMIO bridge
+
+The CPU-driven AXI-MMIO bridge no longer has a single-beat RX bottleneck. The
+RX side is now FIFO-backed, with `RX_FIFO_DEPTH` forwarded by
+`ascon_accel_stream_aead128_axis_mmio_system`. `STATUS.RX_LEVEL` exposes the
+queued-beat count for bring-up diagnostics, while existing firmware can continue
+to use only `RX_VALID`, `RX_LAST`, and `RX_CTRL.POP`.
+
+The integrated system simulation tool now accepts multi-beat plaintext vectors
+that fit within the default four-beat RX FIFO. This proves the CSR window,
+CPU-driven bridge, and stream-native AEAD backend can complete small multi-beat
+messages without requiring DMA.
+
+Validation in this environment: `python -m pytest -q` reports **248 passed, 19 skipped**. On a machine with `iverilog/vvp`, the optional simulator tests run for an expected total of **267 passed**.
 

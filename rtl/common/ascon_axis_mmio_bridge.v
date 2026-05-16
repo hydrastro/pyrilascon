@@ -16,22 +16,26 @@
 //   0x10 TX_KEEP      low 16 bits
 //   0x14 TX_USER      low 4 bits
 //   0x18 TX_CTRL      bit0 VALID, bit1 LAST; writing VALID commits one beat
-//   0x1c STATUS       bit0 TX_READY, bit1 RX_VALID, bit2 RX_LAST, bit31 ERROR
-//   0x20 RX_DATA0     little-endian bytes  0..3
-//   0x24 RX_DATA1     little-endian bytes  4..7
-//   0x28 RX_DATA2     little-endian bytes  8..11
-//   0x2c RX_DATA3     little-endian bytes 12..15
-//   0x30 RX_KEEP      low 16 bits
-//   0x34 RX_USER      low 4 bits
-//   0x38 RX_CTRL      bit0 POP; writing POP releases the held RX beat
+//   0x1c STATUS       bit0 TX_READY, bit1 RX_VALID, bit2 RX_LAST,
+//                     bits[15:8] RX_LEVEL, bit31 ERROR
+//   0x20 RX_DATA0     little-endian bytes  0..3 of the oldest RX beat
+//   0x24 RX_DATA1     little-endian bytes  4..7 of the oldest RX beat
+//   0x28 RX_DATA2     little-endian bytes  8..11 of the oldest RX beat
+//   0x2c RX_DATA3     little-endian bytes 12..15 of the oldest RX beat
+//   0x30 RX_KEEP      low 16 bits of the oldest RX beat
+//   0x34 RX_USER      low 4 bits of the oldest RX beat
+//   0x38 RX_CTRL      bit0 POP; writing POP releases the oldest RX beat
 //
-// The bridge intentionally contains one TX holding register and one RX holding
-// register.  Firmware waits for TX_READY before committing TX_CTRL.VALID and
-// waits for RX_VALID before reading RX_* and writing RX_CTRL.POP.
+// TX remains a single holding register because firmware waits for TX_READY before
+// committing each beat.  RX is FIFO-backed so the accelerator can return several
+// ciphertext/plaintext beats while a simple CPU is still pushing later input
+// beats.  This avoids the one-beat output deadlock that appears in CPU-driven
+// full-duplex stream systems before a DMA path exists.
 // -----------------------------------------------------------------------------
 module ascon_axis_mmio_bridge #(
-  parameter integer DATA_BYTES = 16,
-  parameter integer DATA_WIDTH = DATA_BYTES * 8
+  parameter integer DATA_BYTES    = 16,
+  parameter integer DATA_WIDTH    = DATA_BYTES * 8,
+  parameter integer RX_FIFO_DEPTH = 4
 ) (
   input  wire                    clk_i,
   input  wire                    rstn_i,
@@ -88,24 +92,48 @@ module ascon_axis_mmio_bridge #(
   localparam [31:0] STATUS_ERROR    = 32'h80000000;
   localparam [31:0] RX_CTRL_POP     = 32'h00000001;
 
+  function integer clog2_int;
+    input integer value;
+    integer v;
+    begin
+      v = value - 1;
+      clog2_int = 0;
+      while (v > 0) begin
+        v = v >> 1;
+        clog2_int = clog2_int + 1;
+      end
+    end
+  endfunction
+
+  localparam integer RX_PTR_BITS = (RX_FIFO_DEPTH <= 1) ? 1 : clog2_int(RX_FIFO_DEPTH);
+  localparam integer RX_CNT_BITS = clog2_int(RX_FIFO_DEPTH + 1);
+  localparam [RX_CNT_BITS-1:0] RX_FIFO_DEPTH_COUNT = RX_FIFO_DEPTH;
+  localparam [RX_PTR_BITS-1:0] RX_FIFO_LAST_PTR = RX_FIFO_DEPTH - 1;
+
   reg [31:0] tx_data_q [0:3];
   reg [DATA_BYTES-1:0] tx_keep_q;
   reg [3:0] tx_user_q;
   reg       tx_last_q;
   reg       tx_valid_q;
 
-  reg [DATA_WIDTH-1:0] rx_data_q;
-  reg [DATA_BYTES-1:0] rx_keep_q;
-  reg [3:0] rx_user_q;
-  reg       rx_last_q;
-  reg       rx_valid_q;
+  reg [DATA_WIDTH-1:0] rx_data_fifo_q [0:RX_FIFO_DEPTH-1];
+  reg [DATA_BYTES-1:0] rx_keep_fifo_q [0:RX_FIFO_DEPTH-1];
+  reg [3:0]            rx_user_fifo_q [0:RX_FIFO_DEPTH-1];
+  reg                  rx_last_fifo_q [0:RX_FIFO_DEPTH-1];
+  reg [RX_PTR_BITS-1:0] rx_rd_ptr_q;
+  reg [RX_PTR_BITS-1:0] rx_wr_ptr_q;
+  reg [RX_CNT_BITS-1:0] rx_count_q;
 
   reg error_q;
 
   wire write_access_w = bus_valid_i & bus_write_i;
   wire read_access_w  = bus_valid_i & ~bus_write_i;
   wire tx_fire_w      = tx_valid_q & m_axis_tready;
+  wire rx_fifo_full_w = (rx_count_q == RX_FIFO_DEPTH_COUNT);
+  wire rx_valid_w     = (rx_count_q != {RX_CNT_BITS{1'b0}});
   wire rx_fire_w      = s_axis_tvalid & s_axis_tready;
+  wire rx_pop_w       = write_access_w & (bus_addr_i == REG_RX_CTRL) &
+                        ((bus_wdata_i & RX_CTRL_POP) != 32'h00000000);
 
   assign bus_ready_o   = bus_valid_i;
   assign error_o       = error_q;
@@ -114,7 +142,7 @@ module ascon_axis_mmio_bridge #(
   assign m_axis_tvalid = tx_valid_q;
   assign m_axis_tlast  = tx_last_q;
   assign m_axis_tuser  = tx_user_q;
-  assign s_axis_tready = ~rx_valid_q;
+  assign s_axis_tready = ~rx_fifo_full_w;
 
   function [31:0] apply_wstrb;
     input [31:0] old_value;
@@ -128,13 +156,26 @@ module ascon_axis_mmio_bridge #(
     end
   endfunction
 
+  function [RX_PTR_BITS-1:0] bump_rx_ptr;
+    input [RX_PTR_BITS-1:0] ptr;
+    begin
+      if (ptr == RX_FIFO_LAST_PTR) begin
+        bump_rx_ptr = {RX_PTR_BITS{1'b0}};
+      end else begin
+        bump_rx_ptr = ptr + 1'b1;
+      end
+    end
+  endfunction
+
   wire [31:0] tx_keep_word_w = {{(32-DATA_BYTES){1'b0}}, tx_keep_q};
-  wire [31:0] rx_keep_word_w = {{(32-DATA_BYTES){1'b0}}, rx_keep_q};
+  wire [31:0] rx_keep_word_w = {{(32-DATA_BYTES){1'b0}}, rx_valid_w ? rx_keep_fifo_q[rx_rd_ptr_q] : {DATA_BYTES{1'b0}}};
   wire [31:0] tx_keep_next_w = apply_wstrb(tx_keep_word_w, bus_wdata_i, bus_wstrb_i);
   wire [31:0] tx_user_next_w = apply_wstrb({28'h0000000, tx_user_q}, bus_wdata_i, bus_wstrb_i);
+  wire [31:0] rx_level_word_w = {{(24-RX_CNT_BITS){1'b0}}, rx_count_q, 8'h00};
   wire [31:0] status_w = (tx_valid_q ? 32'h00000000 : STATUS_TX_READY) |
-                         (rx_valid_q ? STATUS_RX_VALID : 32'h00000000) |
-                         ((rx_valid_q & rx_last_q) ? STATUS_RX_LAST : 32'h00000000) |
+                         (rx_valid_w ? STATUS_RX_VALID : 32'h00000000) |
+                         ((rx_valid_w & rx_last_fifo_q[rx_rd_ptr_q]) ? STATUS_RX_LAST : 32'h00000000) |
+                         rx_level_word_w |
                          (error_q ? STATUS_ERROR : 32'h00000000);
 
   always @(*) begin
@@ -150,18 +191,19 @@ module ascon_axis_mmio_bridge #(
         REG_TX_CTRL:  bus_rdata_o = (tx_valid_q ? TX_CTRL_VALID : 32'h00000000) |
                                     (tx_last_q  ? TX_CTRL_LAST  : 32'h00000000);
         REG_STATUS:   bus_rdata_o = status_w;
-        REG_RX_DATA0: bus_rdata_o = rx_data_q[31:0];
-        REG_RX_DATA1: bus_rdata_o = rx_data_q[63:32];
-        REG_RX_DATA2: bus_rdata_o = rx_data_q[95:64];
-        REG_RX_DATA3: bus_rdata_o = rx_data_q[127:96];
+        REG_RX_DATA0: bus_rdata_o = rx_valid_w ? rx_data_fifo_q[rx_rd_ptr_q][31:0] : 32'h00000000;
+        REG_RX_DATA1: bus_rdata_o = rx_valid_w ? rx_data_fifo_q[rx_rd_ptr_q][63:32] : 32'h00000000;
+        REG_RX_DATA2: bus_rdata_o = rx_valid_w ? rx_data_fifo_q[rx_rd_ptr_q][95:64] : 32'h00000000;
+        REG_RX_DATA3: bus_rdata_o = rx_valid_w ? rx_data_fifo_q[rx_rd_ptr_q][127:96] : 32'h00000000;
         REG_RX_KEEP:  bus_rdata_o = rx_keep_word_w;
-        REG_RX_USER:  bus_rdata_o = {28'h0000000, rx_user_q};
+        REG_RX_USER:  bus_rdata_o = rx_valid_w ? {28'h0000000, rx_user_fifo_q[rx_rd_ptr_q]} : 32'h00000000;
         REG_RX_CTRL:  bus_rdata_o = 32'h00000000;
         default:      bus_rdata_o = 32'h00000000;
       endcase
     end
   end
 
+  integer reset_i;
   always @(posedge clk_i or negedge rstn_i) begin
     if (!rstn_i) begin
       tx_data_q[0] <= 32'h00000000;
@@ -172,12 +214,16 @@ module ascon_axis_mmio_bridge #(
       tx_user_q    <= 4'h0;
       tx_last_q    <= 1'b0;
       tx_valid_q   <= 1'b0;
-      rx_data_q    <= {DATA_WIDTH{1'b0}};
-      rx_keep_q    <= {DATA_BYTES{1'b0}};
-      rx_user_q    <= 4'h0;
-      rx_last_q    <= 1'b0;
-      rx_valid_q   <= 1'b0;
-      error_q      <= 1'b0;
+      for (reset_i = 0; reset_i < RX_FIFO_DEPTH; reset_i = reset_i + 1) begin
+        rx_data_fifo_q[reset_i] <= {DATA_WIDTH{1'b0}};
+        rx_keep_fifo_q[reset_i] <= {DATA_BYTES{1'b0}};
+        rx_user_fifo_q[reset_i] <= 4'h0;
+        rx_last_fifo_q[reset_i] <= 1'b0;
+      end
+      rx_rd_ptr_q <= {RX_PTR_BITS{1'b0}};
+      rx_wr_ptr_q <= {RX_PTR_BITS{1'b0}};
+      rx_count_q  <= {RX_CNT_BITS{1'b0}};
+      error_q     <= 1'b0;
     end else begin
       if (tx_fire_w) begin
         tx_valid_q <= 1'b0;
@@ -185,12 +231,27 @@ module ascon_axis_mmio_bridge #(
       end
 
       if (rx_fire_w) begin
-        rx_data_q  <= s_axis_tdata;
-        rx_keep_q  <= s_axis_tkeep;
-        rx_user_q  <= s_axis_tuser;
-        rx_last_q  <= s_axis_tlast;
-        rx_valid_q <= 1'b1;
+        rx_data_fifo_q[rx_wr_ptr_q] <= s_axis_tdata;
+        rx_keep_fifo_q[rx_wr_ptr_q] <= s_axis_tkeep;
+        rx_user_fifo_q[rx_wr_ptr_q] <= s_axis_tuser;
+        rx_last_fifo_q[rx_wr_ptr_q] <= s_axis_tlast;
+        rx_wr_ptr_q <= bump_rx_ptr(rx_wr_ptr_q);
       end
+
+      if (rx_pop_w) begin
+        if (!rx_valid_w) begin
+          error_q <= 1'b1;
+        end else begin
+          rx_rd_ptr_q <= bump_rx_ptr(rx_rd_ptr_q);
+        end
+      end
+
+      case ({rx_fire_w, rx_pop_w & rx_valid_w})
+        2'b10: rx_count_q <= rx_count_q + 1'b1;
+        2'b01: rx_count_q <= rx_count_q - 1'b1;
+        default: begin
+        end
+      endcase
 
       if (write_access_w) begin
         case (bus_addr_i)
@@ -216,10 +277,7 @@ module ascon_axis_mmio_bridge #(
           end
           REG_RX_CTRL: begin
             if ((bus_wdata_i & RX_CTRL_POP) != 32'h00000000) begin
-              if (rx_valid_q) begin
-                rx_valid_q <= 1'b0;
-                rx_last_q  <= 1'b0;
-              end else begin
+              if (!rx_valid_w) begin
                 error_q <= 1'b1;
               end
             end

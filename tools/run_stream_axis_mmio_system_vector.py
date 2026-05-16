@@ -8,10 +8,9 @@ through the same two MMIO windows the NEORV32 firmware will use:
 * AXI-MMIO bridge window for CPU-driven 128-bit stream beats.
 
 This is intentionally a smoke/integration test rather than a throughput test.
-It validates the complete encrypt path for zero- or one-beat plaintext vectors so
-CSR programming, CONTROL.START sequencing, AXI bridge TX/RX, status, and tag
-capture are all exercised together without requiring a DMA engine or a large
-bridge RX FIFO.
+It validates the complete encrypt path for messages that fit in the small
+AXI-MMIO bridge RX FIFO, so CSR programming, CONTROL.START sequencing, AXI
+bridge TX/RX, status, and tag capture are all exercised before DMA exists.
 """
 
 from __future__ import annotations
@@ -37,6 +36,7 @@ from ascon_hwmodel.aead_stream import (  # noqa: E402
 )
 
 DATA_BYTES = 16
+SYSTEM_RX_FIFO_DEPTH = 4
 ASCON_AXIS_USER_AD = 0x1
 ASCON_AXIS_USER_TEXT = 0x2
 ASCON_MODE_AEAD128 = 0x0
@@ -160,8 +160,6 @@ def beat_to_json(beat: AxisStreamBeat) -> BeatJson:
 
 
 def build_golden_vector(key: bytes, nonce: bytes, associated_data: bytes, plaintext: bytes) -> GoldenSystemVector:
-    if len(associated_data) > DATA_BYTES or len(plaintext) > DATA_BYTES:
-        raise ValueError("integrated AXI-MMIO system smoke vectors are limited to one AD beat and one text beat")
     ad_beats = pack_axis_beats(associated_data, AeadStreamKind.AD, DATA_BYTES)
     pt_beats = pack_axis_beats(plaintext, AeadStreamKind.TEXT, DATA_BYTES)
     golden = axis_aead128_encrypt(
@@ -173,6 +171,11 @@ def build_golden_vector(key: bytes, nonce: bytes, associated_data: bytes, plaint
         text_len=len(plaintext),
         bus_bytes=DATA_BYTES,
     )
+    if len(golden.ciphertext_beats) > SYSTEM_RX_FIFO_DEPTH:
+        raise ValueError(
+            "integrated AXI-MMIO system vectors are limited to the bridge RX FIFO depth "
+            f"({SYSTEM_RX_FIFO_DEPTH} output beats)"
+        )
     return GoldenSystemVector(
         key_hex=key.hex(),
         nonce_hex=nonce.hex(),
@@ -220,7 +223,8 @@ def generate_testbench(vector: GoldenSystemVector, *, timeout_cycles: int = 8000
     send_lines.extend(send_bridge_beat_statement(beat) for beat in vector.ad_beats)
     send_lines.extend(send_bridge_beat_statement(beat) for beat in vector.plaintext_beats)
     send_body = "\n".join(send_lines) if send_lines else "    // Zero-length AD and plaintext: no AXI-MMIO stream beats."
-    recv_body = "    axis_recv_beat();" if text_len else "    // Zero-length plaintext: no output beat expected."
+    recv_lines = ["    axis_recv_beat();" for _ in vector.ciphertext_beats]
+    recv_body = "\n".join(recv_lines) if recv_lines else "    // Zero-length plaintext: no output beat expected."
 
     return f"""`timescale 1ns/1ps
 
@@ -588,8 +592,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--key-hex", "--key", dest="key", required=True, help="16-byte key as hex")
     parser.add_argument("--nonce-hex", "--nonce", dest="nonce", required=True, help="16-byte nonce as hex")
-    parser.add_argument("--ad-hex", "--ad", dest="ad", default="", help="associated data as hex, max 16 bytes")
-    parser.add_argument("--plaintext-hex", "--plaintext", dest="plaintext", default="", help="plaintext as hex, max 16 bytes")
+    parser.add_argument("--ad-hex", "--ad", dest="ad", default="", help="associated data as hex")
+    parser.add_argument(
+        "--plaintext-hex",
+        "--plaintext",
+        dest="plaintext",
+        default="",
+        help=f"plaintext as hex, limited to {SYSTEM_RX_FIFO_DEPTH} AXI output beats for this CPU-bridge smoke test",
+    )
     parser.add_argument("--repo-root", type=Path, default=REPO_ROOT)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--include-testbench", action="store_true")

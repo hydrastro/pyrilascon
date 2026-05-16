@@ -9,6 +9,7 @@ from tools.run_stream_axis_mmio_system_vector import (
     AXIS_STATUS_TX_READY,
     CSR_CONTROL_START,
     DATA_BYTES,
+    SYSTEM_RX_FIFO_DEPTH,
     build_golden_vector,
     generate_testbench,
     result_to_jsonable,
@@ -37,13 +38,25 @@ def test_stream_axis_mmio_system_dry_run_builds_golden_vector() -> None:
     assert len(result.golden.ciphertext_beats) == 1
 
 
-def test_stream_axis_mmio_system_rejects_multibeat_smoke_vectors() -> None:
-    with pytest.raises(ValueError, match="one AD beat and one text beat"):
+def test_stream_axis_mmio_system_accepts_multibeat_vectors_within_rx_fifo_depth() -> None:
+    vector = build_golden_vector(
+        key=bytes(range(16)),
+        nonce=bytes(range(16, 32)),
+        associated_data=b"metadata",
+        plaintext=bytes(range(DATA_BYTES * 2 + 3)),
+    )
+
+    assert len(vector.plaintext_beats) == 3
+    assert len(vector.ciphertext_beats) == 3
+
+
+def test_stream_axis_mmio_system_rejects_vectors_beyond_rx_fifo_depth() -> None:
+    with pytest.raises(ValueError, match="RX FIFO depth"):
         build_golden_vector(
             key=bytes(range(16)),
             nonce=bytes(range(16, 32)),
             associated_data=b"",
-            plaintext=bytes(range(DATA_BYTES + 1)),
+            plaintext=bytes(range(DATA_BYTES * SYSTEM_RX_FIFO_DEPTH + 1)),
         )
 
 
@@ -52,7 +65,7 @@ def test_generated_stream_axis_mmio_system_testbench_drives_two_mmio_windows() -
         key=bytes(range(16)),
         nonce=bytes(range(16, 32)),
         associated_data=b"metadata",
-        plaintext=b"hello",
+        plaintext=bytes(range(DATA_BYTES + 5)),
     )
     tb = generate_testbench(vector)
 
@@ -62,6 +75,7 @@ def test_generated_stream_axis_mmio_system_testbench_drives_two_mmio_windows() -
     assert "csr_write(8'h00, 32'h00000001);" in tb  # CONTROL.START
     assert f"wait_axis_bits(32'h{AXIS_STATUS_TX_READY:08x});" in tb
     assert f"wait_axis_bits(32'h{AXIS_STATUS_RX_VALID:08x});" in tb
+    assert tb.count("axis_recv_beat();") == len(vector.ciphertext_beats)
     assert "OUT_BEAT" in tb
     assert "DONE" in tb
 
@@ -101,9 +115,10 @@ def test_stream_axis_mmio_system_rtl_sim_matches_python_for_empty_message() -> N
         (b"", b"hello"),
         (b"metadata", b""),
         (bytes.fromhex("aabbccddeeff"), bytes.fromhex("0001020304050607")),
+        (b"metadata", bytes(range(DATA_BYTES * 2 + 3))),
     ],
 )
-def test_stream_axis_mmio_system_rtl_sim_matches_python_for_one_beat_vectors(ad: bytes, plaintext: bytes) -> None:
+def test_stream_axis_mmio_system_rtl_sim_matches_python_for_fifo_fit_vectors(ad: bytes, plaintext: bytes) -> None:
     result = run_vector(
         key=bytes(range(16)),
         nonce=bytes(range(16, 32)),

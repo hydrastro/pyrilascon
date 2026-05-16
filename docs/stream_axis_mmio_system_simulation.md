@@ -20,28 +20,27 @@ stream AEAD128 backend
   -> encryption core and tag generation
 ```
 
-This is deliberately narrower than the standalone stream-backend simulations.
-Those tests already prove multi-beat stream encryption/decryption behavior.  The
-system smoke test proves that the SoC-facing wiring is correct:
+The standalone stream-backend simulations prove unbounded stream encryption and
+buffered authenticated decrypt behavior. The system smoke test proves the
+SoC-facing wiring is correct:
 
 - CSR register programming reaches the stream backend;
 - `CONTROL.START` starts the stream backend before payload beats arrive;
 - the AXI-MMIO bridge can feed AD/TEXT beats into the backend;
-- ciphertext can be captured through the bridge RX register;
+- ciphertext can be captured through the bridge RX FIFO and exposed via `RX_*`;
 - generated tags are latched back into the frozen ABI tag registers;
 - `STATUS.DONE`, `STATUS.ERROR`, and `ERROR_CODE` reflect the completed operation.
 
 ## Scope
 
-The current integrated simulation covers zero- or one-beat plaintext vectors.
-That is enough to validate the full CSR + bridge + stream backend interconnect
-without introducing a large RX FIFO or a full-duplex firmware pump.
+The integrated simulation now covers vectors that fit inside the bridge RX FIFO.
+The default FIFO depth is four 128-bit output beats, which is enough to verify
+multi-beat CPU-driven bring-up without adding DMA.
 
-The CPU-driven AXI-MMIO bridge contains one RX holding register. For real
-multi-beat CPU-driven transfers, firmware must either interleave output draining
-with text streaming or the system must use a deeper FIFO/DMA front end. The
-standalone stream backend remains unbounded; this limitation belongs to the
-small CPU bridge, not to the AEAD stream core.
+The stream backend itself remains the unbounded path. The FIFO depth only limits
+how much output the small CPU bridge can absorb while firmware is still sending
+input beats. Larger real systems should use either a deeper bridge FIFO, an
+interleaved firmware pump, or DMA.
 
 ## Manual command
 
@@ -51,14 +50,15 @@ With Icarus Verilog available:
 make stream-axis-mmio-system-sim
 ```
 
-Equivalent direct command:
+Equivalent direct command using a multi-beat plaintext that fits in the default
+RX FIFO:
 
 ```bash
 python tools/run_stream_axis_mmio_system_vector.py \
   --key-hex 000102030405060708090a0b0c0d0e0f \
   --nonce-hex 101112131415161718191a1b1c1d1e1f \
   --ad-hex aabbccddeeff \
-  --plaintext-hex 0001020304050607
+  --plaintext-hex 000102030405060708090a0b0c0d0e0f101112
 ```
 
 Without a simulator, use dry-run mode to inspect the golden vector and generated
@@ -70,5 +70,5 @@ python tools/run_stream_axis_mmio_system_vector.py \
   --key-hex 000102030405060708090a0b0c0d0e0f \
   --nonce-hex 101112131415161718191a1b1c1d1e1f \
   --ad-hex aabbccddeeff \
-  --plaintext-hex 0001020304050607
+  --plaintext-hex 000102030405060708090a0b0c0d0e0f101112
 ```
