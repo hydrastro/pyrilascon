@@ -749,3 +749,25 @@ The generated testbench now prints the bridge `STATUS.RX_LEVEL` alongside each `
 
 Validation in this environment: `python -m pytest -q` reports **250 passed, 23 skipped**. On a machine with `iverilog/vvp`, the optional simulator tests run for an expected total of **273 passed**.
 
+### Added: stream-native NEORV32 CFS wrapper
+
+This slice adds the board-facing CFS replacement for the stream-native AEAD128
+path: `rtl/neorv32/neorv32_cfs_ascon_stream_axis_mmio.vhd`.  It instantiates
+`ascon_accel_stream_aead128_axis_mmio_system` and splits one NEORV32 CFS address
+region into two local windows:
+
+```text
+CFS base + 0x000..0x0ff -> frozen ASCON CSR/MMIO ABI
+CFS base + 0x100..0x1ff -> CPU-driven AXI-stream MMIO bridge
+```
+
+The matching file list is `rtl/neorv32/ascon_cfs_stream_axis_mmio_file_list.f`.
+The NEORV32 benchmark Makefile now supports `USE_CFS_AXIS_MMIO=1`, which selects
+the stream transport and defines `ASCON_ACCEL_AXIS_MMIO_BASE_ADDR=0xFFEB0100u`
+for the single-CFS-window wrapper.  Documentation was added in
+`docs/neorv32_stream_cfs_integration.md`.
+
+Validation in this environment: the new CFS integration tests pass, and the test
+collection is now **256 passed, 23 skipped** without `iverilog/vvp`.  On a
+machine where every optional simulator test runs instead of skipping, the full
+collection is expected to total **279 tests**.
