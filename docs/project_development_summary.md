@@ -919,3 +919,20 @@ source list, VHDL CFS wrapper list, guarded programming helper, and manual
 integration notes.  This stage intentionally does not synthesize the full board
 project because the real NEORV32/Tang Nano build is mixed-language and requires
 a VHDL-capable SoC integration flow.
+
+## Project checkpoint bundle
+
+A release-style checkpoint generator now packages the current stream-native ASCON
+development state into an archiveable handoff artifact:
+
+```sh
+make project-checkpoint-bundle
+```
+
+The output directory `build/project_checkpoint_bundle/` and archive
+`build/project_checkpoint_bundle.zip` contain checkpoint metadata, the project
+status snapshot, the Tang Nano 9K NEORV32 stream board manifest, and copied
+evidence files referenced by the milestone report. This is intended for the
+development-process report and for preserving a clean handoff before the next
+hard gate: real Tang Nano/NEORV32 build execution plus strict UART benchmark
+proof.

@@ -35,6 +35,7 @@ Implemented so far:
 - NEORV32 UART benchmark log parser generates JSON/Markdown board-run reports
 - NEORV32 stream board dry-run build plan validates the generated package before synthesis
 - project status report generator records implemented milestones and remaining board/performance gates
+- project checkpoint bundle packages reports, evidence files, and board handoff contracts for archival/reporting
 
 ## Run tests
 
@@ -60,6 +61,17 @@ make project-status-report
 
 This writes `build/project_status/project_status.json` and `build/project_status/project_status.md`.
 The report is the handoff document for the current stage: stream-native AEAD128 is implemented through firmware, RTL simulation, NEORV32 CFS integration, and Tang Nano/Gowin handoff tooling; the next hard gate remains a real board build and strict UART benchmark report.
+
+
+## Project checkpoint bundle
+
+Generate an archiveable handoff bundle with:
+
+```bash
+make project-checkpoint-bundle
+```
+
+This writes `build/project_checkpoint_bundle/` and `build/project_checkpoint_bundle.zip`, containing the status report, Tang Nano/NEORV32 board manifest, copied evidence files, and remaining-gate summary for project reporting.
 
 
 ## Configurable architecture generation
