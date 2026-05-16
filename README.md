@@ -24,6 +24,7 @@ Implemented so far:
 - stream-native AEAD128 encryption RTL plus buffered authenticated decrypt RTL policy
 - optional Icarus simulation harnesses for streaming encryption and buffered decrypt backends
 - unified stream backend wrapper and firmware-facing 128-bit AXI Stream SoC top
+- host-side AXI Stream reference emulator for end-to-end firmware validation
 
 ## Run tests
 
@@ -36,14 +37,14 @@ python -m pytest -q
 Expected result for this step in an environment without `iverilog`/`vvp`:
 
 ```text
-222 passed, 11 skipped
+225 passed, 11 skipped
 ```
 
 With Icarus Verilog installed, the optional RTL simulation tests run instead of
 skipping, so the expected total is:
 
 ```text
-233 passed
+236 passed
 ```
 
 
