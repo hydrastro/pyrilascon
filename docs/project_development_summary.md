@@ -817,3 +817,19 @@ Generation and manifest targets completed:
 ## NEORV32 stream board preflight
 
 The Tang Nano 9K stream-native NEORV32 scaffold now includes a preflight tool and Makefile target. It validates the manifest, source paths, firmware mode, memory map, and Makefile target availability, then emits `build/neorv32_stream_axis_mmio/preflight.json` as the first board bring-up plan.
+
+
+## NEORV32 stream board build package
+
+The Tang Nano 9K stream-native NEORV32 target now has a reproducible board
+handoff package generator:
+
+```sh
+make neorv32-stream-board-package
+```
+
+The default output is `build/neorv32_stream_axis_mmio/package`. It contains the
+validated manifest, preflight plan, memory map, split Verilog/VHDL RTL source
+lists, firmware make/C address definitions, and a `commands.sh` pre-board
+validation sketch. This is the last software-side scaffold before integrating
+the CFS replacement into an upstream NEORV32 Tang Nano 9K project.

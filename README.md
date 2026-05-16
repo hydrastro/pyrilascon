@@ -363,3 +363,15 @@ make neorv32-stream-board-preflight
 ```
 
 The preflight writes `build/neorv32_stream_axis_mmio/preflight.json` and records the CSR/AXI-MMIO memory map, firmware build mode, RTL source list, host tool availability, and optional `NEORV32_HOME` readiness.
+
+## Tang Nano 9K NEORV32 stream board package
+
+The board-facing stream target can generate a deterministic handoff package:
+
+```sh
+make neorv32-stream-board-package
+```
+
+This writes `build/neorv32_stream_axis_mmio/package` with the validated manifest,
+preflight plan, split Verilog/VHDL file lists, firmware defines, memory map, and
+pre-board command script for the NEORV32 stream CFS target.

@@ -53,6 +53,25 @@ make preflight
 
 The generated JSON is written to `build/neorv32_stream_axis_mmio/preflight.json`.
 
+
+## Build package
+
+Generate the deterministic board handoff package from the repository root with:
+
+```sh
+make neorv32-stream-board-package
+```
+
+or from this directory with:
+
+```sh
+make package
+```
+
+The package is written to `build/neorv32_stream_axis_mmio/package` and contains
+the manifest, preflight plan, split Verilog/VHDL source lists, firmware defines,
+memory map, and a command sketch for pre-board validation.
+
 ## Firmware smoke build
 
 ```sh
