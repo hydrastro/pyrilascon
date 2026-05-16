@@ -41,14 +41,14 @@ python -m pytest -q
 Expected result for this step in an environment without `iverilog`/`vvp`:
 
 ```text
-241 passed, 12 skipped
+243 passed, 14 skipped
 ```
 
 With Icarus Verilog installed, the optional RTL simulation tests run instead of
 skipping, so the expected total is:
 
 ```text
-253 passed
+257 passed
 ```
 
 
@@ -329,3 +329,14 @@ make prog-sram
 ```
 
 This target is intentionally slow and simple: one Ascon round per clock. It exercises initialization, associated-data processing, plaintext processing, finalization, and ciphertext/tag comparison in RTL.
+
+
+### AXI-stream MMIO bridge simulation
+
+Run the CPU-driven bridge behavioral smoke test with:
+
+```bash
+make axis-mmio-bridge-sim
+```
+
+This verifies the MMIO register contract, TX AXI-stream commit/handshake behavior, RX holding register, and `RX_CTRL.POP` path before NEORV32 board bring-up.

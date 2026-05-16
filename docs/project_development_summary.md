@@ -704,3 +704,16 @@ Current validation after this slice:
 - `python -m pytest -q`: **241 passed, 12 skipped** in this environment;
 - with `iverilog`/`vvp` installed, the optional RTL simulation and syntax tests
   should run instead of skipping, for an expected total of **253 passed**.
+
+
+## Added: AXI-stream MMIO bridge behavioral simulation
+
+The CPU-driven stream bridge now has an optional Icarus Verilog behavioral simulation via:
+
+```bash
+make axis-mmio-bridge-sim
+```
+
+The simulation drives MMIO writes into `ascon_axis_mmio_bridge.v`, verifies that the TX AXI-stream beat is held until `tready`, injects one RX AXI-stream beat, reads it back through MMIO, and verifies `RX_CTRL.POP` clears the RX holding register.
+
+Validation in this environment: `python -m pytest -q` reports **243 passed, 14 skipped**. On a machine with `iverilog/vvp`, the optional simulator tests run for an expected total of **257 passed**.
