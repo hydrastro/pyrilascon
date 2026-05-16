@@ -255,7 +255,7 @@ The uploaded repository was unpacked and tested.
 
 Observed state:
 
-- root `pytest` now passes: **200 tests passing, plus 5 optional RTL simulation tests skipped when `iverilog`/`vvp` are unavailable**;
+- root `pytest` now passes: **205 tests passing, plus 11 optional RTL simulation tests skipped when `iverilog`/`vvp` are unavailable**;
 - `make verify` now passes after repairing the Makefile/tool compatibility issue around `--algorithms requested`;
 - generated docs/config reports are produced under `docs/generated/`;
 - generated RTL is produced under `rtl/generated/`.
@@ -436,8 +436,8 @@ the older bounded AXI top-level wrapper yet.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **200 passed, 5 skipped**;
-- `make verify`: **200 passed, 5 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **205 passed, 11 skipped**;
+- `make verify`: **205 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 14. Behavioral simulation harness added
 
@@ -454,8 +454,8 @@ depend on external EDA packages.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **200 passed, 5 skipped**;
-- `make verify`: **200 passed, 5 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **205 passed, 11 skipped**;
+- `make verify`: **205 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 15. Buffered authenticated decrypt RTL policy added
 
@@ -473,6 +473,34 @@ unauthenticated plaintext is never exposed.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **200 passed, 5 skipped**;
-- `make verify`: **200 passed, 5 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **205 passed, 11 skipped**;
+- `make verify`: **205 passed, 11 skipped**, then config/docs/RTL generation completes.
+
+## 16. Buffered decrypt behavioral simulation harness added
+
+The newest slice adds `tools/run_stream_decrypt_vector.py`,
+`tests/test_aead128_stream_decrypt_sim.py`, and
+`docs/streaming_aead_decrypt_simulation.md`.  The tool mirrors the successful
+stream-encrypt simulation flow, but targets
+`ascon_aead128_stream_decrypt_buffered`.  It starts from a plaintext test case,
+uses the Python stream oracle to generate ciphertext and the correct AEAD tag,
+feeds AD/ciphertext beats into the RTL decrypt backend, and compares the RTL
+output against the Python buffered-authentication policy.
+
+Two security-critical cases are locked down:
+
+- valid tag: plaintext is released after authentication and must match the
+  original plaintext exactly;
+- corrupt tag: no plaintext beat may be emitted, `tag_valid_o` remains low, and
+  `ASCON_ERROR_TAG_INVALID` is reported.
+
+The Makefile now exposes both stream simulation entry points:
+
+- `make stream-encrypt-sim`;
+- `make stream-decrypt-sim`.
+
+Current validation after this slice:
+
+- `python -m pytest -q`: **205 passed, 11 skipped**;
+- `make verify`: **205 passed, 11 skipped**, then config/docs/RTL generation completes.
 

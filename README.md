@@ -22,6 +22,7 @@ Implemented so far:
 - byte-aligned known-answer tests for NIST AEAD128, Hash256, XOF128, and CXOF128
 - AXI-stream AEAD128 transaction oracle for unbounded AD/plaintext/ciphertext framing
 - stream-native AEAD128 encryption RTL plus buffered authenticated decrypt RTL policy
+- optional Icarus simulation harnesses for streaming encryption and buffered decrypt backends
 
 ## Run tests
 
@@ -34,7 +35,7 @@ python -m pytest -q
 Expected result for this step:
 
 ```text
-200 passed, 5 skipped
+205 passed, 11 skipped
 ```
 
 
