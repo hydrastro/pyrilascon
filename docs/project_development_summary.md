@@ -255,7 +255,7 @@ The uploaded repository was unpacked and tested.
 
 Observed state:
 
-- root `pytest` now passes: **192 tests passing, plus 5 optional RTL simulation tests skipped when `iverilog`/`vvp` are unavailable**;
+- root `pytest` now passes: **200 tests passing, plus 5 optional RTL simulation tests skipped when `iverilog`/`vvp` are unavailable**;
 - `make verify` now passes after repairing the Makefile/tool compatibility issue around `--algorithms requested`;
 - generated docs/config reports are produced under `docs/generated/`;
 - generated RTL is produced under `rtl/generated/`.
@@ -436,8 +436,8 @@ the older bounded AXI top-level wrapper yet.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **192 passed, 5 skipped**;
-- `make verify`: **192 passed, 5 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **200 passed, 5 skipped**;
+- `make verify`: **200 passed, 5 skipped**, then config/docs/RTL generation completes.
 
 ## 14. Behavioral simulation harness added
 
@@ -454,5 +454,25 @@ depend on external EDA packages.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **192 passed, 5 skipped**;
-- `make verify`: **192 passed, 5 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **200 passed, 5 skipped**;
+- `make verify`: **200 passed, 5 skipped**, then config/docs/RTL generation completes.
+
+## 15. Buffered authenticated decrypt RTL policy added
+
+The next slice adds `rtl/stream/ascon_aead128_stream_decrypt_buffered.v` and
+`docs/streaming_aead_decrypt_buffered_backend.md`. This is the conservative
+decrypt-side policy: ciphertext is received over AXI Stream, plaintext is written
+into an internal quarantine buffer, and plaintext is released on the output
+stream only after the computed tag matches `expected_tag_i`.
+
+This does not claim unbounded decrypt. Safe authenticated decrypt requires either
+internal buffering, speculative release with external quarantine discipline, or a
+DMA quarantine region. The current RTL chooses the bounded internal buffer
+variant through the explicit `MAX_TEXT_BYTES` parameter, preserving the rule that
+unauthenticated plaintext is never exposed.
+
+Current validation after this slice:
+
+- `python -m pytest -q`: **200 passed, 5 skipped**;
+- `make verify`: **200 passed, 5 skipped**, then config/docs/RTL generation completes.
+
