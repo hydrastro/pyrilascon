@@ -256,15 +256,19 @@ module tb_ascon_aead128_stream_encrypt;
     input last;
     input [3:0] user;
     begin
-      while (!s_axis_tready) begin
-        @(posedge clk_i);
-      end
+      // AXI valid must remain asserted until a real valid/ready handshake.
+      // Earlier versions sampled tready before asserting tvalid and then held
+      // the beat for only one cycle; that can drop later beats when the DUT
+      // deasserts ready between the pre-check and the sampling edge.
       @(negedge clk_i);
       s_axis_tdata = data;
       s_axis_tkeep = keep;
       s_axis_tlast = last;
       s_axis_tuser = user;
       s_axis_tvalid = 1'b1;
+      while (!s_axis_tready) begin
+        @(posedge clk_i);
+      end
       @(posedge clk_i);
       @(negedge clk_i);
       s_axis_tvalid = 1'b0;

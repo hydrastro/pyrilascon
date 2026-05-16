@@ -80,6 +80,22 @@ def test_generated_testbench_encodes_little_endian_bus_literals() -> None:
     assert "send_beat(128'h1f1e1d1c1b1a19181716151413121110, 16'hffff, 1'b1, 4'h2);" in tb
 
 
+
+def test_generated_testbench_holds_axis_valid_until_ready_handshake() -> None:
+    golden = build_golden_vector(
+        bytes(range(16)),
+        bytes(range(16, 32)),
+        bytes.fromhex("aabbccddeeff"),
+        bytes(range(32)),
+    )
+    tb = generate_testbench(golden)
+
+    assert "AXI valid must remain asserted until a real valid/ready handshake" in tb
+    task_body = tb.split("task send_beat;", 1)[1].split("endtask", 1)[0]
+    assert "while (!s_axis_tready) begin" in task_body
+    assert task_body.index("s_axis_tvalid = 1'b1;") < task_body.index("while (!s_axis_tready) begin")
+    assert task_body.index("while (!s_axis_tready) begin") < task_body.index("s_axis_tvalid = 1'b0;")
+
 def test_stream_encrypt_simulation_doc_records_optional_simulator_flow() -> None:
     text = DOC.read_text(encoding="utf-8")
     assert "tools/run_stream_encrypt_vector.py" in text
