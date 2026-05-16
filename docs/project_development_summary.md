@@ -674,3 +674,33 @@ Current validation after this slice:
 - `python -m pytest -q`: **236 passed, 11 skipped** in this environment;
 - with `iverilog`/`vvp` installed, the 11 optional RTL simulation tests should
   run instead of skipping, for an expected total of **247 passed**.
+
+
+## 23. RTL MMIO-to-AXI-stream bridge added
+
+This slice adds the hardware side of the CPU-driven stream bridge introduced for
+NEORV32 and Tang Nano bring-up. The new `rtl/common/ascon_axis_mmio_bridge.v`
+module implements the same register contract used by
+`ascon_accel_axis_mmio_transport.c`: TX data/keep/user/control registers commit
+one 128-bit AXI-stream beat, while RX data/keep/user/status registers expose one
+held output beat until firmware writes `RX_CTRL.POP`.
+
+The bridge is intentionally one beat deep on each side. It is designed for
+correctness, register-contract validation, and early board smoke tests rather
+than peak throughput. Future high-throughput systems can replace it with DMA
+while keeping the stream-native AEAD backend and firmware ABI intact.
+
+The slice also adds `rtl/common/ascon_accel_stream_aead128_axis_mmio_system.v`,
+a NEORV32-oriented integration wrapper with two independent MMIO windows:
+
+- `csr_bus_*` drives the frozen ASCON control/status/key/nonce/tag ABI;
+- `axis_bus_*` drives the CPU-controlled stream bridge.
+
+This gives board-level integration one concrete RTL block that matches the
+existing `USE_AXIS_MMIO=1` firmware benchmark mode.
+
+Current validation after this slice:
+
+- `python -m pytest -q`: **241 passed, 12 skipped** in this environment;
+- with `iverilog`/`vvp` installed, the optional RTL simulation and syntax tests
+  should run instead of skipping, for an expected total of **253 passed**.

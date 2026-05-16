@@ -89,3 +89,14 @@ install the MMIO bridge transport callbacks, and exercise the stream-native
 This is intended as the next board bring-up step after the host-side
 `make firmware-stream-ref-bench` smoke test. DMA can replace only the transport
 later; the benchmark API and accelerator ABI remain stable.
+
+## RTL bridge target
+
+The matching RTL bring-up target for `USE_AXIS_MMIO=1` is:
+
+```text
+rtl/common/ascon_accel_stream_aead128_axis_mmio_system.v
+```
+
+It exposes two simple MMIO windows: the frozen ASCON CSR window and the AXI
+stream bridge window consumed by `ascon_accel_axis_mmio_transport.c`.

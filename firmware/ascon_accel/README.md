@@ -78,3 +78,9 @@ default MMIO word data plane keeps the legacy order: payload is written to
 
 Buffered decrypt tag failures are reported as `ASCON_ACCEL_ERR_TAG_INVALID` by
 translating `ASCON_ERROR_TAG_INVALID` from the hardware error-code register.
+
+## AXI-MMIO bridge RTL counterpart
+
+`ascon_accel_axis_mmio_transport.c` matches the RTL register block implemented by
+`rtl/common/ascon_axis_mmio_bridge.v`.  For an integrated stream-native AEAD128
+bring-up target, use `rtl/common/ascon_accel_stream_aead128_axis_mmio_system.v`.
