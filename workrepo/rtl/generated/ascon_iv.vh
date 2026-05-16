@@ -1,0 +1,18 @@
+// Generated Ascon IV helpers. Include inside a module or package scope.
+
+function [63:0] ascon_iv;
+  input [7:0]  v;
+  input [3:0]  a;
+  input [3:0]  b;
+  input [15:0] t;
+  input [7:0]  rate_bytes;
+  begin
+    // Numeric IV representation: {0^16, r/8, t, b, a, 0^8, v}
+    ascon_iv = {16'h0000, rate_bytes, t, b, a, 8'h00, v};
+  end
+endfunction
+
+localparam [63:0] ASCON_AEAD128_IV = 64'h0000_1000_808C_0001;
+localparam [63:0] ASCON_HASH256_IV = 64'h0000_0801_00CC_0002;
+localparam [63:0] ASCON_XOF128_IV = 64'h0000_0800_00CC_0003;
+localparam [63:0] ASCON_CXOF128_IV = 64'h0000_0800_00CC_0004;
