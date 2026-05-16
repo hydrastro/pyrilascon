@@ -214,3 +214,58 @@ def test_toolchain_probe_requires_neorv32_image_generation_tools() -> None:
     assert "readelf" in text
     assert "objcopy" in text
     assert "missing required RISC-V toolchain programs" in text
+
+
+def test_soft_toolchain_helper_is_project_local_and_prints_prefix() -> None:
+    text = (REPO_ROOT / "tools" / "ensure_neorv32_soft_toolchain.py").read_text(encoding="utf-8")
+
+    assert "external" in text
+    assert "riscv32-unknown-elf.gcc-13.2.0.tar.gz" in text
+    assert "$HOME" not in text
+    assert "--print-prefix" in text
+    assert "rv32i-131023" in text
+
+
+def test_makefile_has_board_safe_soft_firmware_target() -> None:
+    makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+
+    assert "neorv32-soft-toolchain-fetch" in makefile
+    assert "neorv32-stream-build-firmware-soft" in makefile
+    assert "ensure_neorv32_soft_toolchain.py" in makefile
+    assert "--profile soft --check" in makefile
+    assert "MARCH=rv32i_zicsr_zifencei" in makefile
+    assert "MABI=ilp32" in makefile
+
+
+def test_soft_toolchain_doc_warns_hardfloat_is_not_release_profile() -> None:
+    doc = (REPO_ROOT / "docs" / "neorv32_soft_toolchain.md").read_text(encoding="utf-8")
+
+    assert "RV32I" in doc
+    assert "ILP32" in doc
+    assert "hardfloat-nix" in doc
+    assert "smoke test only" in doc
+    assert "steam-run" in doc
+    assert "does not depend on `steam-run`" in doc
+
+
+def test_soft_toolchain_helper_reports_nixos_stub_ld_without_unfree_wrapper() -> None:
+    text = (REPO_ROOT / "tools" / "ensure_neorv32_soft_toolchain.py").read_text(encoding="utf-8")
+
+    assert "NixOS cannot run dynamically linked executables" in text
+    assert "nix-ld/FHS compatibility" in text
+    assert "steam-run" not in text
+    assert "nixos-wrapped-bin" not in text
+
+
+def test_flake_does_not_pull_unfree_steam_run_for_prebuilt_toolchain() -> None:
+    text = (REPO_ROOT / "flake.nix").read_text(encoding="utf-8")
+
+    assert "steam-run" not in text
+
+
+def test_soft_firmware_target_fetches_toolchain_without_unfree_wrapper() -> None:
+    makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+
+    assert "neorv32-stream-build-firmware-soft: check-layout neorv32-soft-toolchain-fetch" in makefile
+    assert "--fetch --check" in makefile
+    assert "--wrap-nixos" not in makefile

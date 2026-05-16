@@ -14,6 +14,7 @@ BAUD ?= 19200
 NEORV32_DIR ?= external/neorv32
 NEORV32_FW_PROFILE ?= auto
 RISCV_PREFIX ?= riscv-none-elf-
+NEORV32_SOFT_TOOLCHAIN_DIR ?= external/riscv32-unknown-elf-gcc-rv32i-ilp32
 
 ENV := PYTHONPATH=.
 PY := $(ENV) $(PYTHON)
@@ -21,7 +22,7 @@ PYTEST_CMD := $(ENV) $(PYTEST)
 
 .PHONY: help env check-layout test test-all test-kat test-spec test-arch \
         generate-verilog list-configs list-configs-csv list-configs-json docs-configs \
-        stream-encrypt-sim stream-decrypt-sim axis-mmio-bridge-sim stream-axis-mmio-system-sim firmware-stream-ref-bench neorv32-fetch neorv32-home neorv32-toolchain-check neorv32-stream-build-firmware neorv32-stream-uart-report neorv32-stream-uart-capture neorv32-stream-bringup-doctor neorv32-stream-board-manifest neorv32-stream-board-preflight neorv32-stream-board-package neorv32-stream-board-build-plan neorv32-stream-board-session neorv32-stream-gowin-handoff project-status-report project-checkpoint-bundle matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
+        stream-encrypt-sim stream-decrypt-sim axis-mmio-bridge-sim stream-axis-mmio-system-sim firmware-stream-ref-bench neorv32-fetch neorv32-home neorv32-soft-toolchain-fetch neorv32-soft-toolchain-prefix neorv32-toolchain-check neorv32-stream-build-firmware neorv32-stream-build-firmware-soft neorv32-stream-uart-report neorv32-stream-uart-capture neorv32-stream-bringup-doctor neorv32-stream-board-manifest neorv32-stream-board-preflight neorv32-stream-board-package neorv32-stream-board-build-plan neorv32-stream-board-session neorv32-stream-gowin-handoff project-status-report project-checkpoint-bundle matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
         clean clean-cache clean-generated clean-build clean-nested repair verify all
 
 help:
@@ -45,7 +46,9 @@ help:
 	@echo "  make neorv32-fetch                    Clone NEORV32 into external/neorv32 if missing"
 	@echo "  make neorv32-home                     Print resolved NEORV32 checkout path"
 	@echo "  make neorv32-toolchain-check          Probe RISC-V GCC ABI compatibility"
+	@echo "  make neorv32-soft-toolchain-fetch     Fetch project-local RV32I/ILP32 NEORV32 GCC"
 	@echo "  make neorv32-stream-build-firmware    Build NEORV32 firmware using resolved project-local checkout"
+	@echo "  make neorv32-stream-build-firmware-soft Build board-safe firmware with RV32I/ILP32 soft-float toolchain"
 	@echo "  make neorv32-stream-board-manifest Print/check the Tang Nano 9K NEORV32 stream manifest"
 	@echo "  make neorv32-stream-board-preflight Generate/check the Tang Nano 9K NEORV32 stream board preflight plan"
 	@echo "  make neorv32-stream-board-package   Generate the Tang Nano 9K NEORV32 stream board build handoff package"
@@ -143,6 +146,13 @@ neorv32-fetch: check-layout
 neorv32-home: check-layout
 	$(PY) tools/ensure_neorv32_checkout.py $(NEORV32_ARG) --vendor-dir $(NEORV32_DIR) --print-home
 
+
+neorv32-soft-toolchain-fetch: check-layout
+	$(PY) tools/ensure_neorv32_soft_toolchain.py --toolchain-dir $(NEORV32_SOFT_TOOLCHAIN_DIR) --fetch --check
+
+neorv32-soft-toolchain-prefix: check-layout
+	$(PY) tools/ensure_neorv32_soft_toolchain.py --toolchain-dir $(NEORV32_SOFT_TOOLCHAIN_DIR) --print-prefix
+
 neorv32-toolchain-check: check-layout
 	$(PY) tools/check_neorv32_toolchain.py --prefix $(RISCV_PREFIX) --profile $(NEORV32_FW_PROFILE) --check
 
@@ -150,6 +160,13 @@ neorv32-stream-build-firmware: check-layout neorv32-toolchain-check
 	NEORV32_RESOLVED="$$(PYTHONPATH=. $(PYTHON) tools/ensure_neorv32_checkout.py $(NEORV32_ARG) --vendor-dir $(NEORV32_DIR) --print-home)"; \
 	TOOLCHAIN_ARGS="$$(PYTHONPATH=. $(PYTHON) tools/check_neorv32_toolchain.py --prefix $(RISCV_PREFIX) --profile $(NEORV32_FW_PROFILE) --make-args)"; \
 	$(MAKE) -C firmware/neorv32_ascon_benchmark NEORV32_HOME="$$NEORV32_RESOLVED" RISCV_PREFIX=$(RISCV_PREFIX) $$TOOLCHAIN_ARGS USE_CFS_AXIS_MMIO=1 clean_all exe
+
+
+neorv32-stream-build-firmware-soft: check-layout neorv32-soft-toolchain-fetch
+	NEORV32_RESOLVED="$$(PYTHONPATH=. $(PYTHON) tools/ensure_neorv32_checkout.py $(NEORV32_ARG) --vendor-dir $(NEORV32_DIR) --print-home)"; \
+	SOFT_PREFIX="$$(PYTHONPATH=. $(PYTHON) tools/ensure_neorv32_soft_toolchain.py --toolchain-dir $(NEORV32_SOFT_TOOLCHAIN_DIR) --print-prefix)"; \
+	PYTHONPATH=. $(PYTHON) tools/check_neorv32_toolchain.py --prefix "$$SOFT_PREFIX" --profile soft --check; \
+	$(MAKE) -C firmware/neorv32_ascon_benchmark NEORV32_HOME="$$NEORV32_RESOLVED" RISCV_PREFIX="$$SOFT_PREFIX" MARCH=rv32i_zicsr_zifencei MABI=ilp32 USE_CFS_AXIS_MMIO=1 clean_all exe
 
 neorv32-stream-uart-capture: check-layout
 	$(PY) tools/capture_neorv32_uart.py $(if $(SERIAL),--serial-device $(SERIAL),) --baud $(BAUD) --log "$(LOG)"
