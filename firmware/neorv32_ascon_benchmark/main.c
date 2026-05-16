@@ -6,6 +6,9 @@
 
 #include "../ascon_accel/ascon_accel.h"
 #include "../ascon_accel/ascon_accel_benchmark.h"
+#ifdef ASCON_BENCH_USE_AXIS_MMIO
+#include "../ascon_accel/ascon_accel_axis_mmio_transport.h"
+#endif
 #include "../ascon_ref/ascon_ref_aead128.h"
 
 #define UART_BAUD 19200u
@@ -106,6 +109,19 @@ int main(void) {
 
   ascon_accel_t accel;
   ascon_accel_init(&accel, ASCON_ACCEL_BASE_ADDR, ACCEL_TIMEOUT_CYCLES);
+#ifdef ASCON_BENCH_USE_AXIS_MMIO
+  ascon_accel_axis_mmio_transport_ctx_t axis_mmio_ctx;
+  ascon_accel_axis_mmio_transport_init(
+      &axis_mmio_ctx, ASCON_ACCEL_AXIS_MMIO_BASE_ADDR, ACCEL_TIMEOUT_CYCLES);
+  ascon_accel_axis_transport_t axis_mmio_transport = ascon_accel_axis_mmio_transport(&axis_mmio_ctx);
+  ascon_accel_set_data_plane(&accel, ASCON_ACCEL_DATA_PLANE_AXI_STREAM_EXTERNAL);
+  ascon_accel_set_axis_transport(&accel, &axis_mmio_transport);
+  neorv32_uart0_printf("DATA PLANE   : AXI_STREAM_MMIO\n");
+  neorv32_uart0_printf("AXIS BASE    : 0x%x\n", (uint32_t)ASCON_ACCEL_AXIS_MMIO_BASE_ADDR);
+#else
+  ascon_accel_set_data_plane(&accel, ASCON_ACCEL_DATA_PLANE_MMIO_WORD);
+  neorv32_uart0_printf("DATA PLANE   : MMIO_WORD\n");
+#endif
   ascon_accel_reset(&accel);
 
   const uint32_t abi = ascon_accel_abi_version(&accel);
@@ -164,6 +180,11 @@ int main(void) {
 
   print_benchmark_result("ENC", &hw_enc_result);
   print_benchmark_result("DEC", &hw_dec_result);
+#ifdef ASCON_BENCH_USE_AXIS_MMIO
+  neorv32_uart0_printf("AXIS TX beats : %u\n", axis_mmio_ctx.beats_sent);
+  neorv32_uart0_printf("AXIS RX beats : %u\n", axis_mmio_ctx.beats_received);
+  neorv32_uart0_printf("AXIS status   : %d\n", (int)axis_mmio_ctx.last_error);
+#endif
 
   const bool enc_ok = hw_enc_status == ASCON_ACCEL_OK &&
                       bytes_equal(hw_ciphertext, sw_ciphertext, sizeof(sw_ciphertext)) &&

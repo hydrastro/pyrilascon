@@ -637,3 +637,40 @@ Current validation after this slice:
 
 With `iverilog`/`vvp` installed, the 11 optional RTL simulation tests should run
 instead of skipping, for an expected total of **243 passed**.
+
+
+## 22. NEORV32 stream benchmark build mode added
+
+This slice wires the CPU-driven AXI-stream MMIO transport into the actual
+`firmware/neorv32_ascon_benchmark` application instead of leaving it as a
+standalone transport and documentation-only bridge. The benchmark now has two
+compile-time modes:
+
+- default `USE_AXIS_MMIO=0`: legacy MMIO word data plane;
+- `USE_AXIS_MMIO=1`: stream-native data plane through the MMIO-to-AXI-stream
+  bridge transport.
+
+The stream build adds `ascon_accel_axis_mmio_transport.c`, defines
+`ASCON_BENCH_USE_AXIS_MMIO=1`, initializes an
+`ascon_accel_axis_mmio_transport_ctx_t`, switches the driver to
+`ASCON_ACCEL_DATA_PLANE_AXI_STREAM_EXTERNAL`, installs the transport callbacks,
+and only then resets/probes the accelerator. This matches the stream-native SoC
+top behavior: firmware programs the CSR window, asserts `CONTROL.START`, and
+then pushes AD/text beats into the separate stream bridge window.
+
+The UART output now reports which data plane was selected. For the stream build
+it also prints the AXI bridge base address plus TX/RX beat counters and the last
+transport status, which gives board bring-up an immediate smoke-test signal that
+the CPU really exercised the stream path.
+
+Build command for the stream path:
+
+```sh
+make NEORV32_HOME=/path/to/neorv32 USE_AXIS_MMIO=1 clean_all exe
+```
+
+Current validation after this slice:
+
+- `python -m pytest -q`: **236 passed, 11 skipped** in this environment;
+- with `iverilog`/`vvp` installed, the 11 optional RTL simulation tests should
+  run instead of skipping, for an expected total of **247 passed**.

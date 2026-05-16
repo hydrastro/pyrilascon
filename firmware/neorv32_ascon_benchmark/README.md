@@ -24,6 +24,23 @@ The Makefile reuses the NEORV32 software build system and compiles:
 - the split ASCON accelerator driver
 - the portable software ASCON-AEAD128 reference
 
+
+## Stream-native build
+
+To build the same benchmark for the new stream-native AEAD128 path, enable the
+CPU-driven MMIO-to-AXI-stream transport:
+
+```sh
+make NEORV32_HOME=/path/to/neorv32 USE_AXIS_MMIO=1 clean_all exe
+```
+
+This compiles `ascon_accel_axis_mmio_transport.c`, sets
+`ASCON_BENCH_USE_AXIS_MMIO=1`, programs the frozen accelerator CSR block at
+`ASCON_ACCEL_BASE_ADDR`, and sends/receives 128-bit AXI-stream beats through the
+separate bridge window at `ASCON_ACCEL_AXIS_MMIO_BASE_ADDR`. The UART log prints
+`DATA PLANE : AXI_STREAM_MMIO` plus TX/RX beat counters so board bring-up can
+confirm that the firmware actually exercised the stream path.
+
 ## What it prints
 
 The firmware prints over UART:
