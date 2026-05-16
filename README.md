@@ -33,6 +33,7 @@ Implemented so far:
 - stream-native NEORV32 CFS wrapper maps CSR and AXI-MMIO bridge windows into one CFS region
 - Tang Nano 9K NEORV32 stream board manifest freezes the RTL file list, firmware mode, and memory map
 - NEORV32 UART benchmark log parser generates JSON/Markdown board-run reports
+- NEORV32 stream board dry-run build plan validates the generated package before synthesis
 
 ## Run tests
 

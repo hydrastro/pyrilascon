@@ -855,3 +855,14 @@ software reference when the relevant fields are present.
 This gives the physical board bring-up phase a reproducible artifact format for
 lab notes and final project reporting instead of relying on manual UART-log
 inspection.
+
+
+## NEORV32 stream board dry-run build plan
+
+The Tang Nano 9K stream-native NEORV32 target now has a dry-run build-plan tool:
+
+```sh
+make neorv32-stream-board-build-plan
+```
+
+The tool validates the generated board package, confirms the CSR/AXI-MMIO memory map, checks that the mixed Verilog/VHDL source split is complete, confirms stream firmware mode `USE_CFS_AXIS_MMIO=1`, records optional tool availability, and writes `build_plan.json` plus `build_plan.md`. This is a pre-synthesis handoff artifact: it does not program hardware, but it makes the board build sequence reproducible before the real Tang Nano flow.

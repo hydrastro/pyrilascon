@@ -15,7 +15,7 @@ PYTEST_CMD := $(ENV) $(PYTEST)
 
 .PHONY: help env check-layout test test-all test-kat test-spec test-arch \
         generate-verilog list-configs list-configs-csv list-configs-json docs-configs \
-        stream-encrypt-sim stream-decrypt-sim axis-mmio-bridge-sim stream-axis-mmio-system-sim firmware-stream-ref-bench neorv32-stream-uart-report neorv32-stream-board-manifest neorv32-stream-board-preflight neorv32-stream-board-package matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
+        stream-encrypt-sim stream-decrypt-sim axis-mmio-bridge-sim stream-axis-mmio-system-sim firmware-stream-ref-bench neorv32-stream-uart-report neorv32-stream-board-manifest neorv32-stream-board-preflight neorv32-stream-board-package neorv32-stream-board-build-plan matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
         clean clean-cache clean-generated clean-build clean-nested repair verify all
 
 help:
@@ -37,6 +37,7 @@ help:
 	@echo "  make neorv32-stream-board-manifest Print/check the Tang Nano 9K NEORV32 stream manifest"
 	@echo "  make neorv32-stream-board-preflight Generate/check the Tang Nano 9K NEORV32 stream board preflight plan"
 	@echo "  make neorv32-stream-board-package   Generate the Tang Nano 9K NEORV32 stream board build handoff package"
+	@echo "  make neorv32-stream-board-build-plan Dry-run/check the board build handoff package"
 	@echo "  make design-asic           Generate default ASIC design product"
 	@echo "  make design-fpga           Generate default FPGA N-engine product"
 	@echo "  make matrix                Generate selected ASIC/FPGA design matrix"
@@ -130,6 +131,11 @@ neorv32-stream-board-preflight: check-layout
 neorv32-stream-board-package: check-layout
 	$(PY) tools/prepare_neorv32_stream_board_build.py --out $(BUILD_DIR)/neorv32_stream_axis_mmio/package --clean
 	$(PY) tools/prepare_neorv32_stream_board_build.py --check --out $(BUILD_DIR)/neorv32_stream_axis_mmio/package
+
+neorv32-stream-board-build-plan: check-layout
+	$(PY) tools/plan_neorv32_stream_board_build.py --ensure-package --write-defaults --check
+	$(PY) tools/plan_neorv32_stream_board_build.py --json --out $(BUILD_DIR)/neorv32_stream_axis_mmio/build_plan.json
+	$(PY) tools/plan_neorv32_stream_board_build.py --markdown --out $(BUILD_DIR)/neorv32_stream_axis_mmio/build_plan.md
 
 design-asic: check-layout
 	$(PY) tools/generate_design.py --preset asic_dual_enc_dec_cores --out $(BUILD_DIR)

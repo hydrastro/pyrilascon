@@ -79,3 +79,13 @@ python tools/prepare_neorv32_stream_board_build.py --check \
 `commands.sh` inside the package records the expected pre-board command sequence:
 manifest check, preflight check, NEORV32 CFS integration tests, integrated system
 simulation, and firmware build when `NEORV32_HOME` is set.
+
+## Dry-run build plan
+
+After generating the package, run:
+
+```sh
+make neorv32-stream-board-build-plan
+```
+
+This validates the generated package and writes JSON/Markdown build-plan reports under `build/neorv32_stream_axis_mmio/`.

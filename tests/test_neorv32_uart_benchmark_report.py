@@ -125,3 +125,18 @@ def test_parse_neorv32_uart_log_has_direct_execution_imports() -> None:
     source = (REPO_ROOT / "tools" / "parse_neorv32_ascon_uart_log.py").read_text(encoding="utf-8")
     assert "from dataclasses import dataclass" in source
     assert "raise SystemExit(main())" in source
+
+
+def test_parse_neorv32_uart_log_cli_missing_file_reports_clean_error(tmp_path: Path) -> None:
+    missing = tmp_path / "missing_uart.log"
+    completed = subprocess.run(
+        [sys.executable, "tools/parse_neorv32_ascon_uart_log.py", str(missing), "--strict", "--markdown"],
+        cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "UART log file does not exist" in completed.stderr
+    assert "Traceback" not in completed.stderr

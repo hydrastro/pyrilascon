@@ -110,3 +110,13 @@ make stream-axis-mmio-system-sim
 
 The system simulation proves the frozen CSR window, AXI-MMIO bridge, stream
 AEAD backend, tag registers, and RX FIFO work together for FIFO-fit messages.
+
+## Dry-run build plan
+
+After generating the package, validate the board handoff with:
+
+```sh
+make build-plan
+```
+
+This writes `build/neorv32_stream_axis_mmio/build_plan.json` and `.md` from the repository root.

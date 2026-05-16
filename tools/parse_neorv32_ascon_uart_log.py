@@ -211,6 +211,10 @@ def render_markdown(report: dict[str, Any]) -> str:
 def _read_input(path: Path | None) -> str:
     if path is None or str(path) == "-":
         return sys.stdin.read()
+    if not path.exists():
+        raise UartBenchmarkParseError(f"UART log file does not exist: {path}")
+    if not path.is_file():
+        raise UartBenchmarkParseError(f"UART log path is not a file: {path}")
     return path.read_text(encoding="utf-8")
 
 
@@ -223,7 +227,12 @@ def main() -> int:
     parser.add_argument("--strict", action="store_true", help="fail if PASS or required correctness checks are missing")
     args = parser.parse_args()
 
-    report = parse_uart_log(_read_input(args.log), strict=args.strict)
+    try:
+        report = parse_uart_log(_read_input(args.log), strict=args.strict)
+    except UartBenchmarkParseError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
     if args.markdown:
         rendered = render_markdown(report)
     else:
