@@ -43,3 +43,17 @@ hardware_cycles < software_cycles
 ```
 
 for every mode that the hardware advertises as supported.
+
+## Stream-native backend smoke test
+
+Before wiring a real NEORV32 MMIO-to-AXI-stream bridge or DMA frontend, run the
+host-side firmware stream benchmark from the repository root:
+
+```sh
+make firmware-stream-ref-bench
+```
+
+That target compiles the normal C driver against the AXI-stream reference
+emulator and checks the same encrypt/decrypt/tag-failure sequencing that the
+NEORV32 stream-native benchmark will use. It is not a replacement for a board
+run; it is the pre-board validation step for the stream data-plane path.

@@ -36,6 +36,8 @@ typedef struct {
   size_t rx_len;
   size_t rx_offset;
 
+  uint64_t cycle_counter;
+
   uint32_t send_calls;
   uint32_t recv_calls;
   uint32_t completed_operations;

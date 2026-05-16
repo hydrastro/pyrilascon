@@ -144,7 +144,8 @@ static void complete_aead128(ascon_accel_axis_ref_emulator_ctx_t *ctx) {
     reg_write(ctx, ASCON_REG_STATUS, ASCON_STATUS_DONE | ASCON_STATUS_TAG_VALID | ASCON_STATUS_OUT_VALID);
   }
 
-  set_cycle_count(ctx, 48u + (uint64_t)ctx->ad_len + (uint64_t)ctx->text_len);
+  ctx->cycle_counter += 48u + (uint64_t)ctx->ad_len + (uint64_t)ctx->text_len;
+  set_cycle_count(ctx, ctx->cycle_counter);
   ctx->completed_operations++;
 }
 

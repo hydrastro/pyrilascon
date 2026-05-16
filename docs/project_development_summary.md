@@ -436,8 +436,8 @@ the older bounded AXI top-level wrapper yet.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **225 passed, 11 skipped**;
-- `make verify`: **225 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **228 passed, 11 skipped**;
+- `make verify`: **228 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 14. Behavioral simulation harness added
 
@@ -454,8 +454,8 @@ depend on external EDA packages.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **225 passed, 11 skipped**;
-- `make verify`: **225 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **228 passed, 11 skipped**;
+- `make verify`: **228 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 15. Buffered authenticated decrypt RTL policy added
 
@@ -473,8 +473,8 @@ unauthenticated plaintext is never exposed.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **225 passed, 11 skipped**;
-- `make verify`: **225 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **228 passed, 11 skipped**;
+- `make verify`: **228 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 16. Buffered decrypt behavioral simulation harness added
 
@@ -501,8 +501,8 @@ The Makefile now exposes both stream simulation entry points:
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **225 passed, 11 skipped**;
-- `make verify`: **225 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **228 passed, 11 skipped**;
+- `make verify`: **228 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 17. Unified streaming AEAD backend wrapper added
 
@@ -520,8 +520,8 @@ not the MMIO register integration wrapper.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **225 passed, 11 skipped**;
-- `make verify`: **225 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **228 passed, 11 skipped**;
+- `make verify`: **228 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 18. Firmware-facing streaming AEAD SoC top added
 
@@ -546,8 +546,8 @@ New NEORV32, DMA, and board-level stream integration should target
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **225 passed, 11 skipped**;
-- `make verify`: **225 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **228 passed, 11 skipped**;
+- `make verify`: **228 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 
 ## 19. Firmware sequencing for the stream-native SoC top added
@@ -574,8 +574,39 @@ RX/plaintext handling and return `ASCON_ACCEL_ERR_TAG_INVALID`.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **225 passed, 11 skipped** in this environment;
-- `make verify`: **225 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **228 passed, 11 skipped** in this environment;
+- `make verify`: **228 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 With `iverilog`/`vvp` installed, the 11 optional RTL simulation tests should run
-instead of skipping, for an expected total of **236 passed**.
+instead of skipping, for an expected total of **239 passed**.
+
+
+## 20. Host firmware stream benchmark smoke test added
+
+This slice adds `tools/run_firmware_stream_ref_benchmark.py` and the
+`make firmware-stream-ref-bench` target. The tool compiles and runs a temporary
+C benchmark that drives the normal firmware API through the AXI-stream reference
+emulator. It exercises the same control/data-plane sequence that the NEORV32
+stream benchmark will use once a real MMIO-to-AXI-stream bridge or DMA frontend
+is connected.
+
+The benchmark covers empty, short, partial-final-block, and two-block AEAD128
+messages. For each case it verifies:
+
+- encryption succeeds and matches the portable C reference;
+- authenticated decrypt releases plaintext only after a valid tag;
+- an invalid decrypt tag returns `ASCON_ACCEL_ERR_TAG_INVALID`;
+- invalid-tag decrypt suppresses plaintext output;
+- benchmark cycle deltas are nonzero.
+
+The AXI-stream reference emulator now keeps a monotonic synthetic cycle counter
+so consecutive encrypt/decrypt benchmark measurements report useful nonzero
+deltas.
+
+Current validation after this slice:
+
+- `python -m pytest -q`: **228 passed, 11 skipped** in this environment;
+- `make docs-configs` and `make generate-verilog` complete successfully.
+
+With `iverilog`/`vvp` installed, the 11 optional RTL simulation tests should run
+instead of skipping, for an expected total of **239 passed**.

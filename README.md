@@ -25,6 +25,7 @@ Implemented so far:
 - optional Icarus simulation harnesses for streaming encryption and buffered decrypt backends
 - unified stream backend wrapper and firmware-facing 128-bit AXI Stream SoC top
 - host-side AXI Stream reference emulator for end-to-end firmware validation
+- host-side firmware stream benchmark tool for pre-board NEORV32/SoC smoke testing
 
 ## Run tests
 
@@ -37,14 +38,14 @@ python -m pytest -q
 Expected result for this step in an environment without `iverilog`/`vvp`:
 
 ```text
-225 passed, 11 skipped
+228 passed, 11 skipped
 ```
 
 With Icarus Verilog installed, the optional RTL simulation tests run instead of
 skipping, so the expected total is:
 
 ```text
-236 passed
+239 passed
 ```
 
 
