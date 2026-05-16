@@ -368,3 +368,30 @@ make neorv32-stream-board-package
 This writes `build/neorv32_stream_axis_mmio/package` with the validated manifest,
 preflight plan, split Verilog/VHDL file lists, firmware defines, memory map, and
 pre-board command script for the NEORV32 stream CFS target.
+
+
+## NEORV32 stream board session
+
+Use `make neorv32-stream-board-session` to generate `build/neorv32_stream_axis_mmio/session/session.json` and `session.md`. The report ties the board package, memory map, optional bitstream, optional UART log, and benchmark parser output into one archived bring-up session.
+
+## NEORV32 stream board session report
+
+The board-session runner ties the Tang Nano 9K stream package, memory map,
+optional bitstream, optional UART log, and benchmark parser output into a single
+archivable report:
+
+```sh
+make neorv32-stream-board-session
+make neorv32-stream-board-session LOG=/path/to/uart.log
+make neorv32-stream-board-session BITSTREAM=build/tangnano9k/ascon.fs
+```
+
+Outputs:
+
+```text
+build/neorv32_stream_axis_mmio/session/session.json
+build/neorv32_stream_axis_mmio/session/session.md
+```
+
+The target is safe by default and never programs hardware. Use the underlying
+CLI with `--program --no-dry-run` only when a real board and bitstream are ready.

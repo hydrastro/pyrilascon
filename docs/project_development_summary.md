@@ -866,3 +866,42 @@ make neorv32-stream-board-build-plan
 ```
 
 The tool validates the generated board package, confirms the CSR/AXI-MMIO memory map, checks that the mixed Verilog/VHDL source split is complete, confirms stream firmware mode `USE_CFS_AXIS_MMIO=1`, records optional tool availability, and writes `build_plan.json` plus `build_plan.md`. This is a pre-synthesis handoff artifact: it does not program hardware, but it makes the board build sequence reproducible before the real Tang Nano flow.
+
+
+## NEORV32 stream board session
+
+Use `make neorv32-stream-board-session` to generate `build/neorv32_stream_axis_mmio/session/session.json` and `session.md`. The report ties the board package, memory map, optional bitstream, optional UART log, and benchmark parser output into one archived bring-up session.
+
+---
+
+## Latest stage: NEORV32 stream board session runner
+
+A board-session handoff layer was added so Tang Nano 9K bring-up can be archived
+as one reproducible report. The new tool validates the generated board package,
+records the memory map and firmware mode, records the optional bitstream/program
+command, and embeds the UART benchmark parser output when a captured log is
+provided.
+
+New files:
+
+- `tools/run_neorv32_stream_board_session.py`
+- `tests/test_neorv32_stream_board_session.py`
+- `docs/neorv32_stream_board_session.md`
+
+New targets:
+
+- `make neorv32-stream-board-session`
+- `make -C boards/tangnano9k/neorv32_stream_axis_mmio session`
+
+The default mode is safe: it does not program hardware. Hardware programming is
+only attempted if the user explicitly passes `--program --no-dry-run` to the CLI.
+This keeps CI and development machines from touching boards accidentally while
+still documenting the exact `openFPGALoader` command needed for bring-up.
+
+Validation performed for this stage:
+
+- `python -m pytest -q tests/test_neorv32_stream_board_session.py`: 7 passed
+- `make neorv32-stream-board-session`: completed
+- `make docs-configs`: completed
+- `make generate-verilog`: completed
+- `python -m pytest --collect-only -q`: 320 tests collected
