@@ -72,3 +72,22 @@ make NEORV32_HOME=/path/to/neorv32 USE_CFS_AXIS_MMIO=1 clean_all exe
 
 This defines `ASCON_ACCEL_AXIS_MMIO_BASE_ADDR=0xFFEB0100u` while preserving
 `ASCON_ACCEL_BASE_ADDR=0xFFEB0000u`.
+
+
+## Board-facing manifest
+
+The Tang Nano 9K stream-native bring-up scaffold lives at:
+
+```text
+boards/tangnano9k/neorv32_stream_axis_mmio/manifest.json
+```
+
+Validate it with:
+
+```sh
+python tools/print_neorv32_stream_board_manifest.py --check
+```
+
+It binds `rtl/neorv32/ascon_cfs_stream_axis_mmio_file_list.f`, the
+`USE_CFS_AXIS_MMIO=1` firmware mode, and the `0xFFEB0000` / `0xFFEB0100` memory
+map into one board handoff contract.

@@ -31,6 +31,7 @@ Implemented so far:
 - multi-beat integrated AXI-MMIO system simulation coverage up to the default RX FIFO depth
 - NEORV32 benchmark firmware can select the stream-native MMIO bridge path with `USE_AXIS_MMIO=1`
 - stream-native NEORV32 CFS wrapper maps CSR and AXI-MMIO bridge windows into one CFS region
+- Tang Nano 9K NEORV32 stream board manifest freezes the RTL file list, firmware mode, and memory map
 
 ## Run tests
 
@@ -43,14 +44,14 @@ python -m pytest -q
 Expected result for this step in an environment without `iverilog`/`vvp`:
 
 ```text
-256 passed, 23 skipped
+263 passed, 23 skipped
 ```
 
 With Icarus Verilog installed, the optional RTL simulation tests run instead of
 skipping, so the expected total is:
 
 ```text
-279 passed
+286 passed
 ```
 
 

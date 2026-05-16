@@ -771,3 +771,44 @@ Validation in this environment: the new CFS integration tests pass, and the test
 collection is now **256 passed, 23 skipped** without `iverilog/vvp`.  On a
 machine where every optional simulator test runs instead of skipping, the full
 collection is expected to total **279 tests**.
+
+
+### Added: Tang Nano 9K NEORV32 stream board manifest
+
+This slice adds the first board-facing handoff contract for the stream-native
+NEORV32/Tang Nano 9K path:
+
+```text
+boards/tangnano9k/neorv32_stream_axis_mmio/manifest.json
+```
+
+The manifest binds together:
+
+- `rtl/neorv32/ascon_cfs_stream_axis_mmio_file_list.f`;
+- `rtl/neorv32/neorv32_cfs_ascon_stream_axis_mmio.vhd`;
+- firmware build mode `USE_CFS_AXIS_MMIO=1`;
+- `ASCON_ACCEL_BASE_ADDR=0xFFEB0000u`;
+- `ASCON_ACCEL_AXIS_MMIO_BASE_ADDR=0xFFEB0100u`;
+- the intended Tang Nano 9K bring-up sequence.
+
+A new inspection tool, `tools/print_neorv32_stream_board_manifest.py`, validates
+that the manifest references existing RTL/firmware paths and that the memory map
+is internally consistent. The root Makefile target
+`make neorv32-stream-board-manifest` prints and checks the manifest, while
+`boards/tangnano9k/neorv32_stream_axis_mmio/Makefile` provides convenience
+targets for manifest inspection and the NEORV32 firmware build.
+
+Validation in this environment was run in two pytest groups because the full
+combined command exceeded the sandbox execution window:
+
+- `python -m pytest -q -k 'not sim'`: **244 passed, 1 skipped, 41 deselected**;
+- `python -m pytest -q -k sim`: **19 passed, 22 skipped, 245 deselected**;
+- combined coverage: **263 passed, 23 skipped** without `iverilog/vvp`;
+- with optional simulator tests available, the full collection is expected to
+  reach **286 passing tests**.
+
+Generation and manifest targets completed:
+
+- `make docs-configs`;
+- `make generate-verilog`;
+- `make neorv32-stream-board-manifest`.

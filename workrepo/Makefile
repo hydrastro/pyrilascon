@@ -15,7 +15,7 @@ PYTEST_CMD := $(ENV) $(PYTEST)
 
 .PHONY: help env check-layout test test-all test-kat test-spec test-arch \
         generate-verilog list-configs list-configs-csv list-configs-json docs-configs \
-        stream-encrypt-sim stream-decrypt-sim axis-mmio-bridge-sim stream-axis-mmio-system-sim firmware-stream-ref-bench matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
+        stream-encrypt-sim stream-decrypt-sim axis-mmio-bridge-sim stream-axis-mmio-system-sim firmware-stream-ref-bench neorv32-stream-board-manifest matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
         clean clean-cache clean-generated clean-build clean-nested repair verify all
 
 help:
@@ -33,6 +33,7 @@ help:
 	@echo "  make axis-mmio-bridge-sim Run optional Icarus sim for the CPU-driven AXI-stream MMIO bridge"
 	@echo "  make stream-axis-mmio-system-sim Run optional Icarus smoke sim for the full CSR+bridge+stream AEAD system"
 	@echo "  make firmware-stream-ref-bench Run host firmware benchmark through the AXI-stream reference emulator"
+	@echo "  make neorv32-stream-board-manifest Print/check the Tang Nano 9K NEORV32 stream manifest"
 	@echo "  make design-asic           Generate default ASIC design product"
 	@echo "  make design-fpga           Generate default FPGA N-engine product"
 	@echo "  make matrix                Generate selected ASIC/FPGA design matrix"
@@ -109,6 +110,10 @@ stream-axis-mmio-system-sim: check-layout
 
 firmware-stream-ref-bench: check-layout
 	$(PY) tools/run_firmware_stream_ref_benchmark.py --json
+
+neorv32-stream-board-manifest: check-layout
+	$(PY) tools/print_neorv32_stream_board_manifest.py --check
+	$(PY) tools/print_neorv32_stream_board_manifest.py
 
 design-asic: check-layout
 	$(PY) tools/generate_design.py --preset asic_dual_enc_dec_cores --out $(BUILD_DIR)

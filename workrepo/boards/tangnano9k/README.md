@@ -95,3 +95,18 @@ This target is the next throughput candidate after 4RPC. It keeps the same
 128-bit AXI Stream-style payload interface and frozen CSR/MMIO control ABI, but
 uses an eight-rounds-per-cycle permutation slice. Expected pass indication:
 LED0 blinking, LED1/LED2/LED4/LED5 on, LED3 off.
+
+## NEORV32 stream-native CFS scaffold
+
+```bash
+cd boards/tangnano9k/neorv32_stream_axis_mmio
+make check
+make memory-map
+make NEORV32_HOME=/path/to/neorv32 firmware
+```
+
+This target is the board-facing manifest for the stream-native AEAD128 path. It
+uses the NEORV32 CFS wrapper at `rtl/neorv32/neorv32_cfs_ascon_stream_axis_mmio.vhd`,
+maps the frozen ASCON CSR window at `0xFFEB0000`, and maps the CPU-driven
+AXI-stream MMIO bridge at `0xFFEB0100`.
+
