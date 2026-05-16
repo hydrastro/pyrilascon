@@ -41,14 +41,14 @@ python -m pytest -q
 Expected result for this step in an environment without `iverilog`/`vvp`:
 
 ```text
-243 passed, 14 skipped
+247 passed, 18 skipped
 ```
 
 With Icarus Verilog installed, the optional RTL simulation tests run instead of
 skipping, so the expected total is:
 
 ```text
-257 passed
+265 passed
 ```
 
 
@@ -338,5 +338,13 @@ Run the CPU-driven bridge behavioral smoke test with:
 ```bash
 make axis-mmio-bridge-sim
 ```
+Additional optional RTL smoke test:
+
+```bash
+make stream-axis-mmio-system-sim
+```
+
+This drives the complete CSR + AXI-MMIO bridge + stream AEAD128 system wrapper through its two MMIO windows and compares the RTL encryption result against the Python golden model.
+
 
 This verifies the MMIO register contract, TX AXI-stream commit/handshake behavior, RX holding register, and `RX_CTRL.POP` path before NEORV32 board bring-up.

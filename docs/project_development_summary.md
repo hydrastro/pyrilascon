@@ -717,3 +717,10 @@ make axis-mmio-bridge-sim
 The simulation drives MMIO writes into `ascon_axis_mmio_bridge.v`, verifies that the TX AXI-stream beat is held until `tready`, injects one RX AXI-stream beat, reads it back through MMIO, and verifies `RX_CTRL.POP` clears the RX holding register.
 
 Validation in this environment: `python -m pytest -q` reports **243 passed, 14 skipped**. On a machine with `iverilog/vvp`, the optional simulator tests run for an expected total of **257 passed**.
+
+### Integrated stream AEAD AXI-MMIO system simulation
+
+Added an integration-level RTL smoke simulation for `ascon_accel_stream_aead128_axis_mmio_system`. The testbench drives the frozen CSR/MMIO window plus the CPU-driven AXI-MMIO bridge window, starts the stream backend, feeds AD/TEXT beats through the bridge, reads ciphertext back through the bridge RX register, and checks the generated tag through the ABI tag registers.
+
+Validation in this environment: `python -m pytest -q` reports **247 passed, 18 skipped**. On a machine with `iverilog/vvp`, the optional simulator tests run for an expected total of **265 passed**.
+

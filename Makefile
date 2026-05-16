@@ -15,7 +15,7 @@ PYTEST_CMD := $(ENV) $(PYTEST)
 
 .PHONY: help env check-layout test test-all test-kat test-spec test-arch \
         generate-verilog list-configs list-configs-csv list-configs-json docs-configs \
-        stream-encrypt-sim stream-decrypt-sim axis-mmio-bridge-sim firmware-stream-ref-bench matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
+        stream-encrypt-sim stream-decrypt-sim axis-mmio-bridge-sim stream-axis-mmio-system-sim firmware-stream-ref-bench matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
         clean clean-cache clean-generated clean-build clean-nested repair verify all
 
 help:
@@ -31,6 +31,7 @@ help:
 	@echo "  make stream-encrypt-sim    Run one optional Icarus RTL sim vector for the stream encrypt backend"
 	@echo "  make stream-decrypt-sim    Run optional valid/corrupt-tag Icarus RTL sim vectors for buffered decrypt"
 	@echo "  make axis-mmio-bridge-sim Run optional Icarus sim for the CPU-driven AXI-stream MMIO bridge"
+	@echo "  make stream-axis-mmio-system-sim Run optional Icarus smoke sim for the full CSR+bridge+stream AEAD system"
 	@echo "  make firmware-stream-ref-bench Run host firmware benchmark through the AXI-stream reference emulator"
 	@echo "  make design-asic           Generate default ASIC design product"
 	@echo "  make design-fpga           Generate default FPGA N-engine product"
@@ -102,6 +103,9 @@ stream-decrypt-sim: check-layout
 
 axis-mmio-bridge-sim: check-layout
 	$(PY) tools/run_axis_mmio_bridge_vector.py --json
+
+stream-axis-mmio-system-sim: check-layout
+	$(PY) tools/run_stream_axis_mmio_system_vector.py --key-hex 000102030405060708090a0b0c0d0e0f --nonce-hex 101112131415161718191a1b1c1d1e1f --ad-hex aabbccddeeff --plaintext-hex 0001020304050607
 
 firmware-stream-ref-bench: check-layout
 	$(PY) tools/run_firmware_stream_ref_benchmark.py --json
