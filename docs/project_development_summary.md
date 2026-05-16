@@ -436,8 +436,8 @@ the older bounded AXI top-level wrapper yet.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **228 passed, 11 skipped**;
-- `make verify`: **228 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **232 passed, 11 skipped**;
+- `make verify`: **232 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 14. Behavioral simulation harness added
 
@@ -454,8 +454,8 @@ depend on external EDA packages.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **228 passed, 11 skipped**;
-- `make verify`: **228 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **232 passed, 11 skipped**;
+- `make verify`: **232 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 15. Buffered authenticated decrypt RTL policy added
 
@@ -473,8 +473,8 @@ unauthenticated plaintext is never exposed.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **228 passed, 11 skipped**;
-- `make verify`: **228 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **232 passed, 11 skipped**;
+- `make verify`: **232 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 16. Buffered decrypt behavioral simulation harness added
 
@@ -501,8 +501,8 @@ The Makefile now exposes both stream simulation entry points:
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **228 passed, 11 skipped**;
-- `make verify`: **228 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **232 passed, 11 skipped**;
+- `make verify`: **232 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 17. Unified streaming AEAD backend wrapper added
 
@@ -520,8 +520,8 @@ not the MMIO register integration wrapper.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **228 passed, 11 skipped**;
-- `make verify`: **228 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **232 passed, 11 skipped**;
+- `make verify`: **232 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 18. Firmware-facing streaming AEAD SoC top added
 
@@ -546,8 +546,8 @@ New NEORV32, DMA, and board-level stream integration should target
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **228 passed, 11 skipped**;
-- `make verify`: **228 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **232 passed, 11 skipped**;
+- `make verify`: **232 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 
 ## 19. Firmware sequencing for the stream-native SoC top added
@@ -574,11 +574,11 @@ RX/plaintext handling and return `ASCON_ACCEL_ERR_TAG_INVALID`.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **228 passed, 11 skipped** in this environment;
-- `make verify`: **228 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **232 passed, 11 skipped** in this environment;
+- `make verify`: **232 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 With `iverilog`/`vvp` installed, the 11 optional RTL simulation tests should run
-instead of skipping, for an expected total of **239 passed**.
+instead of skipping, for an expected total of **243 passed**.
 
 
 ## 20. Host firmware stream benchmark smoke test added
@@ -605,8 +605,35 @@ deltas.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **228 passed, 11 skipped** in this environment;
+- `python -m pytest -q`: **232 passed, 11 skipped** in this environment;
 - `make docs-configs` and `make generate-verilog` complete successfully.
 
 With `iverilog`/`vvp` installed, the 11 optional RTL simulation tests should run
-instead of skipping, for an expected total of **239 passed**.
+instead of skipping, for an expected total of **243 passed**.
+
+
+## 21. CPU-driven AXI-stream MMIO bridge transport added
+
+This slice adds `firmware/ascon_accel/ascon_accel_axis_mmio_transport.h` and
+`firmware/ascon_accel/ascon_accel_axis_mmio_transport.c`. The transport gives
+NEORV32/Tang Nano bring-up a concrete non-DMA path to the stream-native backend:
+firmware still uses the callback-based `ASCON_ACCEL_DATA_PLANE_AXI_STREAM_EXTERNAL`
+contract, but the callbacks now write/read a small 128-bit MMIO stream bridge.
+
+The bridge base is deliberately separate from the frozen ASCON CSR base:
+
+- `ASCON_ACCEL_BASE_ADDR` remains the control/status/key/nonce/tag ABI window;
+- `ASCON_ACCEL_AXIS_MMIO_BASE_ADDR` is the platform-specific stream bridge window.
+
+The transport chunks arbitrary byte strings into 16-byte stream beats, emits
+contiguous low-byte `keep` masks, preserves AD/TEXT/CUSTOM through `tuser`, and
+requires exact receive length agreement plus final-beat `RX_LAST`. It is a
+bring-up bridge before DMA, not the final high-throughput data mover.
+
+Current validation after this slice:
+
+- `python -m pytest -q`: **232 passed, 11 skipped** in this environment;
+- `make verify`: **232 passed, 11 skipped**, then config/docs/RTL generation completes.
+
+With `iverilog`/`vvp` installed, the 11 optional RTL simulation tests should run
+instead of skipping, for an expected total of **243 passed**.

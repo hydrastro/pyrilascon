@@ -57,3 +57,18 @@ That target compiles the normal C driver against the AXI-stream reference
 emulator and checks the same encrypt/decrypt/tag-failure sequencing that the
 NEORV32 stream-native benchmark will use. It is not a replacement for a board
 run; it is the pre-board validation step for the stream data-plane path.
+
+
+## CPU-driven stream bridge path
+
+The repository now includes a concrete firmware transport for a small
+MMIO-to-AXI-stream bridge: `ascon_accel_axis_mmio_transport.h/.c`. A NEORV32
+platform can keep `ASCON_ACCEL_BASE_ADDR` pointed at the frozen accelerator CSR
+map and set `ASCON_ACCEL_AXIS_MMIO_BASE_ADDR` to a separate stream bridge window.
+Then the benchmark can select `ASCON_ACCEL_DATA_PLANE_AXI_STREAM_EXTERNAL`,
+install the MMIO bridge transport callbacks, and exercise the stream-native
+`ascon_accel_stream_aead128_top` without DMA.
+
+This is intended as the next board bring-up step after the host-side
+`make firmware-stream-ref-bench` smoke test. DMA can replace only the transport
+later; the benchmark API and accelerator ABI remain stable.

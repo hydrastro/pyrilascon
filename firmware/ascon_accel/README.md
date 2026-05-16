@@ -14,6 +14,7 @@ The driver is intentionally split into a stable public API and separate control/
 | `ascon_accel_caps.c` | ABI version, capability probing, mode classification |
 | `ascon_accel_mmio_data.c` | Register-based DATA_IN/DATA_OUT transport |
 | `ascon_accel_axis_data.c` | External AXI Stream/DMA transport callback dispatch |
+| `ascon_accel_axis_mmio_transport.h/.c` | CPU-driven MMIO bridge transport for 128-bit AXI-stream bring-up |
 | `ascon_accel.c` | High-level AEAD/hash/XOF API composition |
 | `ascon_accel_benchmark.h/.c` | Cycle-count wrappers and benchmark result helpers |
 | `main_demo.c` | Host-buildable API smoke example |
@@ -43,6 +44,23 @@ ascon_accel_axis_mock_transport.c
 
 The mock records AD/text/customization streams separately and provides a preloadable RX buffer. See `docs/axis_transport_mocking.md`.
 
+
+
+## CPU-driven AXI Stream MMIO bridge transport
+
+For NEORV32/Tang Nano bring-up before DMA exists, platform code can use:
+
+```text
+ascon_accel_axis_mmio_transport.h
+ascon_accel_axis_mmio_transport.c
+```
+
+This transport maps the callback-based AXI Stream data plane onto a small
+platform-specific MMIO stream bridge at `ASCON_ACCEL_AXIS_MMIO_BASE_ADDR`. The
+frozen ASCON CSR base remains separate from the stream bridge base. The transport
+chunks payloads into 128-bit beats, emits contiguous `tkeep` masks, preserves
+`AD`/`TEXT`/`CUSTOM` stream kinds through `tuser`, and requires exact receive
+length agreement. See `docs/firmware_axis_mmio_transport.md`.
 
 ## Benchmark helpers
 
