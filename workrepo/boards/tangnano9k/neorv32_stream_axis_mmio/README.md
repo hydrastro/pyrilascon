@@ -37,6 +37,22 @@ For the default NEORV32 CFS base:
 
 The firmware benchmark build mode `USE_CFS_AXIS_MMIO=1` selects this map.
 
+## Preflight
+
+Generate the machine-readable bring-up plan from the repository root with:
+
+```sh
+make neorv32-stream-board-preflight
+```
+
+or from this directory with:
+
+```sh
+make preflight
+```
+
+The generated JSON is written to `build/neorv32_stream_axis_mmio/preflight.json`.
+
 ## Firmware smoke build
 
 ```sh

@@ -110,3 +110,8 @@ uses the NEORV32 CFS wrapper at `rtl/neorv32/neorv32_cfs_ascon_stream_axis_mmio.
 maps the frozen ASCON CSR window at `0xFFEB0000`, and maps the CPU-driven
 AXI-stream MMIO bridge at `0xFFEB0100`.
 
+
+
+## NEORV32 stream-native preflight
+
+The stream-native CFS scaffold under `neorv32_stream_axis_mmio/` can be checked from the repo root with `make neorv32-stream-board-manifest` and `make neorv32-stream-board-preflight`.

@@ -351,3 +351,15 @@ This drives the complete CSR + AXI-MMIO bridge + stream AEAD128 system wrapper t
 
 
 This verifies the MMIO register contract, TX AXI-stream commit/handshake behavior, RX holding register, and `RX_CTRL.POP` path before NEORV32 board bring-up.
+
+
+## Tang Nano 9K NEORV32 stream preflight
+
+The board-facing stream target includes manifest and preflight checks:
+
+```sh
+make neorv32-stream-board-manifest
+make neorv32-stream-board-preflight
+```
+
+The preflight writes `build/neorv32_stream_axis_mmio/preflight.json` and records the CSR/AXI-MMIO memory map, firmware build mode, RTL source list, host tool availability, and optional `NEORV32_HOME` readiness.
