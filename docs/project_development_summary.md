@@ -436,8 +436,8 @@ the older bounded AXI top-level wrapper yet.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **206 passed, 11 skipped**;
-- `make verify`: **206 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **213 passed, 11 skipped**;
+- `make verify`: **213 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 14. Behavioral simulation harness added
 
@@ -454,8 +454,8 @@ depend on external EDA packages.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **206 passed, 11 skipped**;
-- `make verify`: **206 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **213 passed, 11 skipped**;
+- `make verify`: **213 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 15. Buffered authenticated decrypt RTL policy added
 
@@ -473,8 +473,8 @@ unauthenticated plaintext is never exposed.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **206 passed, 11 skipped**;
-- `make verify`: **206 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **213 passed, 11 skipped**;
+- `make verify`: **213 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 16. Buffered decrypt behavioral simulation harness added
 
@@ -501,6 +501,6 @@ The Makefile now exposes both stream simulation entry points:
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **206 passed, 11 skipped**;
-- `make verify`: **206 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **213 passed, 11 skipped**;
+- `make verify`: **213 passed, 11 skipped**, then config/docs/RTL generation completes.
 
