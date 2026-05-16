@@ -448,3 +448,6 @@ make neorv32-stream-uart-capture LOG=uart.log
 make neorv32-stream-uart-report LOG=uart.log
 ```
 
+
+
+See `docs/neorv32_firmware_toolchain_profiles.md` for the portable NEORV32 firmware toolchain profile and Nix compatibility probe.

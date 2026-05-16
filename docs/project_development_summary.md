@@ -954,3 +954,6 @@ device across common Linux and macOS USB-serial naming schemes, while still
 allowing `SERIAL=...` when several devices are connected. This makes the Tang
 Nano / NEORV32 handoff reproducible across machines instead of being specific to
 one developer PC.
+
+
+See `docs/neorv32_firmware_toolchain_profiles.md` for the portable NEORV32 firmware toolchain profile and Nix compatibility probe.

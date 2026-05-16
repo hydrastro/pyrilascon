@@ -60,7 +60,9 @@ def test_neorv32_benchmark_has_single_cfs_stream_build_mode() -> None:
     assert "ifeq ($(USE_CFS_AXIS_MMIO),1)" in text
     assert "USE_AXIS_MMIO := 1" in text
     assert "AXIS_MMIO_BASE_ADDR ?= 0xFFEB0100u" in text
-    assert "APP_CFLAGS += -DASCON_ACCEL_AXIS_MMIO_BASE_ADDR=$(AXIS_MMIO_BASE_ADDR)" in text
+    assert "USER_FLAGS += -DASCON_ACCEL_AXIS_MMIO_BASE_ADDR=$(AXIS_MMIO_BASE_ADDR)" in text
+    assert "NEORV32_ROM_SIZE ?= 32k" in text
+    assert "__neorv32_rom_size=$(NEORV32_ROM_SIZE)" in text
 
 
 def test_neorv32_stream_cfs_docs_and_readme_explain_memory_map_and_build() -> None:

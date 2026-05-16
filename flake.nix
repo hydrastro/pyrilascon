@@ -53,11 +53,16 @@
           # NEORV32's upstream Makefiles expect a riscv-none-elf-* prefix.
           # Nixpkgs' embedded RISC-V cross toolchain commonly exposes
           # riscv32-none-elf-* instead, so provide repo-local compatibility
-          # wrappers without relying on any user-specific $HOME path.
-          if command -v riscv32-none-elf-gcc >/dev/null 2>&1 && ! command -v riscv-none-elf-gcc >/dev/null 2>&1; then
-            for tool in gcc g++ cpp as ld ar ranlib objcopy objdump size strip; do
+          # wrappers without relying on any user-specific $HOME path. Create
+          # wrappers per-tool instead of gating on gcc only: an older shell may
+          # already have riscv-none-elf-gcc while still missing readelf, which
+          # NEORV32's image generator requires.
+          if command -v riscv32-none-elf-gcc >/dev/null 2>&1; then
+            for tool in \
+              gcc g++ cpp as ld ar ranlib objcopy objdump size strip readelf \
+              addr2line nm strings c++filt elfedit; do
               src="$(command -v riscv32-none-elf-$tool 2>/dev/null || true)"
-              if [ -n "$src" ]; then
+              if [ -n "$src" ] && ! command -v riscv-none-elf-$tool >/dev/null 2>&1; then
                 ln -sf "$src" ".venv-fpga/bin/riscv-none-elf-$tool"
               fi
             done

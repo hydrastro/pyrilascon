@@ -20,6 +20,7 @@ from typing import Any
 
 from capture_neorv32_uart import choose_serial, serial_candidates
 from ensure_neorv32_checkout import DEFAULT_VENDOR_DIR, locate_neorv32
+from check_neorv32_toolchain import build_report as build_toolchain_report
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PACKAGE = REPO_ROOT / "build" / "neorv32_stream_axis_mmio" / "package"
@@ -41,15 +42,37 @@ def _tool_status(name: str) -> dict[str, Any]:
 def _riscv_toolchain_status() -> dict[str, Any]:
     canonical = _tool_status("riscv-none-elf-gcc")
     nixpkgs_prefix = _tool_status("riscv32-none-elf-gcc")
+    try:
+        probe = build_toolchain_report(prefix="riscv-none-elf-", requested_profile="auto")
+        probe_dict = {
+            "selected_profile": probe.selected_profile,
+            "selected_march": probe.selected_march,
+            "selected_mabi": probe.selected_mabi,
+            "soft_ok": probe.soft.ok,
+            "hardfloat_ok": probe.hardfloat.ok,
+            "warnings": probe.warnings,
+            "errors": probe.errors,
+        }
+        ready = probe.selected_profile is not None
+        message = (
+            f"RISC-V GCC usable with profile {probe.selected_profile}."
+            if ready
+            else "RISC-V GCC was found but cannot link the NEORV32 firmware profiles; install a multilib riscv-none-elf toolchain."
+        )
+    except Exception as exc:  # pragma: no cover - defensive for host-specific toolchains
+        probe_dict = {"error": str(exc)}
+        ready = canonical["available"] or nixpkgs_prefix["available"]
+        message = (
+            "RISC-V GCC toolchain found, but ABI probing failed."
+            if ready
+            else "RISC-V GCC toolchain missing; enter `nix develop` or install a riscv-none-elf toolchain."
+        )
     return {
-        "ready": canonical["available"] or nixpkgs_prefix["available"],
+        "ready": ready,
         "canonical": canonical,
         "nixpkgs_prefix": nixpkgs_prefix,
-        "message": (
-            "RISC-V GCC toolchain found."
-            if canonical["available"] or nixpkgs_prefix["available"]
-            else "RISC-V GCC toolchain missing; enter `nix develop` with the updated flake or install a riscv-none-elf toolchain."
-        ),
+        "probe": probe_dict,
+        "message": message,
     }
 
 
@@ -212,6 +235,8 @@ def render_text(report: dict[str, Any]) -> str:
         *[f"  {name}: {status['available']} {status['path'] or ''}" for name, status in report["tools"].items()],
         f"  riscv-none-elf-gcc: {report['riscv_toolchain']['canonical']['available']} {report['riscv_toolchain']['canonical']['path'] or ''}",
         f"  riscv32-none-elf-gcc: {report['riscv_toolchain']['nixpkgs_prefix']['available']} {report['riscv_toolchain']['nixpkgs_prefix']['path'] or ''}",
+        f"  selected fw profile: {report['riscv_toolchain'].get('probe', {}).get('selected_profile')}",
+        f"  selected march/mabi: {report['riscv_toolchain'].get('probe', {}).get('selected_march')}/{report['riscv_toolchain'].get('probe', {}).get('selected_mabi')}",
         "",
         "blockers:",
         *([f"  - {item}" for item in report["blockers"]] or ["  none"]),
@@ -253,6 +278,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"| RISC-V GCC ready | {report['riscv_toolchain']['ready']} |",
         f"| riscv-none-elf-gcc | {report['riscv_toolchain']['canonical']['path']} |",
         f"| riscv32-none-elf-gcc | {report['riscv_toolchain']['nixpkgs_prefix']['path']} |",
+        f"| Firmware profile | {report['riscv_toolchain'].get('probe', {}).get('selected_profile')} |",
+        f"| Firmware MARCH/MABI | {report['riscv_toolchain'].get('probe', {}).get('selected_march')}/{report['riscv_toolchain'].get('probe', {}).get('selected_mabi')} |",
         "",
         "## Next actions",
         "",

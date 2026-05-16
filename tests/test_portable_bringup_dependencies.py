@@ -160,3 +160,57 @@ def test_sipeed_by_id_serial_candidate_is_preferred_when_accessible(monkeypatch)
     assert status["ready"] is True
     assert status["path"].endswith("if01-port0")
     assert status["source"] == "auto"
+
+
+def test_neorv32_build_target_uses_toolchain_probe_and_absolute_resolved_home() -> None:
+    makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+
+    assert "tools/check_neorv32_toolchain.py" in makefile
+    assert "NEORV32_FW_PROFILE ?= auto" in makefile
+    assert "TOOLCHAIN_ARGS" in makefile
+    assert "$$TOOLCHAIN_ARGS USE_CFS_AXIS_MMIO=1" in makefile
+
+
+def test_neorv32_benchmark_makefile_uses_user_flags_not_unused_app_cflags() -> None:
+    makefile = (REPO_ROOT / "firmware" / "neorv32_ascon_benchmark" / "Makefile").read_text(encoding="utf-8")
+
+    assert "APP_CFLAGS" not in makefile
+    assert "USER_FLAGS += -DASCON_BENCH_USE_AXIS_MMIO=1" in makefile
+    assert "USER_FLAGS += -DASCON_ACCEL_AXIS_MMIO_BASE_ADDR=$(AXIS_MMIO_BASE_ADDR)" in makefile
+    assert "NEORV32_ROM_SIZE ?= 32k" in makefile
+
+
+def test_toolchain_probe_cli_reports_without_traceback() -> None:
+    completed = subprocess.run(
+        [sys.executable, "tools/check_neorv32_toolchain.py", "--prefix", "definitely-missing-riscv-prefix-", "--check"],
+        cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 1
+    assert "compiler" in completed.stdout or "not found" in completed.stdout
+
+
+def test_toolchain_probe_does_not_use_invalid_no_entry_linker_flag() -> None:
+    text = (REPO_ROOT / "tools" / "check_neorv32_toolchain.py").read_text(encoding="utf-8")
+
+    assert "--no-entry" not in text
+    assert "-Wl,-e,main" in text
+
+
+def test_flake_creates_readelf_compatibility_wrapper_without_gcc_gate() -> None:
+    text = (REPO_ROOT / "flake.nix").read_text(encoding="utf-8")
+    assert "readelf" in text
+    assert "per-tool" in text
+    assert "! command -v riscv-none-elf-$tool" in text
+    assert "! command -v riscv-none-elf-gcc" not in text
+
+
+def test_toolchain_probe_requires_neorv32_image_generation_tools() -> None:
+    text = (REPO_ROOT / "tools" / "check_neorv32_toolchain.py").read_text(encoding="utf-8")
+    assert "REQUIRED_TOOLS" in text
+    assert "readelf" in text
+    assert "objcopy" in text
+    assert "missing required RISC-V toolchain programs" in text

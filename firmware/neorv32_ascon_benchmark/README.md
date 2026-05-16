@@ -138,3 +138,6 @@ make NEORV32_HOME=/path/to/neorv32 USE_CFS_AXIS_MMIO=1 clean_all exe
 
 This preserves `ASCON_ACCEL_BASE_ADDR=0xFFEB0000u` and selects
 `ASCON_ACCEL_AXIS_MMIO_BASE_ADDR=0xFFEB0100u`.
+
+
+See `docs/neorv32_firmware_toolchain_profiles.md` for the portable NEORV32 firmware toolchain profile and Nix compatibility probe.
