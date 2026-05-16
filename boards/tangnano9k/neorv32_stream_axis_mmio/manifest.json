@@ -47,7 +47,7 @@
   "firmware": {
     "directory": "firmware/neorv32_ascon_benchmark",
     "make_mode": "USE_CFS_AXIS_MMIO=1",
-    "command": "make USE_CFS_AXIS_MMIO=1 neorv32-stream-build-firmware",
+    "command": "make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware",
     "defines": {
       "ASCON_BENCH_USE_AXIS_MMIO": "1",
       "ASCON_ACCEL_BASE_ADDR": "0xFFEB0000u",

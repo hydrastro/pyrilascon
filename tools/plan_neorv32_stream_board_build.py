@@ -124,9 +124,9 @@ def build_board_plan(package_dir: Path = DEFAULT_PACKAGE_DIR, *, ensure_package:
             {
                 "name": "pre_board_validation",
                 "commands": [
-                    "make neorv32-stream-board-manifest",
-                    "make neorv32-stream-board-preflight",
-                    "make neorv32-stream-board-package",
+                    "make -C boards/tangnano9k/neorv32_stream_axis_mmio manifest",
+                    "make -C boards/tangnano9k/neorv32_stream_axis_mmio preflight",
+                    "make -C boards/tangnano9k/neorv32_stream_axis_mmio package",
                     "make stream-axis-mmio-system-sim",
                 ],
             },
@@ -153,7 +153,7 @@ def build_board_plan(package_dir: Path = DEFAULT_PACKAGE_DIR, *, ensure_package:
                 "name": "uart_report",
                 "commands": [
                     "Capture UART output to a log file.",
-                    "make neorv32-stream-uart-report LOG=/path/to/uart.log",
+                    "make -C boards/tangnano9k/neorv32_stream_axis_mmio uart-report LOG=/path/to/uart.log",
                 ],
             },
         ],

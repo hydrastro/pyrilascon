@@ -106,7 +106,7 @@ def locate_neorv32(explicit: Path | None = None, vendor_dir: Path = DEFAULT_VEND
         "candidates": inspected,
         "message": (
             "No usable NEORV32 checkout found. Set NEORV32_HOME to an existing checkout "
-            "or run `make neorv32-fetch` to clone one into external/neorv32."
+            "or run `make -C boards/tangnano9k/neorv32_stream_axis_mmio deps` to clone one into external/neorv32."
         ),
     }
 
@@ -168,7 +168,7 @@ def main() -> int:
             print(f"NEORV32_HOME={status['home']}")
         else:
             print("suggested setup:")
-            print("  make neorv32-fetch")
+            print("  make -C boards/tangnano9k/neorv32_stream_axis_mmio deps")
             print("  export NEORV32_HOME=$PWD/external/neorv32")
 
     if args.check and not status["ready"]:

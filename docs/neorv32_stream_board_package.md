@@ -9,7 +9,7 @@ NEORV32 board build.
 Generate it from the repository root with:
 
 ```sh
-make neorv32-stream-board-package
+make -C boards/tangnano9k/neorv32_stream_axis_mmio package
 ```
 
 or from the board scaffold directory with:
@@ -62,7 +62,7 @@ The generated firmware files freeze the single-CFS-window stream map:
 The benchmark build mode remains:
 
 ```sh
-make neorv32-stream-build-firmware
+make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware
 ```
 
 ## Validation
@@ -85,7 +85,7 @@ simulation, and firmware build when `NEORV32_HOME` is set.
 After generating the package, run:
 
 ```sh
-make neorv32-stream-board-build-plan
+make -C boards/tangnano9k/neorv32_stream_axis_mmio build-plan
 ```
 
 This validates the generated package and writes JSON/Markdown build-plan reports under `build/neorv32_stream_axis_mmio/`.

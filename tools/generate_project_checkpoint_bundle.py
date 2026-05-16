@@ -104,21 +104,24 @@ def _milestone_evidence(report: dict[str, Any]) -> list[str]:
 
 
 def _makefile_targets() -> dict[str, bool]:
-    makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
-    targets = [
-        "test",
-        "verify",
-        "stream-encrypt-sim",
-        "stream-decrypt-sim",
-        "stream-axis-mmio-system-sim",
-        "neorv32-stream-board-package",
-        "neorv32-stream-board-build-plan",
-        "neorv32-stream-board-session",
-        "neorv32-stream-gowin-handoff",
-        "project-status-report",
-        "project-checkpoint-bundle",
-    ]
-    return {target: f"{target}:" in makefile for target in targets}
+    root_makefile = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+    board_makefile = (REPO_ROOT / "boards" / "tangnano9k" / "neorv32_stream_axis_mmio" / "Makefile").read_text(encoding="utf-8")
+    targets = {
+        "root:test": "test:" in root_makefile,
+        "root:verify": "verify:" in root_makefile,
+        "root:stream-encrypt-sim": "stream-encrypt-sim:" in root_makefile,
+        "root:stream-decrypt-sim": "stream-decrypt-sim:" in root_makefile,
+        "root:stream-axis-mmio-system-sim": "stream-axis-mmio-system-sim:" in root_makefile,
+        "root:project-status-report": "project-status-report:" in root_makefile,
+        "root:project-checkpoint-bundle": "project-checkpoint-bundle:" in root_makefile,
+        "board:package": "package:" in board_makefile,
+        "board:build-plan": "build-plan:" in board_makefile,
+        "board:session": "session:" in board_makefile,
+        "board:gowin-handoff": "gowin-handoff:" in board_makefile,
+        "board:firmware": "firmware:" in board_makefile,
+        "board:prog-sram": "prog-sram:" in board_makefile,
+    }
+    return targets
 
 
 def build_checkpoint(out_dir: Path = DEFAULT_OUT_DIR, zip_out: Path = DEFAULT_ZIP, *, clean: bool = False) -> dict[str, Any]:
@@ -155,7 +158,7 @@ def build_checkpoint(out_dir: Path = DEFAULT_OUT_DIR, zip_out: Path = DEFAULT_ZI
     targets = _makefile_targets()
     missing_targets = [name for name, present in targets.items() if not present]
     if missing_targets:
-        raise CheckpointBundleError("Makefile is missing checkpoint targets: " + ", ".join(missing_targets))
+        raise CheckpointBundleError("Makefile set is missing checkpoint targets: " + ", ".join(missing_targets))
 
     metadata = {
         "schema_version": 1,

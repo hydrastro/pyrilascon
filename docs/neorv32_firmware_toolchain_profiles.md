@@ -5,8 +5,8 @@ The NEORV32 stream benchmark firmware is built through the upstream
 RISC-V GCC before invoking it:
 
 ```bash
-make neorv32-toolchain-check
-make neorv32-stream-build-firmware
+make -C boards/tangnano9k/neorv32_stream_axis_mmio tools
+make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware
 ```
 
 The default profile is:
@@ -39,12 +39,12 @@ be used for final reproducible release measurements.
 Useful commands:
 
 ```bash
-make neorv32-toolchain-check
-make neorv32-toolchain-check NEORV32_FW_PROFILE=soft
-make neorv32-toolchain-check NEORV32_FW_PROFILE=hardfloat-nix
-make neorv32-toolchain-check NEORV32_FW_PROFILE=toolchain-default
-make neorv32-toolchain-check NEORV32_FW_PROFILE=auto
-make neorv32-stream-build-firmware
+make -C boards/tangnano9k/neorv32_stream_axis_mmio tools
+make -C boards/tangnano9k/neorv32_stream_axis_mmio tools NEORV32_FW_PROFILE=soft
+make -C boards/tangnano9k/neorv32_stream_axis_mmio tools NEORV32_FW_PROFILE=hardfloat-nix
+make -C boards/tangnano9k/neorv32_stream_axis_mmio tools NEORV32_FW_PROFILE=toolchain-default
+make -C boards/tangnano9k/neorv32_stream_axis_mmio tools NEORV32_FW_PROFILE=auto
+make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware
 ```
 
 For diagnostics, run:

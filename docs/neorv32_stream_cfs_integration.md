@@ -52,7 +52,7 @@ window.
 For this wrapper, build the benchmark with:
 
 ```sh
-make neorv32-stream-build-firmware
+make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware
 ```
 
 `USE_CFS_AXIS_MMIO=1` implies `USE_AXIS_MMIO=1` and defines:

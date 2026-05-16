@@ -64,7 +64,8 @@ def test_manifest_rtl_source_list_matches_cfs_file_list_order() -> None:
 def test_manifest_firmware_mode_selects_cfs_axis_mmio_addresses() -> None:
     firmware = load_manifest()["firmware"]
     assert firmware["make_mode"] == "USE_CFS_AXIS_MMIO=1"
-    assert "USE_CFS_AXIS_MMIO=1" in firmware["command"]
+    assert "boards/tangnano9k/neorv32_stream_axis_mmio" in firmware["command"]
+    assert "firmware" in firmware["command"]
     assert firmware["defines"]["ASCON_BENCH_USE_AXIS_MMIO"] == "1"
     assert firmware["defines"]["ASCON_ACCEL_BASE_ADDR"] == "0xFFEB0000u"
     assert firmware["defines"]["ASCON_ACCEL_AXIS_MMIO_BASE_ADDR"] == "0xFFEB0100u"

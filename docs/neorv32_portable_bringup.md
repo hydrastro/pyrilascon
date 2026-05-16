@@ -19,13 +19,13 @@ No helper probes `$HOME/src` or other user-specific locations implicitly.
 For a reproducible project-local setup, run:
 
 ```sh
-make neorv32-fetch
+make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware
 ```
 
 To print the checkout path that the tools will use:
 
 ```sh
-make neorv32-home
+make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware
 ```
 
 The checkout is accepted only if it contains:
@@ -42,7 +42,7 @@ layout.
 UART capture can use an explicit device:
 
 ```sh
-make neorv32-stream-uart-capture SERIAL=/dev/ttyUSB0 LOG=uart.log
+make -C boards/tangnano9k/neorv32_stream_axis_mmio uart-capture SERIAL=/dev/ttyUSB0 LOG=uart.log
 ```
 
 If `SERIAL` is omitted, the capture helper attempts to auto-detect a unique
@@ -65,8 +65,8 @@ candidate list and asks for `SERIAL=...` explicitly.  This avoids hardcoding
 Use the doctor before firmware build or UART capture:
 
 ```sh
-make neorv32-stream-bringup-doctor
-make neorv32-stream-bringup-doctor SERIAL=/dev/ttyUSB0
+make -C boards/tangnano9k/neorv32_stream_axis_mmio doctor
+make -C boards/tangnano9k/neorv32_stream_axis_mmio doctor SERIAL=/dev/ttyUSB0
 ```
 
 The doctor reports:
@@ -82,17 +82,17 @@ The doctor reports:
 
 ```sh
 nix develop
-make neorv32-fetch
-make neorv32-stream-gowin-handoff
-make neorv32-stream-bringup-doctor
-make neorv32-stream-build-firmware
+make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware
+make -C boards/tangnano9k/neorv32_stream_axis_mmio gowin-handoff
+make -C boards/tangnano9k/neorv32_stream_axis_mmio doctor
+make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware
 ```
 
 After integrating/building/programming the FPGA image, capture and parse UART:
 
 ```sh
-make neorv32-stream-uart-capture LOG=uart.log
-make neorv32-stream-uart-report LOG=uart.log
+make -C boards/tangnano9k/neorv32_stream_axis_mmio uart-capture LOG=uart.log
+make -C boards/tangnano9k/neorv32_stream_axis_mmio uart-report LOG=uart.log
 ```
 
 The UART report still requires real benchmark output from a programmed board.

@@ -3,7 +3,7 @@
 The Tang Nano 9K / NEORV32 stream target now has a dry-run build-plan tool:
 
 ```sh
-make neorv32-stream-board-build-plan
+make -C boards/tangnano9k/neorv32_stream_axis_mmio build-plan
 ```
 
 The target first ensures the deterministic board package exists, then writes:
@@ -47,17 +47,17 @@ make -C boards/tangnano9k/neorv32_stream_axis_mmio build-plan
 A clean pre-board handoff now looks like:
 
 ```sh
-make neorv32-stream-board-manifest
-make neorv32-stream-board-preflight
-make neorv32-stream-board-package
-make neorv32-stream-board-build-plan
+make -C boards/tangnano9k/neorv32_stream_axis_mmio manifest
+make -C boards/tangnano9k/neorv32_stream_axis_mmio preflight
+make -C boards/tangnano9k/neorv32_stream_axis_mmio package
+make -C boards/tangnano9k/neorv32_stream_axis_mmio build-plan
 ```
 
 After that, build the NEORV32 benchmark firmware with:
 
 ```sh
-make neorv32-fetch
-make neorv32-stream-build-firmware
+make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware
+make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware
 ```
 
 Then integrate `rtl/neorv32/neorv32_cfs_ascon_stream_axis_mmio.vhd` as the
@@ -65,5 +65,5 @@ NEORV32 CFS implementation, synthesize the board project, capture UART output,
 and run:
 
 ```sh
-make neorv32-stream-uart-report LOG=/path/to/uart.log
+make -C boards/tangnano9k/neorv32_stream_axis_mmio uart-report LOG=/path/to/uart.log
 ```

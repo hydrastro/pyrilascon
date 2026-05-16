@@ -666,7 +666,7 @@ the CPU really exercised the stream path.
 Build command for the stream path:
 
 ```sh
-make neorv32-stream-build-firmware
+make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware
 ```
 
 Current validation after this slice:
@@ -794,7 +794,7 @@ The manifest binds together:
 A new inspection tool, `tools/print_neorv32_stream_board_manifest.py`, validates
 that the manifest references existing RTL/firmware paths and that the memory map
 is internally consistent. The root Makefile target
-`make neorv32-stream-board-manifest` prints and checks the manifest, while
+`make -C boards/tangnano9k/neorv32_stream_axis_mmio manifest` prints and checks the manifest, while
 `boards/tangnano9k/neorv32_stream_axis_mmio/Makefile` provides convenience
 targets for manifest inspection and the NEORV32 firmware build.
 
@@ -811,7 +811,7 @@ Generation and manifest targets completed:
 
 - `make docs-configs`;
 - `make generate-verilog`;
-- `make neorv32-stream-board-manifest`.
+- `make -C boards/tangnano9k/neorv32_stream_axis_mmio manifest`.
 
 
 ## NEORV32 stream board preflight
@@ -825,7 +825,7 @@ The Tang Nano 9K stream-native NEORV32 target now has a reproducible board
 handoff package generator:
 
 ```sh
-make neorv32-stream-board-package
+make -C boards/tangnano9k/neorv32_stream_axis_mmio package
 ```
 
 The default output is `build/neorv32_stream_axis_mmio/package`. It contains the
@@ -840,7 +840,7 @@ the CFS replacement into an upstream NEORV32 Tang Nano 9K project.
 The board-facing benchmark flow now includes a UART log parser:
 
 ```sh
-make neorv32-stream-uart-report LOG=uart.log
+make -C boards/tangnano9k/neorv32_stream_axis_mmio uart-report LOG=uart.log
 ```
 
 The parser consumes the output printed by `firmware/neorv32_ascon_benchmark`,
@@ -862,7 +862,7 @@ inspection.
 The Tang Nano 9K stream-native NEORV32 target now has a dry-run build-plan tool:
 
 ```sh
-make neorv32-stream-board-build-plan
+make -C boards/tangnano9k/neorv32_stream_axis_mmio build-plan
 ```
 
 The tool validates the generated board package, confirms the CSR/AXI-MMIO memory map, checks that the mixed Verilog/VHDL source split is complete, confirms stream firmware mode `USE_CFS_AXIS_MMIO=1`, records optional tool availability, and writes `build_plan.json` plus `build_plan.md`. This is a pre-synthesis handoff artifact: it does not program hardware, but it makes the board build sequence reproducible before the real Tang Nano flow.
@@ -870,7 +870,7 @@ The tool validates the generated board package, confirms the CSR/AXI-MMIO memory
 
 ## NEORV32 stream board session
 
-Use `make neorv32-stream-board-session` to generate `build/neorv32_stream_axis_mmio/session/session.json` and `session.md`. The report ties the board package, memory map, optional bitstream, optional UART log, and benchmark parser output into one archived bring-up session.
+Use `make -C boards/tangnano9k/neorv32_stream_axis_mmio session` to generate `build/neorv32_stream_axis_mmio/session/session.json` and `session.md`. The report ties the board package, memory map, optional bitstream, optional UART log, and benchmark parser output into one archived bring-up session.
 
 ---
 
@@ -890,7 +890,7 @@ New files:
 
 New targets:
 
-- `make neorv32-stream-board-session`
+- `make -C boards/tangnano9k/neorv32_stream_axis_mmio session`
 - `make -C boards/tangnano9k/neorv32_stream_axis_mmio session`
 
 The default mode is safe: it does not program hardware. Hardware programming is
@@ -901,7 +901,7 @@ still documenting the exact `openFPGALoader` command needed for bring-up.
 Validation performed for this stage:
 
 - `python -m pytest -q tests/test_neorv32_stream_board_session.py`: 7 passed
-- `make neorv32-stream-board-session`: completed
+- `make -C boards/tangnano9k/neorv32_stream_axis_mmio session`: completed
 - `make docs-configs`: completed
 - `make generate-verilog`: completed
 - `python -m pytest --collect-only -q`: 320 tests collected
@@ -948,7 +948,7 @@ Added a Tang Nano / NEORV32 stream bring-up doctor that checks `NEORV32_HOME`, g
 The board bring-up flow no longer assumes a specific workstation layout such as
 `$HOME`-specific NEORV32 paths or a hardcoded `/dev/ttyUSB0` UART path. New helper tools
 resolve NEORV32 from an explicit `NEORV32_HOME`, the environment, or the
-project-local `external/neorv32` checkout created by `make neorv32-fetch`. UART
+project-local `external/neorv32` checkout created by `make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware`. UART
 capture now uses a Python wrapper that can auto-detect a unique usable serial
 device across common Linux and macOS USB-serial naming schemes, while still
 allowing `SERIAL=...` when several devices are connected. This makes the Tang

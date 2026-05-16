@@ -376,8 +376,8 @@ This verifies the MMIO register contract, TX AXI-stream commit/handshake behavio
 The board-facing stream target includes manifest and preflight checks:
 
 ```sh
-make neorv32-stream-board-manifest
-make neorv32-stream-board-preflight
+make -C boards/tangnano9k/neorv32_stream_axis_mmio manifest
+make -C boards/tangnano9k/neorv32_stream_axis_mmio preflight
 ```
 
 The preflight writes `build/neorv32_stream_axis_mmio/preflight.json` and records the CSR/AXI-MMIO memory map, firmware build mode, RTL source list, host tool availability, and optional `NEORV32_HOME` readiness.
@@ -387,7 +387,7 @@ The preflight writes `build/neorv32_stream_axis_mmio/preflight.json` and records
 The board-facing stream target can generate a deterministic handoff package:
 
 ```sh
-make neorv32-stream-board-package
+make -C boards/tangnano9k/neorv32_stream_axis_mmio package
 ```
 
 This writes `build/neorv32_stream_axis_mmio/package` with the validated manifest,
@@ -397,8 +397,8 @@ pre-board command script for the NEORV32 stream CFS target.
 
 ## NEORV32 stream board session
 
-Use `make neorv32-stream-board-session
-make neorv32-stream-gowin-handoff` to generate `build/neorv32_stream_axis_mmio/session/session.json` and `session.md`. The report ties the board package, memory map, optional bitstream, optional UART log, and benchmark parser output into one archived bring-up session.
+Use `make -C boards/tangnano9k/neorv32_stream_axis_mmio session
+make -C boards/tangnano9k/neorv32_stream_axis_mmio gowin-handoff` to generate `build/neorv32_stream_axis_mmio/session/session.json` and `session.md`. The report ties the board package, memory map, optional bitstream, optional UART log, and benchmark parser output into one archived bring-up session.
 
 ## NEORV32 stream board session report
 
@@ -407,12 +407,12 @@ optional bitstream, optional UART log, and benchmark parser output into a single
 archivable report:
 
 ```sh
-make neorv32-stream-board-session
-make neorv32-stream-gowin-handoff
-make neorv32-stream-board-session
-make neorv32-stream-gowin-handoff LOG=/path/to/uart.log
-make neorv32-stream-board-session
-make neorv32-stream-gowin-handoff BITSTREAM=build/tangnano9k/ascon.fs
+make -C boards/tangnano9k/neorv32_stream_axis_mmio session
+make -C boards/tangnano9k/neorv32_stream_axis_mmio gowin-handoff
+make -C boards/tangnano9k/neorv32_stream_axis_mmio session
+make -C boards/tangnano9k/neorv32_stream_axis_mmio gowin-handoff LOG=/path/to/uart.log
+make -C boards/tangnano9k/neorv32_stream_axis_mmio session
+make -C boards/tangnano9k/neorv32_stream_axis_mmio gowin-handoff BITSTREAM=build/tangnano9k/ascon.fs
 ```
 
 Outputs:
@@ -430,22 +430,22 @@ CLI with `--program --no-dry-run` only when a real board and bitstream are ready
 Before building firmware or opening UART, run:
 
 ```sh
-make neorv32-stream-gowin-handoff
-make neorv32-fetch        # optional but portable: clones NEORV32 into external/neorv32
-make neorv32-stream-bringup-doctor
+make -C boards/tangnano9k/neorv32_stream_axis_mmio gowin-handoff
+make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware        # optional but portable: clones NEORV32 into external/neorv32
+make -C boards/tangnano9k/neorv32_stream_axis_mmio doctor
 ```
 
 The flow is intentionally not tied to a specific workstation. `NEORV32_HOME` may
 be passed explicitly, exported in the shell, or resolved from the project-local
-`external/neorv32` checkout created by `make neorv32-fetch`. UART capture can use
+`external/neorv32` checkout created by `make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware`. UART capture can use
 `SERIAL=/dev/ttyUSB0`, but if `SERIAL` is omitted the helper auto-detects one
 usable `/dev/serial/by-id/*`, `/dev/ttyUSB*`, `/dev/ttyACM*`, or macOS
 `/dev/cu.usb*` device.
 
 ```sh
-make neorv32-home
-make neorv32-stream-uart-capture LOG=uart.log
-make neorv32-stream-uart-report LOG=uart.log
+make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware
+make -C boards/tangnano9k/neorv32_stream_axis_mmio uart-capture LOG=uart.log
+make -C boards/tangnano9k/neorv32_stream_axis_mmio uart-report LOG=uart.log
 ```
 
 

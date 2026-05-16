@@ -10,8 +10,8 @@ emits a JSON bring-up plan.
 From the repository root:
 
 ```sh
-make neorv32-stream-board-manifest
-make neorv32-stream-board-preflight
+make -C boards/tangnano9k/neorv32_stream_axis_mmio manifest
+make -C boards/tangnano9k/neorv32_stream_axis_mmio preflight
 ```
 
 The preflight target writes:
@@ -43,7 +43,7 @@ The normal preflight does not require a local NEORV32 checkout. It records wheth
 check fail unless the firmware build can run, use:
 
 ```sh
-make neorv32-fetch
+make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware
 python tools/neorv32_stream_board_preflight.py --require-neorv32-home --check
 ```
 

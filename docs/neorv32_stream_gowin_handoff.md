@@ -11,7 +11,7 @@ built with a single generic Yosys command.
 ## Generate
 
 ```sh
-make neorv32-stream-gowin-handoff
+make -C boards/tangnano9k/neorv32_stream_axis_mmio gowin-handoff
 ```
 
 or from the board directory:
@@ -65,9 +65,9 @@ one-command bitstream build exists until the actual board project is wired.
 ## Typical sequence
 
 ```sh
-make neorv32-stream-board-package
-make neorv32-stream-board-build-plan
-make neorv32-stream-gowin-handoff
+make -C boards/tangnano9k/neorv32_stream_axis_mmio package
+make -C boards/tangnano9k/neorv32_stream_axis_mmio build-plan
+make -C boards/tangnano9k/neorv32_stream_axis_mmio gowin-handoff
 sh build/neorv32_stream_axis_mmio/gowin_handoff/scripts/01_preflight.sh
 sh build/neorv32_stream_axis_mmio/gowin_handoff/scripts/02_build_firmware.sh
 ```
@@ -75,5 +75,5 @@ sh build/neorv32_stream_axis_mmio/gowin_handoff/scripts/02_build_firmware.sh
 After the FPGA image is built and programmed, capture UART and parse it with:
 
 ```sh
-make neorv32-stream-uart-report LOG=/path/to/uart.log
+make -C boards/tangnano9k/neorv32_stream_axis_mmio uart-report LOG=/path/to/uart.log
 ```

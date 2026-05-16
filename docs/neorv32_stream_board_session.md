@@ -11,7 +11,7 @@ It is safe by default: hardware programming is never attempted unless
 ## Root target
 
 ```sh
-make neorv32-stream-board-session
+make -C boards/tangnano9k/neorv32_stream_axis_mmio session
 ```
 
 This generates:
@@ -29,7 +29,7 @@ firmware mode, CFS wrapper, programming tool availability, and next actions.
 After capturing a real benchmark log from the board:
 
 ```sh
-make neorv32-stream-board-session LOG=/path/to/uart.log
+make -C boards/tangnano9k/neorv32_stream_axis_mmio session LOG=/path/to/uart.log
 ```
 
 The session report embeds the strict UART benchmark parser output. The report is
@@ -41,7 +41,7 @@ state that produced it.
 To include the expected programming command without touching hardware:
 
 ```sh
-make neorv32-stream-board-session BITSTREAM=build/tangnano9k/ascon.fs
+make -C boards/tangnano9k/neorv32_stream_axis_mmio session BITSTREAM=build/tangnano9k/ascon.fs
 ```
 
 The session report records:
@@ -75,11 +75,11 @@ PYTHONPATH=. python tools/run_neorv32_stream_board_session.py \
 Recommended order:
 
 ```sh
-make neorv32-stream-board-manifest
-make neorv32-stream-board-preflight
-make neorv32-stream-board-package
-make neorv32-stream-board-build-plan
-make neorv32-stream-board-session
+make -C boards/tangnano9k/neorv32_stream_axis_mmio manifest
+make -C boards/tangnano9k/neorv32_stream_axis_mmio preflight
+make -C boards/tangnano9k/neorv32_stream_axis_mmio package
+make -C boards/tangnano9k/neorv32_stream_axis_mmio build-plan
+make -C boards/tangnano9k/neorv32_stream_axis_mmio session
 ```
 
 Then synthesize/program the board, capture UART output, and re-run the session

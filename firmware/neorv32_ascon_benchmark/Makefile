@@ -41,8 +41,21 @@ USER_FLAGS += -Wl,--defsym,__neorv32_rom_size=$(NEORV32_ROM_SIZE)
 USER_FLAGS += -Wl,--defsym,__neorv32_ram_size=$(NEORV32_RAM_SIZE)
 USER_FLAGS += -Wl,--defsym,__neorv32_heap_size=$(NEORV32_HEAP_SIZE)
 
+
+# Freestanding board-safe profile for Nix-native toolchains that can emit
+# RV32I/ILP32 code but do not provide a matching soft-float newlib/libgcc.
+# The application still uses NEORV32 common.mk for crt0, image generation and
+# installation, but it links without libc/libgcc. Keep this mode integer-only.
+FREESTANDING ?= 0
+ifeq ($(FREESTANDING),1)
+APP_SRC += freestanding_runtime.c
+USER_FLAGS += -DASCON_BENCH_FREESTANDING=1
+USER_FLAGS += -ffreestanding -fno-builtin -fno-stack-protector
+USER_FLAGS += -nostdlib -nostartfiles
+endif
+
 ifeq ($(NEORV32_HOME),)
-$(error Set NEORV32_HOME to a resolved NEORV32 checkout; from repo root use `make neorv32-stream-build-firmware`)
+$(error Set NEORV32_HOME to a resolved NEORV32 checkout; use `make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware`)
 endif
 
 include $(NEORV32_HOME)/sw/common/common.mk

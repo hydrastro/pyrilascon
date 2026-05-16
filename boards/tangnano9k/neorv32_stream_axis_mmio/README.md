@@ -42,7 +42,7 @@ The firmware benchmark build mode `USE_CFS_AXIS_MMIO=1` selects this map.
 Generate the machine-readable bring-up plan from the repository root with:
 
 ```sh
-make neorv32-stream-board-preflight
+make -C boards/tangnano9k/neorv32_stream_axis_mmio preflight
 ```
 
 or from this directory with:
@@ -59,7 +59,7 @@ The generated JSON is written to `build/neorv32_stream_axis_mmio/preflight.json`
 Generate the deterministic board handoff package from the repository root with:
 
 ```sh
-make neorv32-stream-board-package
+make -C boards/tangnano9k/neorv32_stream_axis_mmio package
 ```
 
 or from this directory with:

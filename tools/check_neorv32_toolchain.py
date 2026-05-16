@@ -9,7 +9,9 @@ newlib as its default library set.
 
 This probe therefore tries three classes of profiles:
 
-* ``soft``: hardware-correct NEORV32 RV32I/ILP32.
+* ``soft``: hardware-correct NEORV32 RV32I/ILP32 using newlib/libgcc.
+* ``freestanding-soft``: hardware-correct RV32I/ILP32 without newlib/libgcc;
+  used by the board benchmark on Nix-native toolchains.
 * ``hardfloat-nix``: explicit compatibility candidates for Nix-style toolchains.
 * ``toolchain-default``: compile/link using the compiler's own default target,
   then recover the compiler-reported ``-march``/``-mabi`` for NEORV32 common.mk.
@@ -68,6 +70,7 @@ class ToolchainReport:
     gcc: str | None
     required_tools: dict[str, str | None]
     soft: ProbeResult
+    freestanding_soft: ProbeResult
     hardfloat: ProbeResult
     native: ProbeResult
     selected_profile: str | None
@@ -84,6 +87,16 @@ volatile unsigned char sink[32];
 int main(void) {
   memset((void *)sink, 0x5a, sizeof(sink));
   return (int)sink[0];
+}
+"""
+
+FREESTANDING_TEST_PROGRAM = r"""
+void _start(void) {
+  volatile unsigned int *sink = (volatile unsigned int *)0x100;
+  *sink = 0x5a5a5a5au;
+  for (;;) {
+    __asm__ volatile ("nop");
+  }
 }
 """
 
@@ -121,6 +134,53 @@ def _probe_cmd(gcc: str, march: str | None, mabi: str | None, out: Path) -> list
         ]
     )
     return cmd
+
+
+
+def _freestanding_probe_cmd(gcc: str, march: str, mabi: str, out: Path) -> list[str]:
+    return [
+        gcc,
+        f"-march={march}",
+        f"-mabi={mabi}",
+        "-Os",
+        "-ffreestanding",
+        "-fno-builtin",
+        "-nostdlib",
+        "-nostartfiles",
+        "-Wl,--gc-sections",
+        "-Wl,-e,_start",
+        "-Wl,-Ttext=0x0",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        str(out),
+    ]
+
+
+def _run_freestanding_probe(gcc: str | None, name: str, march: str, mabi: str) -> ProbeResult:
+    if gcc is None:
+        return ProbeResult(name, march, mabi, False, 127, "", "compiler not found", [])
+    with tempfile.TemporaryDirectory(prefix="neorv32_toolchain_freestanding_probe_") as tmp:
+        out = Path(tmp) / f"{name}.elf"
+        cmd = _freestanding_probe_cmd(gcc, march, mabi, out)
+        completed = subprocess.run(
+            cmd,
+            input=FREESTANDING_TEST_PROGRAM,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        return ProbeResult(
+            name=name,
+            march=march,
+            mabi=mabi,
+            ok=completed.returncode == 0,
+            returncode=completed.returncode,
+            stdout=completed.stdout,
+            stderr=completed.stderr,
+            command=cmd,
+        )
 
 
 def _run_probe(gcc: str | None, name: str, march: str | None, mabi: str | None) -> ProbeResult:
@@ -220,6 +280,7 @@ def build_report(prefix: str, requested_profile: str) -> ToolchainReport:
     default_march, default_mabi = _default_target_from_gcc(gcc)
 
     soft = _run_probe(gcc, "soft", SOFT_MARCH, SOFT_MABI)
+    freestanding_soft = _run_freestanding_probe(gcc, "freestanding-soft", SOFT_MARCH, SOFT_MABI)
 
     hard_candidates: list[tuple[str, str]] = []
     for candidate in (*HARDFLOAT_CANDIDATES, *_multilib_candidates(gcc)):
@@ -261,6 +322,14 @@ def build_report(prefix: str, requested_profile: str) -> ToolchainReport:
                 "toolchain cannot link NEORV32 soft-float RV32I/ILP32 firmware; "
                 "install a multilib riscv-none-elf toolchain such as xPack or use NEORV32_FW_PROFILE=auto/toolchain-default for local bring-up"
             )
+    elif requested_profile == "freestanding-soft":
+        if freestanding_soft.ok:
+            selected_profile, selected_march, selected_mabi = "freestanding-soft", freestanding_soft.march, freestanding_soft.mabi
+            warnings.append(
+                "using a freestanding RV32I/ILP32 build profile; firmware must not depend on newlib/libgcc"
+            )
+        else:
+            errors.append("toolchain cannot link a freestanding RV32I/ILP32 object")
     elif requested_profile == "hardfloat-nix":
         if hardfloat.ok:
             selected_profile, selected_march, selected_mabi = "hardfloat-nix", hardfloat.march, hardfloat.mabi
@@ -282,6 +351,11 @@ def build_report(prefix: str, requested_profile: str) -> ToolchainReport:
     elif requested_profile == "auto":
         if soft.ok:
             selected_profile, selected_march, selected_mabi = "soft", soft.march, soft.mabi
+        elif freestanding_soft.ok:
+            selected_profile, selected_march, selected_mabi = "freestanding-soft", freestanding_soft.march, freestanding_soft.mabi
+            warnings.append(
+                "newlib soft-float is unavailable; using a board-safe freestanding RV32I/ILP32 profile"
+            )
         elif hardfloat.ok:
             selected_profile, selected_march, selected_mabi = "hardfloat-nix", hardfloat.march, hardfloat.mabi
             warnings.append(
@@ -294,7 +368,7 @@ def build_report(prefix: str, requested_profile: str) -> ToolchainReport:
             )
         else:
             errors.append(
-                "toolchain cannot link soft-float, explicit hardfloat, or compiler-default profiles"
+                "toolchain cannot link soft-float, freestanding soft-float, explicit hardfloat, or compiler-default profiles"
             )
     else:
         errors.append(f"unknown profile: {requested_profile}")
@@ -309,6 +383,7 @@ def build_report(prefix: str, requested_profile: str) -> ToolchainReport:
         gcc=gcc,
         required_tools=required_tools,
         soft=soft,
+        freestanding_soft=freestanding_soft,
         hardfloat=hardfloat,
         native=native,
         selected_profile=selected_profile,
@@ -336,6 +411,7 @@ def render_text(report: ToolchainReport, verbose: bool = False) -> str:
         "",
         "profiles:",
         _profile_line("soft:", report.soft),
+        _profile_line("freestanding-soft:", report.freestanding_soft),
         _profile_line("hardfloat:", report.hardfloat),
         _profile_line("toolchain-default:", report.native),
         "",
@@ -354,7 +430,7 @@ def render_text(report: ToolchainReport, verbose: bool = False) -> str:
     if verbose or report.selected_profile is None:
         lines.append("")
         lines.append("last probe diagnostics:")
-        for label, probe in (("soft", report.soft), ("hardfloat", report.hardfloat), ("toolchain-default", report.native)):
+        for label, probe in (("soft", report.soft), ("freestanding-soft", report.freestanding_soft), ("hardfloat", report.hardfloat), ("toolchain-default", report.native)):
             lines.append(f"  {label}: returncode={probe.returncode}")
             if probe.stderr:
                 lines.append(f"    stderr: {_short(probe.stderr)}")
@@ -366,7 +442,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--prefix", default="riscv-none-elf-", help="RISC-V GCC toolchain prefix")
     parser.add_argument(
         "--profile",
-        choices=["auto", "soft", "hardfloat-nix", "toolchain-default"],
+        choices=["auto", "soft", "freestanding-soft", "hardfloat-nix", "toolchain-default"],
         default="auto",
         help="requested firmware ABI profile",
     )

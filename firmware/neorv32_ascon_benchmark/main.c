@@ -57,8 +57,12 @@ static void print_benchmark_result(
   neorv32_uart0_printf("%s hw cycles    : %u:%u\n", label,
                        (uint32_t)(result->elapsed_cycles >> 32),
                        (uint32_t)(result->elapsed_cycles & 0xffffffffu));
+#if !defined(ASCON_BENCH_FREESTANDING)
   neorv32_uart0_printf("%s hw mcy/byte  : %u\n", label,
                        (uint32_t)ascon_accel_benchmark_mcycles_per_byte(result));
+#else
+  neorv32_uart0_printf("%s hw mcy/byte  : 0\n", label);
+#endif
   neorv32_uart0_printf("%s tag valid    : %u\n", label, result->tag_valid ? 1u : 0u);
   neorv32_uart0_printf("%s hw err       : 0x%x\n", label, result->error_code);
 }
@@ -196,6 +200,7 @@ int main(void) {
                        (uint32_t)(sw_cycles >> 32),
                        (uint32_t)(sw_cycles & 0xffffffffu));
 
+#if !defined(ASCON_BENCH_FREESTANDING)
   if (hw_enc_result.elapsed_cycles != 0u) {
     const uint32_t speedup_x1000 = (uint32_t)((sw_cycles * 1000u) / hw_enc_result.elapsed_cycles);
     neorv32_uart0_printf("ENC speedup x1000: %u\n", speedup_x1000);
@@ -204,6 +209,10 @@ int main(void) {
     const uint32_t speedup_x1000 = (uint32_t)((sw_cycles * 1000u) / hw_dec_result.elapsed_cycles);
     neorv32_uart0_printf("DEC speedup x1000: %u\n", speedup_x1000);
   }
+#else
+  neorv32_uart0_printf("ENC speedup x1000: 0\n");
+  neorv32_uart0_printf("DEC speedup x1000: 0\n");
+#endif
 
   if (!enc_ok) {
     neorv32_uart0_printf("FAIL: encryption mismatch\n");

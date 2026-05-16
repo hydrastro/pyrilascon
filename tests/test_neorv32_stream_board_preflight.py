@@ -43,9 +43,11 @@ def test_preflight_json_records_root_and_board_targets() -> None:
     root_targets = plan["targets"]["root_makefile"]
     board_targets = plan["targets"]["board_makefile"]
 
-    assert root_targets["neorv32-stream-board-manifest"] is True
-    assert root_targets["neorv32-stream-board-preflight"] is True
     assert root_targets["stream-axis-mmio-system-sim"] is True
+    assert board_targets["all"] is True
+    assert board_targets["clean"] is True
+    assert board_targets["tools"] is True
+    assert board_targets["prog-sram"] is True
     assert board_targets["manifest"] is True
     assert board_targets["check"] is True
     assert board_targets["preflight"] is True
@@ -57,8 +59,8 @@ def test_preflight_writes_build_json(tmp_path: Path) -> None:
     result = run_tool("--out", str(out))
     assert "pre-board commands" in result.stdout
     plan = json.loads(out.read_text(encoding="utf-8"))
-    assert plan["pre_board_commands"][0] == "make neorv32-stream-board-manifest"
-    assert "make neorv32-stream-board-preflight" in plan["pre_board_commands"]
+    assert plan["pre_board_commands"][0] == "make -C boards/tangnano9k/neorv32_stream_axis_mmio manifest"
+    assert "make -C boards/tangnano9k/neorv32_stream_axis_mmio preflight" in plan["pre_board_commands"]
 
 
 def test_preflight_reports_optional_neorv32_home(tmp_path: Path) -> None:
@@ -95,9 +97,8 @@ def test_makefiles_and_docs_expose_preflight_target() -> None:
     board_makefile = BOARD_MAKEFILE.read_text(encoding="utf-8")
     doc = DOC.read_text(encoding="utf-8")
 
-    assert "neorv32-stream-board-preflight:" in root_makefile
-    assert "tools/neorv32_stream_board_preflight.py --check" in root_makefile
+    assert "neorv32-stream-board-preflight:" not in root_makefile
     assert "preflight:" in board_makefile
     assert "tools/neorv32_stream_board_preflight.py --out" in board_makefile
-    assert "make neorv32-stream-board-preflight" in doc
+    assert "make -C boards/tangnano9k/neorv32_stream_axis_mmio preflight" in doc
     assert "build/neorv32_stream_axis_mmio/preflight.json" in doc

@@ -145,9 +145,8 @@ def test_makefiles_and_docs_expose_board_session_target() -> None:
     board_makefile = BOARD_MAKEFILE.read_text(encoding="utf-8")
     doc = DOC.read_text(encoding="utf-8")
 
-    assert "neorv32-stream-board-session:" in root_makefile
-    assert "run_neorv32_stream_board_session.py" in root_makefile
+    assert "neorv32-stream-board-session:" not in root_makefile
     assert "session:" in board_makefile
     assert "run_neorv32_stream_board_session.py" in board_makefile
-    assert "make neorv32-stream-board-session" in doc
+    assert "make -C boards/tangnano9k/neorv32_stream_axis_mmio session" in doc
     assert "session.json" in doc

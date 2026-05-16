@@ -55,5 +55,5 @@ real Tang Nano / NEORV32 build plus UART benchmark report
 It does **not** mean the final hardware performance claim is complete. The remaining proof requires a programmed board, captured UART output, and a strict UART report generated with:
 
 ```sh
-make neorv32-stream-uart-report LOG=/path/to/uart.log
+make -C boards/tangnano9k/neorv32_stream_axis_mmio uart-report LOG=/path/to/uart.log
 ```

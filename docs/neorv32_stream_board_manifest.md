@@ -28,7 +28,7 @@ ASCON_ACCEL_AXIS_MMIO_BASE_ADDR = 0xFFEB0100u
 The matching firmware build mode is:
 
 ```sh
-make neorv32-stream-build-firmware
+make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware
 ```
 
 The matching ASCON CFS file list is:

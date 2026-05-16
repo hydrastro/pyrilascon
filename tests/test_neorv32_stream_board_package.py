@@ -99,7 +99,7 @@ def test_board_package_commands_script_contains_preboard_sequence(tmp_path: Path
     assert "print_neorv32_stream_board_manifest.py --check" in script
     assert "neorv32_stream_board_preflight.py --check" in script
     assert "make stream-axis-mmio-system-sim" in script
-    assert "USE_CFS_AXIS_MMIO=1 clean_all exe" in script
+    assert "make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware" in script
 
 
 def test_makefiles_and_docs_expose_board_package_target() -> None:
@@ -108,11 +108,9 @@ def test_makefiles_and_docs_expose_board_package_target() -> None:
     board_readme = BOARD_README.read_text(encoding="utf-8")
     doc = DOC.read_text(encoding="utf-8")
 
-    assert "neorv32-stream-board-package:" in root_makefile
-    assert "prepare_neorv32_stream_board_build.py" in root_makefile
-    assert "--clean" in root_makefile
+    assert "neorv32-stream-board-package:" not in root_makefile
     assert "package:" in board_makefile
     assert "prepare_neorv32_stream_board_build.py --out" in board_makefile
     assert "make package" in board_readme
-    assert "make neorv32-stream-board-package" in doc
+    assert "make -C boards/tangnano9k/neorv32_stream_axis_mmio package" in doc
     assert "build/neorv32_stream_axis_mmio/package" in doc

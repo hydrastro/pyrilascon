@@ -110,9 +110,11 @@ def test_gowin_handoff_cli_json_and_check(tmp_path: Path) -> None:
     assert check.stdout.strip() == "ok"
 
 
-def test_root_makefile_exposes_gowin_handoff_target() -> None:
-    text = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
-    assert "neorv32-stream-gowin-handoff" in text
+def test_board_makefile_exposes_gowin_handoff_target() -> None:
+    text = (REPO_ROOT / "boards" / "tangnano9k" / "neorv32_stream_axis_mmio" / "Makefile").read_text(encoding="utf-8")
+    root = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
+    assert "gowin-handoff:" in text
+    assert "neorv32-stream-gowin-handoff:" not in root
     assert "prepare_neorv32_stream_gowin_handoff.py" in text
 
 

@@ -1,45 +1,38 @@
-# NEORV32 soft-float toolchain
+# NEORV32 soft-float firmware toolchains
 
-The normal board-safe NEORV32 firmware target is RV32I with the ILP32 soft-float ABI. The NEORV32 software flow uses a RISC-V bare-metal GCC toolchain, and minimal soft-core configurations should prefer the integer-only RV32I/ILP32 profile.
+The board hardware profile should use `rv32i_zicsr_zifencei` with the `ilp32`
+soft-float ABI. Some package-manager toolchains, including the Nix toolchain
+available in the development shell, can compile that ISA but do not ship a
+matching soft-float newlib/libgcc multilib.
 
-Some package-manager RISC-V toolchains, including the Nix toolchain used by the development shell, may only provide a hard/double-float newlib multilib. That can be useful for host build smoke tests, but it is not the preferred release profile for a Tang Nano soft-core build.
-
-The host-smoke build is:
-
-```bash
-make neorv32-fetch
-make neorv32-stream-build-firmware
-```
-
-If the toolchain probe selects `hardfloat-nix`, treat the produced image as a build-system smoke test only unless the NEORV32 hardware configuration actually implements the required F/D ISA profile.
-
-## Board-safe soft-float build
-
-The board-safe firmware target is:
+The project therefore provides two firmware build paths:
 
 ```bash
-make neorv32-fetch
-make neorv32-soft-toolchain-fetch
-make neorv32-stream-build-firmware-soft
+make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware
 ```
 
-This downloads/extracts the official NEORV32-compatible `riscv32-unknown-elf` RV32I/ILP32 prebuilt toolchain into `external/` and builds the benchmark firmware with:
+This is a host smoke build. It probes the available toolchain and may select a
+`hardfloat-nix` compatibility profile if that is the only linkable newlib/libgcc
+profile. Treat this as a smoke test only / host-toolchain sanity check, not the preferred
+final board profile.
 
-```text
-MARCH=rv32i_zicsr_zifencei
-MABI=ilp32
+```bash
+make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware-soft
 ```
 
-## NixOS note
+This is the Nix-native board-safe path. It forces `rv32i_zicsr_zifencei` /
+`ilp32` and uses a freestanding link so it does not depend on newlib/libgcc, FHS
+compatibility, `nix-ld`, or unfree helpers such as `steam-run`.
 
-The official NEORV32 prebuilt RV32I/ILP32 toolchain is distributed as generic Linux dynamically linked binaries. On NixOS those binaries may not execute in a plain `nix develop` shell because the usual dynamic-loader path is intentionally absent.
+The freestanding build still uses the official NEORV32 `common.mk` for startup,
+linker layout, image generation and executable packaging. The benchmark supplies
+a tiny local runtime in `firmware/neorv32_ascon_benchmark/freestanding_runtime.c`
+for functions such as `memset` and `memcpy`.
 
-The repository does **not** add unfree compatibility packages automatically. In particular, the flake does not depend on `steam-run`.
+The optional `make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware-soft` target still downloads the
+official upstream RV32I/ILP32 toolchain into `external/`. On NixOS that binary
+may fail with the standard `stub-ld` message because it is a generic dynamically
+linked Linux executable. The repo does not attempt to run it through FHS wrappers
+or unfree runtime packages.
 
-For NixOS there are three practical options:
-
-1. Use `make neorv32-stream-build-firmware` for local host smoke testing with the free Nix-provided RISC-V toolchain.
-2. Provide an executable soft-float toolchain yourself, for example via system-level `nix-ld`, an FHS shell, a distro/container environment, or a locally built multilib RISC-V GCC.
-3. Run the board-safe soft-float build on a non-NixOS Linux host where the official prebuilt toolchain executes normally.
-
-The helper reports NixOS `stub-ld` failures explicitly so the problem is not mistaken for an ASCON or NEORV32 source issue.
+The Nix-native freestanding target does not depend on `steam-run`.

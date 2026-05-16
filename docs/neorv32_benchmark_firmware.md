@@ -76,7 +76,7 @@ platform-specific AXI Stream/DMA transport.
 From `firmware/neorv32_ascon_benchmark`:
 
 ```sh
-make neorv32-stream-build-firmware
+make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware
 ```
 
 The resulting NEORV32 executable should be loaded into the SoC image using the

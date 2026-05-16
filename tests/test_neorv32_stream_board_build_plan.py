@@ -93,9 +93,8 @@ def test_makefiles_and_docs_expose_board_build_plan_target() -> None:
     board_makefile = BOARD_MAKEFILE.read_text(encoding="utf-8")
     doc = DOC.read_text(encoding="utf-8")
 
-    assert "neorv32-stream-board-build-plan:" in root_makefile
-    assert "plan_neorv32_stream_board_build.py" in root_makefile
+    assert "neorv32-stream-board-build-plan:" not in root_makefile
     assert "build-plan:" in board_makefile
     assert "plan_neorv32_stream_board_build.py" in board_makefile
-    assert "make neorv32-stream-board-build-plan" in doc
+    assert "make -C boards/tangnano9k/neorv32_stream_axis_mmio build-plan" in doc
     assert "build_plan.json" in doc

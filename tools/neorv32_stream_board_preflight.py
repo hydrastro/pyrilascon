@@ -61,16 +61,21 @@ def build_preflight_plan(manifest: dict[str, Any], neorv32_home: Path | None) ->
     memory = manifest["memory_map"]
     firmware = manifest["firmware"]
     rtl = manifest["rtl"]
+    # Board-specific orchestration intentionally lives in the board directory.
+    # The root Makefile is kept generic for model/RTL/test/report targets.
     root_targets = {
-        "neorv32-stream-board-manifest": _makefile_has_target(ROOT_MAKEFILE, "neorv32-stream-board-manifest"),
-        "neorv32-stream-board-preflight": _makefile_has_target(ROOT_MAKEFILE, "neorv32-stream-board-preflight"),
         "stream-axis-mmio-system-sim": _makefile_has_target(ROOT_MAKEFILE, "stream-axis-mmio-system-sim"),
     }
     board_targets = {
+        "all": _makefile_has_target(BOARD_MAKEFILE, "all"),
+        "clean": _makefile_has_target(BOARD_MAKEFILE, "clean"),
+        "tools": _makefile_has_target(BOARD_MAKEFILE, "tools"),
+        "prog-sram": _makefile_has_target(BOARD_MAKEFILE, "prog-sram"),
         "manifest": _makefile_has_target(BOARD_MAKEFILE, "manifest"),
         "check": _makefile_has_target(BOARD_MAKEFILE, "check"),
         "preflight": _makefile_has_target(BOARD_MAKEFILE, "preflight"),
         "firmware": _makefile_has_target(BOARD_MAKEFILE, "firmware"),
+        "firmware-soft": _makefile_has_target(BOARD_MAKEFILE, "firmware-soft"),
         "rtl-list": _makefile_has_target(BOARD_MAKEFILE, "rtl-list"),
         "memory-map": _makefile_has_target(BOARD_MAKEFILE, "memory-map"),
     }
@@ -107,15 +112,16 @@ def build_preflight_plan(manifest: dict[str, Any], neorv32_home: Path | None) ->
         },
         "neorv32_home": _neorv32_status(neorv32_home),
         "pre_board_commands": [
-            "make neorv32-stream-board-manifest",
-            "make neorv32-stream-board-preflight",
+            "make -C boards/tangnano9k/neorv32_stream_axis_mmio manifest",
+            "make -C boards/tangnano9k/neorv32_stream_axis_mmio preflight",
             "python -m pytest -q tests/test_neorv32_stream_cfs_integration.py",
             "python -m pytest -q tests/test_stream_axis_mmio_system_sim.py",
             "make stream-axis-mmio-system-sim",
         ],
         "bringup_commands": [
-            "make -C boards/tangnano9k/neorv32_stream_axis_mmio check",
-            "make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware",
+            "make -C boards/tangnano9k/neorv32_stream_axis_mmio clean",
+            "make -C boards/tangnano9k/neorv32_stream_axis_mmio tools",
+            "make -C boards/tangnano9k/neorv32_stream_axis_mmio",
             "integrate rtl/neorv32/neorv32_cfs_ascon_stream_axis_mmio.vhd as neorv32_cfs",
             "synthesize/program the NEORV32 Tang Nano 9K SoC image",
             "capture UART benchmark output and compare software/hardware cycles",
@@ -127,7 +133,7 @@ def validate_preflight_plan(plan: dict[str, Any], require_neorv32_home: bool = F
     missing_root = [name for name, ok in plan["targets"]["root_makefile"].items() if not ok]
     missing_board = [name for name, ok in plan["targets"]["board_makefile"].items() if not ok]
     if missing_root:
-        raise PreflightError(f"root Makefile is missing targets: {', '.join(missing_root)}")
+        raise PreflightError(f"root Makefile is missing generic targets: {', '.join(missing_root)}")
     if missing_board:
         raise PreflightError(f"board Makefile is missing targets: {', '.join(missing_board)}")
     if require_neorv32_home and not plan["neorv32_home"]["ready_for_firmware_build"]:

@@ -97,9 +97,9 @@ def _neorv32_status(neorv32_home: Path | None) -> dict[str, Any]:
     if ready:
         message = f"NEORV32 checkout found via {located['source']}."
     elif is_placeholder:
-        message = "NEORV32_HOME still uses the documentation placeholder; replace it or run `make neorv32-fetch`."
+        message = "NEORV32_HOME still uses the documentation placeholder; replace it or run `make -C boards/tangnano9k/neorv32_stream_axis_mmio deps`."
     else:
-        message = "No usable NEORV32 checkout found; set NEORV32_HOME or run `make neorv32-fetch`."
+        message = "No usable NEORV32 checkout found; set NEORV32_HOME or run `make -C boards/tangnano9k/neorv32_stream_axis_mmio deps`."
 
     return {
         "provided": provided,
@@ -168,9 +168,9 @@ def build_report(
     if not neorv32["ready"]:
         blockers.append(neorv32["message"])
     if not package["package_json"]:
-        blockers.append("Board package is missing; run `make neorv32-stream-board-package`.")
+        blockers.append("Board package is missing; run `make -C boards/tangnano9k/neorv32_stream_axis_mmio package`.")
     if not handoff["handoff_json"]:
-        blockers.append("Gowin handoff is missing; run `make neorv32-stream-gowin-handoff`.")
+        blockers.append("Gowin handoff is missing; run `make -C boards/tangnano9k/neorv32_stream_axis_mmio gowin-handoff`.")
     if not tools["picocom"]["available"]:
         warnings.append("picocom is not available; enter the dev shell or install it before UART capture.")
     if neorv32["ready"] and not riscv_toolchain["ready"]:
@@ -184,18 +184,18 @@ def build_report(
 
     next_actions: list[str] = []
     if not neorv32["ready"]:
-        next_actions.append("Set NEORV32_HOME to a real checkout or run `make neorv32-fetch` to clone into external/neorv32.")
+        next_actions.append("Set NEORV32_HOME to a real checkout or run `make -C boards/tangnano9k/neorv32_stream_axis_mmio deps` to clone into external/neorv32.")
     if serial_device is None:
         next_actions.append("Connect the board or set SERIAL explicitly; auto-detection checks /dev/serial/by-id, /dev/ttyUSB*, /dev/ttyACM*, and macOS /dev/cu.usb* devices.")
     elif not serial["ready"]:
         next_actions.append("Fix serial permissions, then start a new login shell or use `newgrp <device-group>`.")
     if neorv32["ready"] and riscv_toolchain["ready"]:
-        next_actions.append("Build firmware with `make neorv32-stream-build-firmware`.")
+        next_actions.append("Build firmware with `make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware`.")
     elif neorv32["ready"] and not riscv_toolchain["ready"]:
         next_actions.append("Enter the updated `nix develop` shell or install a riscv-none-elf GCC toolchain before building firmware.")
     if serial["ready"]:
-        next_actions.append(f"Capture UART with `make neorv32-stream-uart-capture SERIAL={serial_device} LOG=uart.log`.")
-    next_actions.append("Parse a non-empty benchmark log with `make neorv32-stream-uart-report LOG=uart.log`.")
+        next_actions.append(f"Capture UART with `make -C boards/tangnano9k/neorv32_stream_axis_mmio uart-capture SERIAL={serial_device} LOG=uart.log`.")
+    next_actions.append("Parse a non-empty benchmark log with `make -C boards/tangnano9k/neorv32_stream_axis_mmio uart-report LOG=uart.log`.")
 
     return {
         "schema_version": 1,

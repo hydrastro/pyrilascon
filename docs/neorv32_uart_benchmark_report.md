@@ -21,7 +21,7 @@ PYTHONPATH=. python tools/parse_neorv32_ascon_uart_log.py uart.log --strict --ma
 Or through the Makefile:
 
 ```sh
-make neorv32-stream-uart-report LOG=uart.log
+make -C boards/tangnano9k/neorv32_stream_axis_mmio uart-report LOG=uart.log
 ```
 
 The board-local wrapper also exposes:

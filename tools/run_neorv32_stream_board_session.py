@@ -162,11 +162,11 @@ def build_session_report(
         "checks": checks,
         "session_ok": all(checks.values()),
         "next_actions": [
-            "Run make neorv32-stream-board-package and make neorv32-stream-board-build-plan before synthesis.",
+            "Run make -C boards/tangnano9k/neorv32_stream_axis_mmio package and make -C boards/tangnano9k/neorv32_stream_axis_mmio build-plan before synthesis.",
             "Build the NEORV32 firmware with USE_CFS_AXIS_MMIO=1.",
             "Integrate rtl/neorv32/neorv32_cfs_ascon_stream_axis_mmio.vhd as the CFS implementation.",
             "Synthesize/place/pack the Tang Nano 9K design and program the bitstream.",
-            "Capture UART output and run make neorv32-stream-uart-report LOG=/path/to/uart.log.",
+            "Capture UART output and run make -C boards/tangnano9k/neorv32_stream_axis_mmio uart-report LOG=/path/to/uart.log.",
         ],
     }
     return report

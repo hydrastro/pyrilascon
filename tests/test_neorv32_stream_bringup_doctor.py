@@ -139,12 +139,12 @@ def test_flake_includes_uart_capture_tools() -> None:
     assert "usbutils" in flake
 
 
-def test_root_and_board_makefiles_expose_bringup_doctor_and_uart_capture() -> None:
+def test_board_makefile_exposes_bringup_doctor_and_uart_capture() -> None:
     root = (REPO_ROOT / "Makefile").read_text(encoding="utf-8")
     board = (REPO_ROOT / "boards" / "tangnano9k" / "neorv32_stream_axis_mmio" / "Makefile").read_text(encoding="utf-8")
 
-    assert "neorv32-stream-bringup-doctor" in root
-    assert "neorv32-stream-uart-capture" in root
+    assert "neorv32-stream-bringup-doctor" not in root
+    assert "neorv32-stream-uart-capture" not in root
     assert "doctor:" in board
     assert "uart-capture:" in board
 

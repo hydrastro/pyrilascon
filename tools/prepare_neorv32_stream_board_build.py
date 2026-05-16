@@ -96,7 +96,6 @@ def _firmware_make_fragment(firmware: dict[str, Any]) -> str:
 
 
 def _command_script(plan: dict[str, Any]) -> str:
-    firmware = plan["firmware"]
     return "\n".join(
         [
             "#!/bin/sh",
@@ -110,8 +109,8 @@ def _command_script(plan: dict[str, Any]) -> str:
             "python -m pytest -q tests/test_stream_axis_mmio_system_sim.py",
             "make stream-axis-mmio-system-sim",
             "",
-            "NEORV32_RESOLVED=\"$(PYTHONPATH=. python tools/ensure_neorv32_checkout.py --print-home)\"",
-            "make -C " + firmware["directory"] + " NEORV32_HOME=\"$NEORV32_RESOLVED\" USE_CFS_AXIS_MMIO=1 clean_all exe",
+            "make -C boards/tangnano9k/neorv32_stream_axis_mmio tools",
+            "make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware",
             "",
         ]
     )
@@ -159,8 +158,8 @@ def _readme(plan: dict[str, Any], source_split: dict[str, list[str]]) -> str:
             "## Typical use",
             "",
             "```sh",
-            "make neorv32-stream-board-package",
-            "make neorv32-stream-board-build-plan",
+            "make -C boards/tangnano9k/neorv32_stream_axis_mmio package",
+            "make -C boards/tangnano9k/neorv32_stream_axis_mmio build-plan",
             "sh build/neorv32_stream_axis_mmio/package/commands.sh",
             "```",
             "",
