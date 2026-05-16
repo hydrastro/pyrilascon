@@ -25,15 +25,16 @@ def test_stream_encrypt_backend_exposes_128bit_axis_native_interface() -> None:
     assert "m_axis_tuser <= `ASCON_AXIS_USER_TEXT" in text
 
 
-def test_stream_encrypt_backend_uses_reusable_framer_for_ad_then_text() -> None:
+def test_stream_encrypt_backend_uses_local_phase_receiver_for_ad_then_text() -> None:
     text = STREAM_BACKEND.read_text(encoding="utf-8")
-    assert "ascon_axis_framer" in text
-    assert "framer_expected_len_w" in text
-    assert "ad_len_i : text_len_i" in text
-    assert "framer_expected_user_w" in text
-    assert "`ASCON_AXIS_USER_AD : `ASCON_AXIS_USER_TEXT" in text
-    assert "s_axis_tvalid && framer_active_w" in text
-    assert "assign s_axis_tready = framer_active_w && framer_tready_w" in text
+    assert "The reusable ascon_axis_framer remains available" in text
+    assert "assign s_axis_tready = ((state_q == ST_AD_WAIT) && (ad_len_i != 32'd0))" in text
+    assert "input_kind_ad_w" in text
+    assert "input_kind_text_w" in text
+    assert "ad_seen_q" in text
+    assert "text_seen_q" in text
+    assert "ad_protocol_error_w" in text
+    assert "text_protocol_error_w" in text
 
 
 def test_stream_encrypt_backend_is_encrypt_only_and_rejects_decrypt() -> None:
@@ -53,6 +54,7 @@ def test_stream_encrypt_backend_contains_unbounded_block_scheduler_states() -> N
         "ST_AD_EMPTY",
         "ST_DOMAIN",
         "ST_TEXT_WAIT",
+        "ST_TEXT_EMIT",
         "ST_TEXT_OUT_WAIT",
         "ST_TEXT_P8",
         "ST_TEXT_EMPTY",
@@ -72,6 +74,8 @@ def test_stream_encrypt_backend_handles_exact_block_padding_cases() -> None:
     assert "pad_block(128'h0, 5'd0)" in text
     assert "text_block_is_partial_final_w" in text
     assert "text_block_is_full_final_w" in text
+    assert "text_block128_q <= input_block128_w" in text
+    assert "m_axis_tdata <= ciphertext_block_w" in text
 
 
 def test_stream_encrypt_file_list_orders_dependencies() -> None:

@@ -14,7 +14,7 @@ Implemented now:
 - AD packet first, then plaintext packet.
 - `tuser = ASCON_AXIS_USER_AD` for AD and `tuser = ASCON_AXIS_USER_TEXT` for plaintext.
 - Ciphertext output as `ASCON_AXIS_USER_TEXT`.
-- `ascon_axis_framer` validation for each logical packet.
+- Local AXI beat validation for each AD/TEXT phase; `ascon_axis_framer` remains available as a standalone reusable validator.
 - Unbounded encryption: the backend never needs to store the complete AD or
   plaintext message.
 

@@ -1,5 +1,6 @@
 SHELL := /bin/sh
 PYTHON ?= python
+PYTEST ?= pytest
 PYTEST_FLAGS ?= -q
 ENGINE_COUNT ?= 4
 PIPELINE_COUNT ?= 2
@@ -10,23 +11,24 @@ ALGOS ?= requested
 
 ENV := PYTHONPATH=.
 PY := $(ENV) $(PYTHON)
-PYTEST := $(ENV) $(PYTHON) -m pytest
+PYTEST_CMD := $(ENV) $(PYTEST)
 
 .PHONY: help env check-layout test test-all test-kat test-spec test-arch \
         generate-verilog list-configs list-configs-csv list-configs-json docs-configs \
-        matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
+        stream-encrypt-sim matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
         clean clean-cache clean-generated clean-build clean-nested repair verify all
 
 help:
 	@echo "ASCON repo targets"
 	@echo ""
-	@echo "  make test                  Run root tests only: python -m pytest tests"
+	@echo "  make test                  Run root tests only: pytest tests"
 	@echo "  make test-kat              Run known-answer tests only"
 	@echo "  make test-spec             Run spec/model tests"
 	@echo "  make test-arch             Run architecture/config tests"
 	@echo "  make generate-verilog      Regenerate rtl/generated/*.v[h]"
 	@echo "  make list-configs          Print selected valid configs"
 	@echo "  make docs-configs          Write config reports under docs/generated/"
+	@echo "  make stream-encrypt-sim    Run one optional Icarus RTL sim vector for the stream encrypt backend"
 	@echo "  make design-asic           Generate default ASIC design product"
 	@echo "  make design-fpga           Generate default FPGA N-engine product"
 	@echo "  make matrix                Generate selected ASIC/FPGA design matrix"
@@ -35,12 +37,12 @@ help:
 	@echo "  make repair                clean-nested + clean + test"
 	@echo "  make verify                Run tests, docs-configs, and Verilog generation"
 	@echo ""
-	@echo "Variables: PYTHON, PYTEST_FLAGS, ENGINE_COUNT, PIPELINE_COUNT, CONTEXTS_PER_ENGINE, BUILD_DIR, ALGOS"
+	@echo "Variables: PYTHON, PYTEST, PYTEST_FLAGS, ENGINE_COUNT, PIPELINE_COUNT, CONTEXTS_PER_ENGINE, BUILD_DIR, ALGOS"
 	@echo "Example: make list-configs ALGOS=aead128,hash256,xof128,cxof128"
 
 env:
 	@$(PYTHON) --version
-	@$(PYTEST) --version
+	@$(PYTEST_CMD) --version
 
 check-layout:
 	@test -d ascon_hwmodel || (echo "Missing ascon_hwmodel/. Run from repo root."; exit 1)
@@ -49,15 +51,15 @@ check-layout:
 	@if [ -d ascon_hwmodel_aead_hash_step ]; then echo "Warning: nested ascon_hwmodel_aead_hash_step/ exists; run 'make clean-nested' to delete it."; fi
 
 test: check-layout clean-cache
-	$(PYTEST) $(PYTEST_FLAGS) tests
+	$(PYTEST_CMD) $(PYTEST_FLAGS) tests
 
 test-all: test
 
 test-kat: check-layout clean-cache
-	$(PYTEST) $(PYTEST_FLAGS) tests/test_known_answer_vectors.py
+	$(PYTEST_CMD) $(PYTEST_FLAGS) tests/test_known_answer_vectors.py
 
 test-spec: check-layout clean-cache
-	$(PYTEST) $(PYTEST_FLAGS) \
+	$(PYTEST_CMD) $(PYTEST_FLAGS) \
 		tests/test_iv.py \
 		tests/test_state.py \
 		tests/test_auxiliary.py \
@@ -69,7 +71,7 @@ test-spec: check-layout clean-cache
 		tests/test_known_answer_vectors.py
 
 test-arch: check-layout clean-cache
-	$(PYTEST) $(PYTEST_FLAGS) tests/test_arch_config.py tests/test_example_configs_validate.py tests/test_valid_config_listing.py tests/test_control_profiles.py tests/test_padding_profiles.py tests/test_security_profiles.py tests/test_top_level_profiles.py
+	$(PYTEST_CMD) $(PYTEST_FLAGS) tests/test_arch_config.py tests/test_example_configs_validate.py tests/test_valid_config_listing.py tests/test_control_profiles.py tests/test_padding_profiles.py tests/test_security_profiles.py tests/test_top_level_profiles.py
 
 generate-verilog: check-layout
 	$(PY) tools/generate_verilog.py
@@ -87,6 +89,9 @@ list-configs-json: check-layout
 
 docs-configs: list-configs-csv list-configs-json
 	$(PY) tools/list_valid_configs.py --target both --algorithms $(ALGOS) --format text --out docs/generated/selected_valid_configs.txt --engine-count $(ENGINE_COUNT) --pipeline-count $(PIPELINE_COUNT) --contexts-per-pipeline $(CONTEXTS_PER_PIPELINE)
+
+stream-encrypt-sim: check-layout
+	$(PY) tools/run_stream_encrypt_vector.py --key-hex 000102030405060708090a0b0c0d0e0f --nonce-hex 101112131415161718191a1b1c1d1e1f --ad-hex aabbccddeeff --plaintext-hex 000102030405060708090a0b0c0d0e0f101112
 
 design-asic: check-layout
 	$(PY) tools/generate_design.py --preset asic_dual_enc_dec_cores --out $(BUILD_DIR)

@@ -11,15 +11,16 @@
 // It deliberately implements encryption only:
 //   * key/nonce/length/mode are still provided by the CSR/MMIO control plane;
 //   * AD and plaintext arrive as two AXI stream packets on the shared input;
-//   * tuser selects AD then TEXT and is checked by ascon_axis_framer;
+//   * tuser selects AD then TEXT and is checked by the backend receiver;
 //   * ciphertext is emitted as TEXT beats as plaintext is consumed;
 //   * no complete AD/plaintext buffering is required, so encryption is unbounded;
 //   * authenticated decrypt remains a later buffered/quarantine backend.
 //
-// The design prioritizes a small, auditable migration step over peak throughput:
-// it waits for each ciphertext beat to be accepted before running the following
-// p8. Later 4RPC/8RPC/pipelined variants can preserve this interface and replace
-// only the internal scheduling.
+// The reusable ascon_axis_framer remains available as an independent validator
+// for wrappers, fuzzing, and future HASH/XOF frontends. This backend keeps its
+// input beat receiver local so ready/valid is never coupled to an output/P8 stall
+// through a second stateful block. That makes multi-beat plaintext packets
+// deterministic under Icarus and synthesis simulators.
 // -----------------------------------------------------------------------------
 module ascon_aead128_stream_encrypt #(
   parameter integer DATA_BYTES = 16,
@@ -73,13 +74,14 @@ module ascon_aead128_stream_encrypt #(
   localparam [4:0] ST_DOMAIN        = 5'd7;
   localparam [4:0] ST_TEXT_START    = 5'd8;
   localparam [4:0] ST_TEXT_WAIT     = 5'd9;
-  localparam [4:0] ST_TEXT_OUT_WAIT = 5'd10;
-  localparam [4:0] ST_TEXT_P8       = 5'd11;
-  localparam [4:0] ST_TEXT_EMPTY    = 5'd12;
-  localparam [4:0] ST_FINAL_KEY     = 5'd13;
-  localparam [4:0] ST_FINAL_P12     = 5'd14;
-  localparam [4:0] ST_FINISH        = 5'd15;
-  localparam [4:0] ST_ERROR         = 5'd16;
+  localparam [4:0] ST_TEXT_EMIT     = 5'd10;
+  localparam [4:0] ST_TEXT_OUT_WAIT = 5'd11;
+  localparam [4:0] ST_TEXT_P8       = 5'd12;
+  localparam [4:0] ST_TEXT_EMPTY    = 5'd13;
+  localparam [4:0] ST_FINAL_KEY     = 5'd14;
+  localparam [4:0] ST_FINAL_P12     = 5'd15;
+  localparam [4:0] ST_FINISH        = 5'd16;
+  localparam [4:0] ST_ERROR         = 5'd17;
 
   reg [4:0]   state_q;
   reg [319:0] s_q;
@@ -88,88 +90,80 @@ module ascon_aead128_stream_encrypt #(
   reg         text_empty_after_full_q;
   reg         text_p8_after_last_full_q;
   reg         text_output_final_partial_q;
+  reg [31:0]  ad_seen_q;
+  reg [31:0]  text_seen_q;
+  reg [127:0] text_block128_q;
+  reg [7:0]   text_block_bytes_q;
+  reg         text_block_last_q;
 
   wire [7:0]   rc_w;
   wire [319:0] round_state_w;
   wire [127:0] rate_w;
-  wire [127:0] framer_block128_w;
-  wire [127:0] padded_block_w;
+  wire [127:0] input_block128_w;
+  wire [127:0] input_padded_block_w;
   wire [127:0] ciphertext_block_w;
+  wire [127:0] text_padded_block_w;
   wire [127:0] tag_calc_w;
 
-  wire         framer_start_w;
-  wire         framer_clear_w;
-  wire         framer_active_w;
-  wire         framer_tready_w;
-  wire [31:0] framer_expected_len_w;
-  wire [3:0]  framer_expected_user_w;
-  wire [DATA_WIDTH-1:0] framer_block_data_w;
-  wire [7:0]  framer_block_bytes_w;
-  wire        framer_block_last_w;
-  wire [3:0]  framer_block_user_w;
-  wire        framer_block_valid_w;
-  wire        framer_block_ready_w;
-  wire        framer_done_w;
-  wire        framer_error_w;
-  wire [31:0] framer_error_code_w;
-  wire [31:0] framer_bytes_seen_w;
-  wire        consume_ad_block_w;
-  wire        consume_text_block_w;
+  wire [7:0]  input_bytes_w;
+  wire        input_keep_contiguous_w;
+  wire        input_keep_nonzero_w;
+  wire        input_partial_w;
+  wire        input_kind_ad_w;
+  wire        input_kind_text_w;
+  wire        input_fire_w;
   wire        output_fire_w;
   wire        text_block_is_full_w;
   wire        text_block_is_partial_final_w;
   wire        text_block_is_full_final_w;
+  wire [31:0] ad_next_seen_w;
+  wire [31:0] text_next_seen_w;
+  wire        ad_protocol_error_w;
+  wire        text_protocol_error_w;
+  wire        ad_length_error_w;
+  wire        text_length_error_w;
 
   assign rc_w = round_constant(rc_index_q);
   assign rate_w = s_q[127:0];
-  assign framer_block128_w = framer_block_data_w[127:0];
-  assign padded_block_w = pad_block(framer_block128_w, framer_block_bytes_w[4:0]);
-  assign ciphertext_block_w = rate_w ^ framer_block128_w;
+  assign input_block128_w = s_axis_tdata[127:0];
+  assign input_bytes_w = keep_count(s_axis_tkeep);
+  assign input_keep_contiguous_w = is_contiguous_keep(s_axis_tkeep);
+  assign input_keep_nonzero_w = |s_axis_tkeep;
+  assign input_partial_w = (input_bytes_w != DATA_BYTES_U8);
+  assign input_kind_ad_w = (s_axis_tuser == `ASCON_AXIS_USER_AD);
+  assign input_kind_text_w = (s_axis_tuser == `ASCON_AXIS_USER_TEXT);
+  assign input_padded_block_w = pad_block(input_block128_w, input_bytes_w[4:0]);
+  assign ciphertext_block_w = rate_w ^ text_block128_q;
+  assign text_padded_block_w = pad_block(text_block128_q, text_block_bytes_q[4:0]);
   assign tag_calc_w = round_state_w[319:192] ^ key_i;
 
-  assign framer_start_w = (state_q == ST_AD_START) || (state_q == ST_TEXT_START);
-  assign framer_clear_w = clear_i || (state_q == ST_IDLE);
-  assign framer_active_w = (state_q == ST_AD_WAIT) || (state_q == ST_TEXT_WAIT);
-  assign framer_expected_len_w = ((state_q == ST_AD_START) || (state_q == ST_AD_WAIT)) ? ad_len_i : text_len_i;
-  assign framer_expected_user_w = ((state_q == ST_AD_START) || (state_q == ST_AD_WAIT)) ?
-                                  `ASCON_AXIS_USER_AD : `ASCON_AXIS_USER_TEXT;
-  assign s_axis_tready = framer_active_w && framer_tready_w;
-  assign framer_block_ready_w = ((state_q == ST_AD_WAIT) ||
-                                 ((state_q == ST_TEXT_WAIT) && !m_axis_tvalid));
-  assign consume_ad_block_w = (state_q == ST_AD_WAIT) && framer_block_valid_w && framer_block_ready_w;
-  assign consume_text_block_w = (state_q == ST_TEXT_WAIT) && framer_block_valid_w && framer_block_ready_w;
+  // Do not assert ready for zero-length phases. This prevents the next logical
+  // packet from being consumed while the FSM is merely passing through AD_WAIT
+  // or TEXT_WAIT to handle a zero-length phase.
+  assign s_axis_tready = ((state_q == ST_AD_WAIT) && (ad_len_i != 32'd0)) ||
+                         ((state_q == ST_TEXT_WAIT) && (text_len_i != 32'd0) && !m_axis_tvalid);
+  assign input_fire_w = s_axis_tvalid && s_axis_tready;
   assign output_fire_w = m_axis_tvalid && m_axis_tready;
-  assign text_block_is_full_w = (framer_block_bytes_w == DATA_BYTES_U8);
-  assign text_block_is_partial_final_w = framer_block_last_w && !text_block_is_full_w;
-  assign text_block_is_full_final_w = framer_block_last_w && text_block_is_full_w;
+  assign text_block_is_full_w = (text_block_bytes_q == DATA_BYTES_U8);
+  assign text_block_is_partial_final_w = text_block_last_q && !text_block_is_full_w;
+  assign text_block_is_full_final_w = text_block_last_q && text_block_is_full_w;
+  assign ad_next_seen_w = ad_seen_q + {24'h000000, input_bytes_w};
+  assign text_next_seen_w = text_seen_q + {24'h000000, input_bytes_w};
 
-  ascon_axis_framer #(
-    .DATA_BYTES(DATA_BYTES),
-    .DATA_WIDTH(DATA_WIDTH)
-  ) framer_i (
-    .clk_i(clk_i),
-    .rstn_i(rstn_i),
-    .clear_i(framer_clear_w),
-    .start_i(framer_start_w),
-    .expected_len_i(framer_expected_len_w),
-    .expected_user_i(framer_expected_user_w),
-    .s_axis_tdata(s_axis_tdata),
-    .s_axis_tkeep(s_axis_tkeep),
-    .s_axis_tvalid(s_axis_tvalid && framer_active_w),
-    .s_axis_tready(framer_tready_w),
-    .s_axis_tlast(s_axis_tlast),
-    .s_axis_tuser(s_axis_tuser),
-    .block_data_o(framer_block_data_w),
-    .block_bytes_o(framer_block_bytes_w),
-    .block_last_o(framer_block_last_w),
-    .block_user_o(framer_block_user_w),
-    .block_valid_o(framer_block_valid_w),
-    .block_ready_i(framer_block_ready_w),
-    .done_o(framer_done_w),
-    .error_o(framer_error_w),
-    .error_code_o(framer_error_code_w),
-    .bytes_seen_o(framer_bytes_seen_w)
-  );
+  assign ad_protocol_error_w = (!input_keep_contiguous_w) ||
+                               (!input_keep_nonzero_w) ||
+                               (!input_kind_ad_w) ||
+                               ((!s_axis_tlast) && input_partial_w);
+  assign text_protocol_error_w = (!input_keep_contiguous_w) ||
+                                 (!input_keep_nonzero_w) ||
+                                 (!input_kind_text_w) ||
+                                 ((!s_axis_tlast) && input_partial_w);
+  assign ad_length_error_w = (ad_next_seen_w > ad_len_i) ||
+                             (s_axis_tlast && (ad_next_seen_w != ad_len_i)) ||
+                             ((!s_axis_tlast) && (ad_next_seen_w >= ad_len_i));
+  assign text_length_error_w = (text_next_seen_w > text_len_i) ||
+                               (s_axis_tlast && (text_next_seen_w != text_len_i)) ||
+                               ((!s_axis_tlast) && (text_next_seen_w >= text_len_i));
 
   ascon_round_comb round_i (
     .state_i(s_q),
@@ -186,6 +180,11 @@ module ascon_aead128_stream_encrypt #(
       text_empty_after_full_q <= 1'b0;
       text_p8_after_last_full_q <= 1'b0;
       text_output_final_partial_q <= 1'b0;
+      ad_seen_q <= 32'h00000000;
+      text_seen_q <= 32'h00000000;
+      text_block128_q <= 128'h00000000000000000000000000000000;
+      text_block_bytes_q <= 8'h00;
+      text_block_last_q <= 1'b0;
       m_axis_tdata <= {DATA_WIDTH{1'b0}};
       m_axis_tkeep <= {DATA_BYTES{1'b0}};
       m_axis_tvalid <= 1'b0;
@@ -208,6 +207,11 @@ module ascon_aead128_stream_encrypt #(
         text_empty_after_full_q <= 1'b0;
         text_p8_after_last_full_q <= 1'b0;
         text_output_final_partial_q <= 1'b0;
+        ad_seen_q <= 32'h00000000;
+        text_seen_q <= 32'h00000000;
+        text_block128_q <= 128'h00000000000000000000000000000000;
+        text_block_bytes_q <= 8'h00;
+        text_block_last_q <= 1'b0;
         m_axis_tdata <= {DATA_WIDTH{1'b0}};
         m_axis_tkeep <= {DATA_BYTES{1'b0}};
         m_axis_tvalid <= 1'b0;
@@ -233,6 +237,8 @@ module ascon_aead128_stream_encrypt #(
               error_code_o <= `ASCON_ERROR_NONE;
               m_axis_tvalid <= 1'b0;
               m_axis_tlast <= 1'b0;
+              ad_seen_q <= 32'h00000000;
+              text_seen_q <= 32'h00000000;
               if (mode_i != `ASCON_MODE_AEAD128 || decrypt_i) begin
                 state_q <= ST_ERROR;
                 error_code_o <= `ASCON_ERROR_UNSUPPORTED_MODE;
@@ -264,28 +270,32 @@ module ascon_aead128_stream_encrypt #(
 
           ST_AD_START: begin
             ad_empty_after_full_q <= 1'b0;
+            ad_seen_q <= 32'h00000000;
             state_q <= ST_AD_WAIT;
           end
 
           ST_AD_WAIT: begin
-            if (framer_error_w) begin
-              state_q <= ST_ERROR;
-              error_code_o <= framer_error_code_w;
-            end else if (consume_ad_block_w) begin
-              if (framer_block_last_w && (framer_block_bytes_w == DATA_BYTES_U8)) begin
-                s_q <= s_q ^ {192'b0, framer_block128_w};
-                ad_empty_after_full_q <= 1'b1;
-              end else if (framer_block_last_w) begin
-                s_q <= s_q ^ {192'b0, padded_block_w};
-                ad_empty_after_full_q <= 1'b0;
-              end else begin
-                s_q <= s_q ^ {192'b0, framer_block128_w};
-                ad_empty_after_full_q <= 1'b0;
-              end
-              rc_index_q <= 4'd8;
-              state_q <= ST_AD_P8;
-            end else if (framer_done_w && (ad_len_i == 32'd0)) begin
+            if (ad_len_i == 32'd0) begin
               state_q <= ST_DOMAIN;
+            end else if (input_fire_w) begin
+              if (ad_protocol_error_w || ad_length_error_w) begin
+                state_q <= ST_ERROR;
+                error_code_o <= `ASCON_ERROR_STREAM_PROTOCOL;
+              end else begin
+                ad_seen_q <= ad_next_seen_w;
+                if (s_axis_tlast && (input_bytes_w == DATA_BYTES_U8)) begin
+                  s_q <= s_q ^ {192'b0, input_block128_w};
+                  ad_empty_after_full_q <= 1'b1;
+                end else if (s_axis_tlast) begin
+                  s_q <= s_q ^ {192'b0, input_padded_block_w};
+                  ad_empty_after_full_q <= 1'b0;
+                end else begin
+                  s_q <= s_q ^ {192'b0, input_block128_w};
+                  ad_empty_after_full_q <= 1'b0;
+                end
+                rc_index_q <= 4'd8;
+                state_q <= ST_AD_P8;
+              end
             end
           end
 
@@ -294,7 +304,7 @@ module ascon_aead128_stream_encrypt #(
             if (rc_index_q == 4'd15) begin
               if (ad_empty_after_full_q) begin
                 state_q <= ST_AD_EMPTY;
-              end else if (framer_done_w) begin
+              end else if (ad_seen_q == ad_len_i) begin
                 state_q <= ST_DOMAIN;
               end else begin
                 state_q <= ST_AD_WAIT;
@@ -318,36 +328,50 @@ module ascon_aead128_stream_encrypt #(
 
           ST_TEXT_START: begin
             text_empty_after_full_q <= 1'b0;
+            text_seen_q <= 32'h00000000;
             text_p8_after_last_full_q <= 1'b0;
             text_output_final_partial_q <= 1'b0;
+            text_block128_q <= 128'h00000000000000000000000000000000;
+            text_block_bytes_q <= 8'h00;
+            text_block_last_q <= 1'b0;
             state_q <= ST_TEXT_WAIT;
           end
 
           ST_TEXT_WAIT: begin
-            if (framer_error_w) begin
-              state_q <= ST_ERROR;
-              error_code_o <= framer_error_code_w;
-            end else if (consume_text_block_w) begin
-              m_axis_tdata <= ciphertext_block_w;
-              m_axis_tkeep <= keep_mask(framer_block_bytes_w[4:0]);
-              m_axis_tvalid <= 1'b1;
-              m_axis_tlast <= framer_block_last_w;
-              m_axis_tuser <= `ASCON_AXIS_USER_TEXT;
-              if (text_block_is_partial_final_w) begin
-                s_q <= {s_q[319:128], rate_w ^ padded_block_w};
-                text_empty_after_full_q <= 1'b0;
-                text_p8_after_last_full_q <= 1'b0;
-                text_output_final_partial_q <= 1'b1;
-              end else begin
-                s_q <= {s_q[319:128], ciphertext_block_w};
-                text_empty_after_full_q <= text_block_is_full_final_w;
-                text_p8_after_last_full_q <= text_block_is_full_final_w;
-                text_output_final_partial_q <= 1'b0;
-              end
-              state_q <= ST_TEXT_OUT_WAIT;
-            end else if (framer_done_w && (text_len_i == 32'd0)) begin
+            if (text_len_i == 32'd0) begin
               state_q <= ST_TEXT_EMPTY;
+            end else if (input_fire_w) begin
+              if (text_protocol_error_w || text_length_error_w) begin
+                state_q <= ST_ERROR;
+                error_code_o <= `ASCON_ERROR_STREAM_PROTOCOL;
+              end else begin
+                text_seen_q <= text_next_seen_w;
+                text_block128_q <= input_block128_w;
+                text_block_bytes_q <= input_bytes_w;
+                text_block_last_q <= s_axis_tlast;
+                state_q <= ST_TEXT_EMIT;
+              end
             end
+          end
+
+          ST_TEXT_EMIT: begin
+            m_axis_tdata <= ciphertext_block_w;
+            m_axis_tkeep <= keep_mask(text_block_bytes_q[4:0]);
+            m_axis_tvalid <= 1'b1;
+            m_axis_tlast <= text_block_last_q;
+            m_axis_tuser <= `ASCON_AXIS_USER_TEXT;
+            if (text_block_is_partial_final_w) begin
+              s_q <= {s_q[319:128], rate_w ^ text_padded_block_w};
+              text_empty_after_full_q <= 1'b0;
+              text_p8_after_last_full_q <= 1'b0;
+              text_output_final_partial_q <= 1'b1;
+            end else begin
+              s_q <= {s_q[319:128], ciphertext_block_w};
+              text_empty_after_full_q <= text_block_is_full_final_w;
+              text_p8_after_last_full_q <= text_block_is_full_final_w;
+              text_output_final_partial_q <= 1'b0;
+            end
+            state_q <= ST_TEXT_OUT_WAIT;
           end
 
           ST_TEXT_OUT_WAIT: begin
@@ -449,6 +473,40 @@ module ascon_aead128_stream_encrypt #(
         4'd15: round_constant = 8'h4b;
         default: round_constant = 8'h00;
       endcase
+    end
+  endfunction
+
+  function [7:0] keep_count;
+    input [DATA_BYTES-1:0] keep;
+    integer i;
+    reg found_zero;
+    begin
+      keep_count = 8'h00;
+      found_zero = 1'b0;
+      for (i = 0; i < DATA_BYTES; i = i + 1) begin
+        if (!found_zero && keep[i]) begin
+          keep_count = keep_count + 8'h01;
+        end else begin
+          found_zero = 1'b1;
+        end
+      end
+    end
+  endfunction
+
+  function is_contiguous_keep;
+    input [DATA_BYTES-1:0] keep;
+    integer i;
+    reg found_zero;
+    begin
+      is_contiguous_keep = 1'b1;
+      found_zero = 1'b0;
+      for (i = 0; i < DATA_BYTES; i = i + 1) begin
+        if (!keep[i]) begin
+          found_zero = 1'b1;
+        end else if (found_zero) begin
+          is_contiguous_keep = 1'b0;
+        end
+      end
     end
   endfunction
 

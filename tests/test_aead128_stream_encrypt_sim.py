@@ -14,6 +14,7 @@ from tools.run_stream_encrypt_vector import (
     generate_testbench,
     int_literal_from_bytes_le,
     run_vector,
+    result_to_jsonable,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -117,7 +118,7 @@ def test_stream_encrypt_rtl_sim_matches_python_golden_for_partial_final_blocks()
         dry_run=False,
     )
 
-    assert result.matched is True
+    assert result.matched is True, json.dumps(result_to_jsonable(result), indent=2)
     assert result.rtl is not None
     assert result.rtl.error == 0
     assert result.rtl.error_code == 0
@@ -145,4 +146,4 @@ def test_stream_encrypt_rtl_sim_matches_python_golden_for_boundary_vectors(ad: b
         dry_run=False,
     )
 
-    assert result.matched is True
+    assert result.matched is True, json.dumps(result_to_jsonable(result), indent=2)

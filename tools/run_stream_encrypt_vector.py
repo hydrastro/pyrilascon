@@ -237,6 +237,9 @@ module tb_ascon_aead128_stream_encrypt;
 
   always @(posedge clk_i) begin
     cycle_count <= cycle_count + 1;
+    if (s_axis_tvalid && s_axis_tready) begin
+      $display("IN_BEAT cycle=%0d data=%032x keep=%04x last=%0d user=%0h", cycle_count, s_axis_tdata, s_axis_tkeep, s_axis_tlast, s_axis_tuser);
+    end
     if (m_axis_tvalid && m_axis_tready) begin
       $display("OUT_BEAT cycle=%0d data=%032x keep=%04x last=%0d user=%0h", cycle_count, m_axis_tdata, m_axis_tkeep, m_axis_tlast, m_axis_tuser);
     end

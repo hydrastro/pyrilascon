@@ -28,6 +28,7 @@ module ascon_axis_framer #(
   input  wire                    clear_i,
   input  wire                    start_i,
   input  wire [31:0]             expected_len_i,
+  input  wire                    strict_len_i,
   input  wire [3:0]              expected_user_i,
 
   input  wire [DATA_WIDTH-1:0]   s_axis_tdata,
@@ -73,9 +74,9 @@ module ascon_axis_framer #(
   assign kind_ok_w = (expected_user_i == `ASCON_AXIS_USER_NONE) || (s_axis_tuser == expected_user_i);
   assign partial_w = keep_count_w != DATA_BYTES;
   assign next_seen_w = bytes_seen_o + {24'h000000, keep_count_w};
-  assign overflow_w = next_seen_w > expected_len_i;
-  assign exact_end_without_last_w = (next_seen_w == expected_len_i) && (!s_axis_tlast);
-  assign short_final_w = s_axis_tlast && (next_seen_w != expected_len_i);
+  assign overflow_w = strict_len_i && (next_seen_w > expected_len_i);
+  assign exact_end_without_last_w = strict_len_i && (next_seen_w == expected_len_i) && (!s_axis_tlast);
+  assign short_final_w = strict_len_i && s_axis_tlast && (next_seen_w != expected_len_i);
 
   assign protocol_error_w = (!keep_contiguous_w) ||
                             (!keep_nonzero_w) ||
