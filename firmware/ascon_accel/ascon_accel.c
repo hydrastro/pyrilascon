@@ -6,6 +6,18 @@ static bool request_uses_mmio_data_plane(const ascon_accel_t *dev) {
   return dev->data_plane == ASCON_ACCEL_DATA_PLANE_MMIO_WORD;
 }
 
+static bool request_uses_axis_data_plane(const ascon_accel_t *dev) {
+  return dev->data_plane == ASCON_ACCEL_DATA_PLANE_AXI_STREAM_EXTERNAL;
+}
+
+static ascon_accel_status_t complete_operation_status(const ascon_accel_t *dev) {
+  ascon_accel_status_t status = ascon_accel_wait_done(dev);
+  if (status != ASCON_ACCEL_OK) {
+    return status;
+  }
+  return ascon_accel_status_from_error_code(ascon_accel_error_code(dev));
+}
+
 static ascon_accel_status_t send_payload(
     const ascon_accel_t *dev,
     const uint8_t *data,
@@ -47,17 +59,25 @@ ascon_accel_status_t ascon_accel_encrypt(
   ascon_accel_write_reg(dev, ASCON_REG_AD_LEN, (uint32_t)req->ad_len);
   ascon_accel_write_reg(dev, ASCON_REG_TEXT_LEN, (uint32_t)req->input_len);
 
+  if (request_uses_axis_data_plane(dev)) {
+    ascon_accel_write_reg(dev, ASCON_REG_CONTROL, ASCON_CONTROL_START);
+  }
+
   ascon_accel_status_t status = send_payload(dev, req->ad, req->ad_len, ASCON_ACCEL_STREAM_AD);
   if (status != ASCON_ACCEL_OK) {
+    ascon_accel_reset(dev);
     return status;
   }
   status = send_payload(dev, req->input, req->input_len, ASCON_ACCEL_STREAM_TEXT);
   if (status != ASCON_ACCEL_OK) {
+    ascon_accel_reset(dev);
     return status;
   }
 
-  ascon_accel_write_reg(dev, ASCON_REG_CONTROL, ASCON_CONTROL_START);
-  status = ascon_accel_wait_done(dev);
+  if (request_uses_mmio_data_plane(dev)) {
+    ascon_accel_write_reg(dev, ASCON_REG_CONTROL, ASCON_CONTROL_START);
+  }
+  status = complete_operation_status(dev);
   if (status != ASCON_ACCEL_OK) {
     return status;
   }
@@ -91,17 +111,25 @@ ascon_accel_status_t ascon_accel_decrypt(
   ascon_accel_write_reg(dev, ASCON_REG_TEXT_LEN, (uint32_t)req->input_len);
   ascon_accel_write_expected_tag_128(dev, req->tag);
 
+  if (request_uses_axis_data_plane(dev)) {
+    ascon_accel_write_reg(dev, ASCON_REG_CONTROL, ASCON_CONTROL_START | ASCON_CONTROL_DECRYPT);
+  }
+
   ascon_accel_status_t status = send_payload(dev, req->ad, req->ad_len, ASCON_ACCEL_STREAM_AD);
   if (status != ASCON_ACCEL_OK) {
+    ascon_accel_reset(dev);
     return status;
   }
   status = send_payload(dev, req->input, req->input_len, ASCON_ACCEL_STREAM_TEXT);
   if (status != ASCON_ACCEL_OK) {
+    ascon_accel_reset(dev);
     return status;
   }
 
-  ascon_accel_write_reg(dev, ASCON_REG_CONTROL, ASCON_CONTROL_START | ASCON_CONTROL_DECRYPT);
-  status = ascon_accel_wait_done(dev);
+  if (request_uses_mmio_data_plane(dev)) {
+    ascon_accel_write_reg(dev, ASCON_REG_CONTROL, ASCON_CONTROL_START | ASCON_CONTROL_DECRYPT);
+  }
+  status = complete_operation_status(dev);
   if (status != ASCON_ACCEL_OK) {
     return status;
   }
@@ -142,19 +170,27 @@ ascon_accel_status_t ascon_accel_hash_or_xof(
   ascon_accel_write_reg(dev, ASCON_REG_TEXT_LEN, (uint32_t)req->message_len);
   ascon_accel_write_reg(dev, ASCON_REG_OUT_LEN, (uint32_t)req->output_len);
   ascon_accel_write_reg(dev, ASCON_REG_CUSTOM_LEN, (uint32_t)req->customization_len);
+  if (request_uses_axis_data_plane(dev)) {
+    ascon_accel_write_reg(dev, ASCON_REG_CONTROL, control);
+  }
+
   if (mode == ASCON_ACCEL_MODE_CXOF128) {
     ascon_accel_status_t custom_status = send_payload(dev, req->customization, req->customization_len, ASCON_ACCEL_STREAM_CUSTOM);
     if (custom_status != ASCON_ACCEL_OK) {
+      ascon_accel_reset(dev);
       return custom_status;
     }
   }
   ascon_accel_status_t message_status = send_payload(dev, req->message, req->message_len, ASCON_ACCEL_STREAM_TEXT);
   if (message_status != ASCON_ACCEL_OK) {
+    ascon_accel_reset(dev);
     return message_status;
   }
 
-  ascon_accel_write_reg(dev, ASCON_REG_CONTROL, control);
-  ascon_accel_status_t status = ascon_accel_wait_done(dev);
+  if (request_uses_mmio_data_plane(dev)) {
+    ascon_accel_write_reg(dev, ASCON_REG_CONTROL, control);
+  }
+  ascon_accel_status_t status = complete_operation_status(dev);
   if (status != ASCON_ACCEL_OK) {
     return status;
   }

@@ -33,10 +33,17 @@ From the package root:
 python -m pytest -q
 ```
 
-Expected result for this step:
+Expected result for this step in an environment without `iverilog`/`vvp`:
 
 ```text
-220 passed, 11 skipped
+222 passed, 11 skipped
+```
+
+With Icarus Verilog installed, the optional RTL simulation tests run instead of
+skipping, so the expected total is:
+
+```text
+233 passed
 ```
 
 

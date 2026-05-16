@@ -53,3 +53,18 @@ the TAG registers.
 
 If authentication fails, the top reports `ASCON_ERROR_TAG_INVALID` and no
 plaintext is released on `m_axis`.
+
+## Firmware sequence
+
+For this top, software should use the external AXI Stream data plane. The driver
+sequence is:
+
+1. program mode, lengths, key, nonce, and expected tag for decrypt;
+2. write `CONTROL.START` with `CONTROL.DECRYPT` set as needed;
+3. send AD beats followed by text beats on `s_axis`;
+4. wait for DONE/ERROR;
+5. receive ciphertext/plaintext from `m_axis`;
+6. read generated tag for encryption or check tag-valid/error-code for decrypt.
+
+The older MMIO preload-before-start order is intentionally not used for this
+stream-native top, because `s_axis_tready` is owned by the active stream FSM.

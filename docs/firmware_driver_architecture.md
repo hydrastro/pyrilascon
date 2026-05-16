@@ -69,6 +69,30 @@ ascon_accel_set_data_plane(&dev, ASCON_ACCEL_DATA_PLANE_AXI_STREAM_EXTERNAL);
 
 The high-level crypto API does not change. Only the data mover changes.
 
+
+## Operation sequencing
+
+The control/data-plane ordering intentionally differs by backend:
+
+- MMIO word data plane: firmware writes all payload words into `DATA_IN` first,
+  then asserts `CONTROL.START`. This preserves compatibility with the older
+  register-buffered backend.
+- External AXI Stream data plane: firmware programs mode, lengths, key/nonce,
+  and expected tag, asserts `CONTROL.START`, then invokes the installed stream
+  `send()` callbacks. Stream-native RTL such as
+  `ascon_accel_stream_aead128_top` only raises `s_axis_tready` after start.
+
+Platform transports used with `ASCON_ACCEL_DATA_PLANE_AXI_STREAM_EXTERNAL` must
+therefore be able to move output concurrently with input or provide enough RX
+buffering for streaming encryption, because ciphertext can be produced while
+plaintext beats are still being sent. Buffered decrypt releases plaintext only
+after authentication succeeds.
+
+Hardware error codes are translated back into public firmware statuses. In
+particular, `ASCON_ERROR_TAG_INVALID` maps to
+`ASCON_ACCEL_ERR_TAG_INVALID`, so authenticated decrypt failures are not reported
+as generic hardware faults.
+
 ## Capability checks
 
 A hardware instance that supports the stream data plane must set:

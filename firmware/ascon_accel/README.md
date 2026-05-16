@@ -49,3 +49,14 @@ The mock records AD/text/customization streams separately and provides a preload
 `ascon_accel_benchmark.h` wraps the normal AEAD API and records accelerator cycle-counter values before and after the operation. The helper reports elapsed cycles and milli-cycles-per-byte so the same firmware can compare slow MMIO, AXI Stream, DMA, and future multi-context cores through one result structure.
 
 The benchmark helper measures accelerator-visible cycles. A NEORV32 demo should also measure the software reference using the CPU cycle counter, then report both values. The acceptance rule for hardware acceleration is simple: the accelerator configuration must beat the NEORV32 software implementation for every mode it claims through `ASCON_REG_CAPABILITIES`.
+
+## Stream-native SoC sequencing
+
+For `ASCON_ACCEL_DATA_PLANE_AXI_STREAM_EXTERNAL`, the driver asserts
+`CONTROL.START` before invoking the transport `send()` callbacks. This matches
+the stream-native SoC top, which accepts AD/text beats only after start. The
+default MMIO word data plane keeps the legacy order: payload is written to
+`DATA_IN` before `CONTROL.START`.
+
+Buffered decrypt tag failures are reported as `ASCON_ACCEL_ERR_TAG_INVALID` by
+translating `ASCON_ERROR_TAG_INVALID` from the hardware error-code register.

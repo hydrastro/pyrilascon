@@ -18,6 +18,7 @@ bool ascon_accel_is_valid_mode(ascon_accel_mode_t mode);
 bool ascon_accel_is_aead_mode(ascon_accel_mode_t mode);
 uint32_t ascon_accel_capability_bit_for_mode(ascon_accel_mode_t mode);
 ascon_accel_status_t ascon_accel_wait_done(const ascon_accel_t *dev);
+ascon_accel_status_t ascon_accel_status_from_error_code(uint32_t error_code);
 
 void ascon_accel_write_key_128(const ascon_accel_t *dev, const uint8_t *key);
 void ascon_accel_write_nonce_128(const ascon_accel_t *dev, const uint8_t *nonce);

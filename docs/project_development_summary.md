@@ -436,8 +436,8 @@ the older bounded AXI top-level wrapper yet.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **220 passed, 11 skipped**;
-- `make verify`: **220 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **222 passed, 11 skipped**;
+- `make verify`: **222 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 14. Behavioral simulation harness added
 
@@ -454,8 +454,8 @@ depend on external EDA packages.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **220 passed, 11 skipped**;
-- `make verify`: **220 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **222 passed, 11 skipped**;
+- `make verify`: **222 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 15. Buffered authenticated decrypt RTL policy added
 
@@ -473,8 +473,8 @@ unauthenticated plaintext is never exposed.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **220 passed, 11 skipped**;
-- `make verify`: **220 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **222 passed, 11 skipped**;
+- `make verify`: **222 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 16. Buffered decrypt behavioral simulation harness added
 
@@ -501,8 +501,8 @@ The Makefile now exposes both stream simulation entry points:
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **220 passed, 11 skipped**;
-- `make verify`: **220 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **222 passed, 11 skipped**;
+- `make verify`: **222 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 17. Unified streaming AEAD backend wrapper added
 
@@ -520,8 +520,8 @@ not the MMIO register integration wrapper.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **220 passed, 11 skipped**;
-- `make verify`: **220 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **222 passed, 11 skipped**;
+- `make verify`: **222 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 18. Firmware-facing streaming AEAD SoC top added
 
@@ -546,6 +546,36 @@ New NEORV32, DMA, and board-level stream integration should target
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **220 passed, 11 skipped**;
-- `make verify`: **220 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **222 passed, 11 skipped**;
+- `make verify`: **222 passed, 11 skipped**, then config/docs/RTL generation completes.
 
+
+## 19. Firmware sequencing for the stream-native SoC top added
+
+The latest slice wires the new stream-native hardware boundary into the portable
+C driver contract.  The important software distinction is now explicit:
+
+- MMIO word data plane keeps the compatibility sequence: write payload words
+  first, then assert `CONTROL.START`;
+- external AXI Stream data plane uses the stream-native sequence: program
+  registers, assert `CONTROL.START`, then send AD/text beats through the
+  installed transport callbacks.
+
+This matches `ascon_accel_stream_aead128_top`, whose `s_axis_tready` is owned by
+the active streaming FSM and is only meaningful after start. The driver also now
+translates hardware `ASCON_ERROR_TAG_INVALID` into the public
+`ASCON_ACCEL_ERR_TAG_INVALID` status, so buffered authenticated decrypt failures
+are reported as authentication failures rather than generic hardware faults.
+
+New coverage includes a host-compiled C integration test that uses a fake MMIO
+register window plus AXI transport callbacks. It verifies that stream operations
+start before the first payload callback and that invalid decrypt tags suppress
+RX/plaintext handling and return `ASCON_ACCEL_ERR_TAG_INVALID`.
+
+Current validation after this slice:
+
+- `python -m pytest -q`: **222 passed, 11 skipped** in this environment;
+- `make verify`: **222 passed, 11 skipped**, then config/docs/RTL generation completes.
+
+With `iverilog`/`vvp` installed, the 11 optional RTL simulation tests should run
+instead of skipping, for an expected total of **233 passed**.

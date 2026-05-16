@@ -26,15 +26,32 @@ void ascon_accel_store32_le(uint8_t *p, uint32_t x) {
   p[3] = (uint8_t)((x >> 24) & 0xffu);
 }
 
+ascon_accel_status_t ascon_accel_status_from_error_code(uint32_t error_code) {
+  switch (error_code) {
+    case ASCON_ERROR_NONE:
+      return ASCON_ACCEL_OK;
+    case ASCON_ERROR_TAG_INVALID:
+      return ASCON_ACCEL_ERR_TAG_INVALID;
+    case ASCON_ERROR_UNSUPPORTED_MODE:
+      return ASCON_ACCEL_ERR_UNSUPPORTED_MODE;
+    case ASCON_ERROR_BAD_LENGTH:
+    case ASCON_ERROR_STREAM_PROTOCOL:
+      return ASCON_ACCEL_ERR_TRANSPORT;
+    case ASCON_ERROR_FAULT_DETECTED:
+    default:
+      return ASCON_ACCEL_ERR_HARDWARE_ERROR;
+  }
+}
+
 ascon_accel_status_t ascon_accel_wait_done(const ascon_accel_t *dev) {
   uint32_t timeout = dev->timeout_cycles;
   while (timeout-- != 0u) {
     uint32_t status = ascon_accel_read_reg(dev, ASCON_REG_STATUS);
-    if ((status & ASCON_STATUS_ERROR) != 0u) {
-      return ASCON_ACCEL_ERR_HARDWARE_ERROR;
-    }
     if ((status & ASCON_STATUS_DONE) != 0u) {
       return ASCON_ACCEL_OK;
+    }
+    if ((status & ASCON_STATUS_ERROR) != 0u) {
+      return ascon_accel_status_from_error_code(ascon_accel_error_code(dev));
     }
   }
   return ASCON_ACCEL_ERR_TIMEOUT;
