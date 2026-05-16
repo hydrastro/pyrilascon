@@ -91,13 +91,15 @@ def _render_readme(handoff: dict[str, Any]) -> str:
             "- `scripts/02_build_firmware.sh`: build benchmark firmware when `NEORV32_HOME` is set",
             "- `scripts/03_integrate_cfs.sh`: print the CFS wrapper integration action",
             "- `scripts/04_program_sram.sh`: guarded SRAM programming helper",
+            "- `scripts/05_capture_uart.sh`: guarded UART capture helper",
             "",
             "## Typical next actions",
             "",
             "```sh",
             "make neorv32-stream-gowin-handoff",
+            "make neorv32-fetch        # optional: clones NEORV32 into external/neorv32",
             "sh build/neorv32_stream_axis_mmio/gowin_handoff/scripts/01_preflight.sh",
-            "NEORV32_HOME=/path/to/neorv32 sh build/neorv32_stream_axis_mmio/gowin_handoff/scripts/02_build_firmware.sh",
+            "sh build/neorv32_stream_axis_mmio/gowin_handoff/scripts/02_build_firmware.sh",
             "```",
             "",
             "After that, integrate `rtl/neorv32/neorv32_cfs_ascon_stream_axis_mmio.vhd` as",
@@ -135,11 +137,18 @@ def _firmware_script() -> str:
             "#!/bin/sh",
             "set -eu",
             "cd \"$(dirname \"$0\")/../../../..\"",
-            "if [ -z \"${NEORV32_HOME:-}\" ]; then",
-            "  echo 'Set NEORV32_HOME=/path/to/neorv32 before building firmware.' >&2",
+            "NEORV32_RESOLVED=\"$(PYTHONPATH=. python tools/ensure_neorv32_checkout.py --print-home 2>/dev/null || true)\"",
+            "if [ -z \"$NEORV32_RESOLVED\" ]; then",
+            "  echo 'error: no NEORV32 checkout found.' >&2",
+            "  echo '       Run `make neorv32-fetch` for a project-local checkout or set NEORV32_HOME to a real checkout.' >&2",
             "  exit 1",
             "fi",
-            "make -C firmware/neorv32_ascon_benchmark NEORV32_HOME=\"$NEORV32_HOME\" USE_CFS_AXIS_MMIO=1 clean_all exe",
+            "if ! command -v riscv-none-elf-gcc >/dev/null 2>&1; then",
+            "  echo 'error: riscv-none-elf-gcc not found.' >&2",
+            "  echo '       Enter the updated `nix develop` shell or install a compatible RISC-V bare-metal GCC toolchain.' >&2",
+            "  exit 1",
+            "fi",
+            "make -C firmware/neorv32_ascon_benchmark NEORV32_HOME=\"$NEORV32_RESOLVED\" USE_CFS_AXIS_MMIO=1 clean_all exe",
             "",
         ]
     )
@@ -186,6 +195,23 @@ def _program_script() -> str:
     )
 
 
+def _uart_capture_script() -> str:
+    return "\n".join(
+        [
+            "#!/bin/sh",
+            "set -eu",
+            "cd \"$(dirname \"$0\")/../../../..\"",
+            "LOG=\"${LOG:-uart.log}\"",
+            "if [ -n \"${SERIAL:-}\" ]; then",
+            "  PYTHONPATH=. python tools/capture_neorv32_uart.py --serial-device \"$SERIAL\" --baud \"${BAUD:-19200}\" --log \"$LOG\"",
+            "else",
+            "  PYTHONPATH=. python tools/capture_neorv32_uart.py --baud \"${BAUD:-19200}\" --log \"$LOG\"",
+            "fi",
+            "",
+        ]
+    )
+
+
 def _notes_md(handoff: dict[str, Any]) -> str:
     return "\n".join(
         [
@@ -197,7 +223,8 @@ def _notes_md(handoff: dict[str, Any]) -> str:
             "4. Compile the CFS VHDL wrapper listed in `sources/rtl_sources_vhdl.f` with NEORV32.",
             "5. Build the Tang Nano image using your NEORV32 board top and pin constraints.",
             "6. Program SRAM with `scripts/04_program_sram.sh <bitstream.fs>`.",
-            "7. Capture UART and parse it with `make neorv32-stream-uart-report LOG=<log>`.",
+            "7. Capture UART with `LOG=uart.log scripts/05_capture_uart.sh` (SERIAL is optional when auto-detection finds exactly one device).",
+            "8. Parse UART with `make neorv32-stream-uart-report LOG=<log>`.",
             "",
             "The generated handoff deliberately does not invent a board top or pinout for the",
             "full NEORV32 SoC. It records the ASCON CFS integration payload and the exact",
@@ -287,6 +314,7 @@ def prepare_handoff(
             "scripts/02_build_firmware.sh",
             "scripts/03_integrate_cfs.sh",
             "scripts/04_program_sram.sh",
+            "scripts/05_capture_uart.sh",
             "notes/manual_gowin_integration.md",
         ],
     }
@@ -309,6 +337,7 @@ def prepare_handoff(
         "02_build_firmware.sh": _firmware_script(),
         "03_integrate_cfs.sh": _cfs_script(),
         "04_program_sram.sh": _program_script(),
+        "05_capture_uart.sh": _uart_capture_script(),
     }
     for name, text in scripts.items():
         path = out_dir / "scripts" / name
@@ -346,7 +375,7 @@ def validate_handoff(out_dir: Path = DEFAULT_OUT) -> None:
     if "rtl/neorv32/neorv32_cfs_ascon_stream_axis_mmio.vhd" not in vhdl:
         raise GowinHandoffError("stream CFS wrapper missing from VHDL source list")
 
-    for script in ["01_preflight.sh", "02_build_firmware.sh", "03_integrate_cfs.sh", "04_program_sram.sh"]:
+    for script in ["01_preflight.sh", "02_build_firmware.sh", "03_integrate_cfs.sh", "04_program_sram.sh", "05_capture_uart.sh"]:
         path = out_dir / "scripts" / script
         if not os.access(path, os.X_OK):
             raise GowinHandoffError(f"script is not executable: {path}")

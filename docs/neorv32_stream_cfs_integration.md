@@ -52,7 +52,7 @@ window.
 For this wrapper, build the benchmark with:
 
 ```sh
-make NEORV32_HOME=/path/to/neorv32 USE_CFS_AXIS_MMIO=1 clean_all exe
+make neorv32-stream-build-firmware
 ```
 
 `USE_CFS_AXIS_MMIO=1` implies `USE_AXIS_MMIO=1` and defines:

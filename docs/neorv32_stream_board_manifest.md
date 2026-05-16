@@ -28,7 +28,7 @@ ASCON_ACCEL_AXIS_MMIO_BASE_ADDR = 0xFFEB0100u
 The matching firmware build mode is:
 
 ```sh
-make NEORV32_HOME=/path/to/neorv32 USE_CFS_AXIS_MMIO=1 clean_all exe
+make neorv32-stream-build-firmware
 ```
 
 The matching ASCON CFS file list is:

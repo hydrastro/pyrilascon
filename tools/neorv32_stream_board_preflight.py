@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import shutil
+import sys
 from pathlib import Path
 from typing import Any
 
+from ensure_neorv32_checkout import DEFAULT_VENDOR_DIR, locate_neorv32
 from print_neorv32_stream_board_manifest import DEFAULT_MANIFEST, load_manifest, render_text, validate_manifest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -37,21 +38,16 @@ def _tool_status(name: str) -> dict[str, Any]:
 
 
 def _neorv32_status(path: Path | None) -> dict[str, Any]:
-    if path is None:
-        return {
-            "provided": False,
-            "path": None,
-            "exists": False,
-            "common_mk": False,
-            "ready_for_firmware_build": False,
-        }
-    common_mk = path / "sw" / "common" / "common.mk"
+    located = locate_neorv32(explicit=path, vendor_dir=DEFAULT_VENDOR_DIR)
+    home = Path(located["home"]) if located["home"] else None
     return {
-        "provided": True,
-        "path": str(path),
-        "exists": path.exists(),
-        "common_mk": common_mk.exists(),
-        "ready_for_firmware_build": path.exists() and common_mk.exists(),
+        "provided": path is not None or any(item["source"] == "env:NEORV32_HOME" for item in located["candidates"]),
+        "path": str(home) if home else None,
+        "source": located["source"],
+        "project_local_default": str(DEFAULT_VENDOR_DIR),
+        "exists": home.exists() if home else False,
+        "common_mk": (home / "sw" / "common" / "common.mk").exists() if home else False,
+        "ready_for_firmware_build": bool(located["ready"]),
     }
 
 
@@ -119,7 +115,7 @@ def build_preflight_plan(manifest: dict[str, Any], neorv32_home: Path | None) ->
         ],
         "bringup_commands": [
             "make -C boards/tangnano9k/neorv32_stream_axis_mmio check",
-            "make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware NEORV32_HOME=/path/to/neorv32",
+            "make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware",
             "integrate rtl/neorv32/neorv32_cfs_ascon_stream_axis_mmio.vhd as neorv32_cfs",
             "synthesize/program the NEORV32 Tang Nano 9K SoC image",
             "capture UART benchmark output and compare software/hardware cycles",
@@ -184,12 +180,14 @@ def main() -> int:
     args = parser.parse_args()
 
     neorv32_home = args.neorv32_home
-    if neorv32_home is None and os.environ.get("NEORV32_HOME"):
-        neorv32_home = Path(os.environ["NEORV32_HOME"])
 
-    manifest = load_manifest(args.manifest)
-    plan = build_preflight_plan(manifest, neorv32_home)
-    validate_preflight_plan(plan, require_neorv32_home=args.require_neorv32_home)
+    try:
+        manifest = load_manifest(args.manifest)
+        plan = build_preflight_plan(manifest, neorv32_home)
+        validate_preflight_plan(plan, require_neorv32_home=args.require_neorv32_home)
+    except PreflightError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
 
     if args.out is not None:
         args.out.parent.mkdir(parents=True, exist_ok=True)

@@ -76,16 +76,10 @@ memory map, and a command sketch for pre-board validation.
 ## Firmware smoke build
 
 ```sh
-make NEORV32_HOME=/path/to/neorv32 firmware
+make firmware
 ```
 
-which delegates to:
-
-```sh
-make -C ../../../firmware/neorv32_ascon_benchmark \
-  NEORV32_HOME=/path/to/neorv32 \
-  USE_CFS_AXIS_MMIO=1 clean_all exe
-```
+which resolves a usable NEORV32 checkout with `tools/ensure_neorv32_checkout.py` and then delegates to the firmware Makefile.  The default checkout is project-local: `external/neorv32`.
 
 ## RTL inputs
 

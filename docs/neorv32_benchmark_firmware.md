@@ -76,7 +76,7 @@ platform-specific AXI Stream/DMA transport.
 From `firmware/neorv32_ascon_benchmark`:
 
 ```sh
-make NEORV32_HOME=/path/to/neorv32 clean_all exe
+make neorv32-stream-build-firmware
 ```
 
 The resulting NEORV32 executable should be loaded into the SoC image using the

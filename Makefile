@@ -3,11 +3,15 @@ PYTHON ?= python
 PYTEST ?= pytest
 PYTEST_FLAGS ?= -q
 ENGINE_COUNT ?= 4
+NEORV32_ARG = $(if $(filter command line,$(origin NEORV32_HOME)),--neorv32-home $(NEORV32_HOME),)
 PIPELINE_COUNT ?= 2
 CONTEXTS_PER_ENGINE ?= 12
 CONTEXTS_PER_PIPELINE ?= $(CONTEXTS_PER_ENGINE)
 BUILD_DIR ?= build
 ALGOS ?= requested
+LOG ?= uart.log
+BAUD ?= 19200
+NEORV32_DIR ?= external/neorv32
 
 ENV := PYTHONPATH=.
 PY := $(ENV) $(PYTHON)
@@ -15,7 +19,7 @@ PYTEST_CMD := $(ENV) $(PYTEST)
 
 .PHONY: help env check-layout test test-all test-kat test-spec test-arch \
         generate-verilog list-configs list-configs-csv list-configs-json docs-configs \
-        stream-encrypt-sim stream-decrypt-sim axis-mmio-bridge-sim stream-axis-mmio-system-sim firmware-stream-ref-bench neorv32-stream-uart-report neorv32-stream-board-manifest neorv32-stream-board-preflight neorv32-stream-board-package neorv32-stream-board-build-plan neorv32-stream-board-session neorv32-stream-gowin-handoff project-status-report project-checkpoint-bundle matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
+        stream-encrypt-sim stream-decrypt-sim axis-mmio-bridge-sim stream-axis-mmio-system-sim firmware-stream-ref-bench neorv32-fetch neorv32-home neorv32-stream-build-firmware neorv32-stream-uart-report neorv32-stream-uart-capture neorv32-stream-bringup-doctor neorv32-stream-board-manifest neorv32-stream-board-preflight neorv32-stream-board-package neorv32-stream-board-build-plan neorv32-stream-board-session neorv32-stream-gowin-handoff project-status-report project-checkpoint-bundle matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
         clean clean-cache clean-generated clean-build clean-nested repair verify all
 
 help:
@@ -34,6 +38,11 @@ help:
 	@echo "  make stream-axis-mmio-system-sim Run optional Icarus smoke sim for the full CSR+bridge+stream AEAD system"
 	@echo "  make firmware-stream-ref-bench Run host firmware benchmark through the AXI-stream reference emulator"
 	@echo "  make neorv32-stream-uart-report LOG=uart.log Parse a board UART benchmark log"
+	@echo "  make neorv32-stream-uart-capture SERIAL=/dev/ttyUSB0 LOG=uart.log Capture UART output with picocom"
+	@echo "  make neorv32-stream-bringup-doctor SERIAL=/dev/ttyUSB0 Check NEORV32_HOME, serial permissions, and handoff files"
+	@echo "  make neorv32-fetch                    Clone NEORV32 into external/neorv32 if missing"
+	@echo "  make neorv32-home                     Print resolved NEORV32 checkout path"
+	@echo "  make neorv32-stream-build-firmware    Build NEORV32 firmware using resolved project-local checkout"
 	@echo "  make neorv32-stream-board-manifest Print/check the Tang Nano 9K NEORV32 stream manifest"
 	@echo "  make neorv32-stream-board-preflight Generate/check the Tang Nano 9K NEORV32 stream board preflight plan"
 	@echo "  make neorv32-stream-board-package   Generate the Tang Nano 9K NEORV32 stream board build handoff package"
@@ -121,8 +130,26 @@ firmware-stream-ref-bench: check-layout
 
 neorv32-stream-uart-report: check-layout
 	@test -n "$(LOG)" || (echo "Set LOG=/path/to/neorv32_uart.log"; exit 1)
+	@test -s "$(LOG)" || (echo "UART log is missing or empty: $(LOG). Capture a real board log first."; exit 2)
 	$(PY) tools/parse_neorv32_ascon_uart_log.py "$(LOG)" --strict --markdown --out $(BUILD_DIR)/neorv32_stream_axis_mmio/uart_report.md
 	$(PY) tools/parse_neorv32_ascon_uart_log.py "$(LOG)" --strict --json --out $(BUILD_DIR)/neorv32_stream_axis_mmio/uart_report.json
+
+neorv32-fetch: check-layout
+	$(PY) tools/ensure_neorv32_checkout.py --vendor-dir $(NEORV32_DIR) --fetch --check
+
+neorv32-home: check-layout
+	$(PY) tools/ensure_neorv32_checkout.py $(NEORV32_ARG) --vendor-dir $(NEORV32_DIR) --print-home
+
+neorv32-stream-build-firmware: check-layout
+	@command -v riscv-none-elf-gcc >/dev/null 2>&1 || (echo "riscv-none-elf-gcc not found. Enter nix develop with the updated flake or install a compatible RISC-V bare-metal GCC toolchain."; exit 2)
+	NEORV32_RESOLVED="$$(PYTHONPATH=. $(PYTHON) tools/ensure_neorv32_checkout.py $(NEORV32_ARG) --vendor-dir $(NEORV32_DIR) --print-home)"; \
+	$(MAKE) -C firmware/neorv32_ascon_benchmark NEORV32_HOME="$$NEORV32_RESOLVED" USE_CFS_AXIS_MMIO=1 clean_all exe
+
+neorv32-stream-uart-capture: check-layout
+	$(PY) tools/capture_neorv32_uart.py $(if $(SERIAL),--serial-device $(SERIAL),) --baud $(BAUD) --log "$(LOG)"
+
+neorv32-stream-bringup-doctor: check-layout
+	$(PY) tools/neorv32_stream_bringup_doctor.py $(NEORV32_ARG) $(if $(SERIAL),--serial-device $(SERIAL),) --write-defaults
 
 neorv32-stream-board-manifest: check-layout
 	$(PY) tools/print_neorv32_stream_board_manifest.py --check

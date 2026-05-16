@@ -424,3 +424,27 @@ build/neorv32_stream_axis_mmio/session/session.md
 
 The target is safe by default and never programs hardware. Use the underlying
 CLI with `--program --no-dry-run` only when a real board and bitstream are ready.
+
+### Tang Nano / NEORV32 bring-up diagnostics
+
+Before building firmware or opening UART, run:
+
+```sh
+make neorv32-stream-gowin-handoff
+make neorv32-fetch        # optional but portable: clones NEORV32 into external/neorv32
+make neorv32-stream-bringup-doctor
+```
+
+The flow is intentionally not tied to a specific workstation. `NEORV32_HOME` may
+be passed explicitly, exported in the shell, or resolved from the project-local
+`external/neorv32` checkout created by `make neorv32-fetch`. UART capture can use
+`SERIAL=/dev/ttyUSB0`, but if `SERIAL` is omitted the helper auto-detects one
+usable `/dev/serial/by-id/*`, `/dev/ttyUSB*`, `/dev/ttyACM*`, or macOS
+`/dev/cu.usb*` device.
+
+```sh
+make neorv32-home
+make neorv32-stream-uart-capture LOG=uart.log
+make neorv32-stream-uart-report LOG=uart.log
+```
+

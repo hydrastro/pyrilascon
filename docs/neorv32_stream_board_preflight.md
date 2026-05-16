@@ -43,10 +43,8 @@ The normal preflight does not require a local NEORV32 checkout. It records wheth
 check fail unless the firmware build can run, use:
 
 ```sh
-python tools/neorv32_stream_board_preflight.py \
-  --neorv32-home /path/to/neorv32 \
-  --require-neorv32-home \
-  --check
+make neorv32-fetch
+python tools/neorv32_stream_board_preflight.py --require-neorv32-home --check
 ```
 
 ## What the generated plan records

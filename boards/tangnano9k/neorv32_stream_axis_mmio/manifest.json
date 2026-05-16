@@ -47,7 +47,7 @@
   "firmware": {
     "directory": "firmware/neorv32_ascon_benchmark",
     "make_mode": "USE_CFS_AXIS_MMIO=1",
-    "command": "make NEORV32_HOME=/path/to/neorv32 USE_CFS_AXIS_MMIO=1 clean_all exe",
+    "command": "make USE_CFS_AXIS_MMIO=1 neorv32-stream-build-firmware",
     "defines": {
       "ASCON_BENCH_USE_AXIS_MMIO": "1",
       "ASCON_ACCEL_BASE_ADDR": "0xFFEB0000u",

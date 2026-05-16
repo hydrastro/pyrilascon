@@ -56,10 +56,8 @@ make neorv32-stream-board-build-plan
 After that, build the NEORV32 benchmark firmware with:
 
 ```sh
-make -C firmware/neorv32_ascon_benchmark \
-  NEORV32_HOME=/path/to/neorv32 \
-  USE_CFS_AXIS_MMIO=1 \
-  clean_all exe
+make neorv32-fetch
+make neorv32-stream-build-firmware
 ```
 
 Then integrate `rtl/neorv32/neorv32_cfs_ascon_stream_axis_mmio.vhd` as the

@@ -110,11 +110,8 @@ def _command_script(plan: dict[str, Any]) -> str:
             "python -m pytest -q tests/test_stream_axis_mmio_system_sim.py",
             "make stream-axis-mmio-system-sim",
             "",
-            "if [ -n \"${NEORV32_HOME:-}\" ]; then",
-            "  make -C " + firmware["directory"] + " NEORV32_HOME=\"$NEORV32_HOME\" USE_CFS_AXIS_MMIO=1 clean_all exe",
-            "else",
-            "  echo 'Set NEORV32_HOME=/path/to/neorv32 to build firmware.'",
-            "fi",
+            "NEORV32_RESOLVED=\"$(PYTHONPATH=. python tools/ensure_neorv32_checkout.py --print-home)\"",
+            "make -C " + firmware["directory"] + " NEORV32_HOME=\"$NEORV32_RESOLVED\" USE_CFS_AXIS_MMIO=1 clean_all exe",
             "",
         ]
     )

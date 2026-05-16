@@ -69,7 +69,7 @@ make neorv32-stream-board-package
 make neorv32-stream-board-build-plan
 make neorv32-stream-gowin-handoff
 sh build/neorv32_stream_axis_mmio/gowin_handoff/scripts/01_preflight.sh
-NEORV32_HOME=/path/to/neorv32 sh build/neorv32_stream_axis_mmio/gowin_handoff/scripts/02_build_firmware.sh
+sh build/neorv32_stream_axis_mmio/gowin_handoff/scripts/02_build_firmware.sh
 ```
 
 After the FPGA image is built and programmed, capture UART and parse it with:

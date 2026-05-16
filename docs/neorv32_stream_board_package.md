@@ -62,7 +62,7 @@ The generated firmware files freeze the single-CFS-window stream map:
 The benchmark build mode remains:
 
 ```sh
-make NEORV32_HOME=/path/to/neorv32 USE_CFS_AXIS_MMIO=1 clean_all exe
+make neorv32-stream-build-firmware
 ```
 
 ## Validation

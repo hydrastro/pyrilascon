@@ -30,7 +30,7 @@ APP_CFLAGS += -DASCON_ACCEL_AXIS_MMIO_BASE_ADDR=$(AXIS_MMIO_BASE_ADDR)
 endif
 
 ifeq ($(NEORV32_HOME),)
-$(error Set NEORV32_HOME=/path/to/neorv32 before invoking this Makefile)
+$(error Set NEORV32_HOME to a resolved NEORV32 checkout; from repo root use `make neorv32-stream-build-firmware`)
 endif
 
 include $(NEORV32_HOME)/sw/common/common.mk

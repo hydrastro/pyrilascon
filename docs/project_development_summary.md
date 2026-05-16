@@ -666,7 +666,7 @@ the CPU really exercised the stream path.
 Build command for the stream path:
 
 ```sh
-make NEORV32_HOME=/path/to/neorv32 USE_AXIS_MMIO=1 clean_all exe
+make neorv32-stream-build-firmware
 ```
 
 Current validation after this slice:
@@ -936,3 +936,21 @@ evidence files referenced by the milestone report. This is intended for the
 development-process report and for preserving a clean handoff before the next
 hard gate: real Tang Nano/NEORV32 build execution plus strict UART benchmark
 proof.
+
+
+## Latest board bring-up UX update
+
+Added a Tang Nano / NEORV32 stream bring-up doctor that checks `NEORV32_HOME`, generated handoff files, UART tool availability, serial-device permissions, and provides guided next actions before real board execution. The flake dev shell now includes `picocom`, and the generated Gowin handoff includes a guarded UART capture helper.
+
+
+## Latest portability update: machine-independent board bring-up
+
+The board bring-up flow no longer assumes a specific workstation layout such as
+`$HOME`-specific NEORV32 paths or a hardcoded `/dev/ttyUSB0` UART path. New helper tools
+resolve NEORV32 from an explicit `NEORV32_HOME`, the environment, or the
+project-local `external/neorv32` checkout created by `make neorv32-fetch`. UART
+capture now uses a Python wrapper that can auto-detect a unique usable serial
+device across common Linux and macOS USB-serial naming schemes, while still
+allowing `SERIAL=...` when several devices are connected. This makes the Tang
+Nano / NEORV32 handoff reproducible across machines instead of being specific to
+one developer PC.
