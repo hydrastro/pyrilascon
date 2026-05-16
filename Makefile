@@ -15,7 +15,7 @@ PYTEST_CMD := $(ENV) $(PYTEST)
 
 .PHONY: help env check-layout test test-all test-kat test-spec test-arch \
         generate-verilog list-configs list-configs-csv list-configs-json docs-configs \
-        stream-encrypt-sim stream-decrypt-sim axis-mmio-bridge-sim stream-axis-mmio-system-sim firmware-stream-ref-bench neorv32-stream-uart-report neorv32-stream-board-manifest neorv32-stream-board-preflight neorv32-stream-board-package neorv32-stream-board-build-plan neorv32-stream-board-session matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
+        stream-encrypt-sim stream-decrypt-sim axis-mmio-bridge-sim stream-axis-mmio-system-sim firmware-stream-ref-bench neorv32-stream-uart-report neorv32-stream-board-manifest neorv32-stream-board-preflight neorv32-stream-board-package neorv32-stream-board-build-plan neorv32-stream-board-session neorv32-stream-gowin-handoff matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
         clean clean-cache clean-generated clean-build clean-nested repair verify all
 
 help:
@@ -39,6 +39,7 @@ help:
 	@echo "  make neorv32-stream-board-package   Generate the Tang Nano 9K NEORV32 stream board build handoff package"
 	@echo "  make neorv32-stream-board-build-plan Dry-run/check the board build handoff package"
 	@echo "  make neorv32-stream-board-session    Generate a board programming/UART session report"
+	@echo "  make neorv32-stream-gowin-handoff    Generate the Tang Nano 9K Gowin/NEORV32 handoff"
 	@echo "  make design-asic           Generate default ASIC design product"
 	@echo "  make design-fpga           Generate default FPGA N-engine product"
 	@echo "  make matrix                Generate selected ASIC/FPGA design matrix"
@@ -142,6 +143,10 @@ neorv32-stream-board-session: check-layout
 	$(PY) tools/run_neorv32_stream_board_session.py --ensure-package --write-defaults $(if $(BITSTREAM),--bitstream $(BITSTREAM),) $(if $(LOG),--uart-log $(LOG) --strict-uart,) --check
 	$(PY) tools/run_neorv32_stream_board_session.py --json --out $(BUILD_DIR)/neorv32_stream_axis_mmio/session/session.json $(if $(BITSTREAM),--bitstream $(BITSTREAM),) $(if $(LOG),--uart-log $(LOG) --strict-uart,)
 	$(PY) tools/run_neorv32_stream_board_session.py --markdown --out $(BUILD_DIR)/neorv32_stream_axis_mmio/session/session.md $(if $(BITSTREAM),--bitstream $(BITSTREAM),) $(if $(LOG),--uart-log $(LOG) --strict-uart,)
+
+neorv32-stream-gowin-handoff: check-layout
+	$(PY) tools/prepare_neorv32_stream_gowin_handoff.py --ensure-package --out $(BUILD_DIR)/neorv32_stream_axis_mmio/gowin_handoff --clean
+	$(PY) tools/prepare_neorv32_stream_gowin_handoff.py --check --out $(BUILD_DIR)/neorv32_stream_axis_mmio/gowin_handoff
 
 design-asic: check-layout
 	$(PY) tools/generate_design.py --preset asic_dual_enc_dec_cores --out $(BUILD_DIR)

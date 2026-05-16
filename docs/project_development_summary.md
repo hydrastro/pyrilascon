@@ -905,3 +905,17 @@ Validation performed for this stage:
 - `make docs-configs`: completed
 - `make generate-verilog`: completed
 - `python -m pytest --collect-only -q`: 320 tests collected
+
+## Tang Nano 9K Gowin/NEORV32 handoff scaffold
+
+Added a Gowin/NEORV32 handoff generator for the stream-native ASCON target:
+
+- `tools/prepare_neorv32_stream_gowin_handoff.py`
+- `docs/neorv32_stream_gowin_handoff.md`
+- `tests/test_neorv32_stream_gowin_handoff.py`
+
+The generated directory records the memory map, firmware build flags, Verilog
+source list, VHDL CFS wrapper list, guarded programming helper, and manual
+integration notes.  This stage intentionally does not synthesize the full board
+project because the real NEORV32/Tang Nano build is mixed-language and requires
+a VHDL-capable SoC integration flow.

@@ -120,3 +120,16 @@ make build-plan
 ```
 
 This writes `build/neorv32_stream_axis_mmio/build_plan.json` and `.md` from the repository root.
+
+
+## Gowin / NEORV32 handoff
+
+Generate the board handoff directory with:
+
+```sh
+make gowin-handoff
+```
+
+This writes `build/neorv32_stream_axis_mmio/gowin_handoff` from the repository
+root.  The handoff contains separated Verilog/VHDL source lists, firmware defines,
+and guarded helper scripts for the first real Tang Nano integration attempt.

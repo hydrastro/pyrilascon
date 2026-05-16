@@ -372,7 +372,8 @@ pre-board command script for the NEORV32 stream CFS target.
 
 ## NEORV32 stream board session
 
-Use `make neorv32-stream-board-session` to generate `build/neorv32_stream_axis_mmio/session/session.json` and `session.md`. The report ties the board package, memory map, optional bitstream, optional UART log, and benchmark parser output into one archived bring-up session.
+Use `make neorv32-stream-board-session
+make neorv32-stream-gowin-handoff` to generate `build/neorv32_stream_axis_mmio/session/session.json` and `session.md`. The report ties the board package, memory map, optional bitstream, optional UART log, and benchmark parser output into one archived bring-up session.
 
 ## NEORV32 stream board session report
 
@@ -382,8 +383,11 @@ archivable report:
 
 ```sh
 make neorv32-stream-board-session
-make neorv32-stream-board-session LOG=/path/to/uart.log
-make neorv32-stream-board-session BITSTREAM=build/tangnano9k/ascon.fs
+make neorv32-stream-gowin-handoff
+make neorv32-stream-board-session
+make neorv32-stream-gowin-handoff LOG=/path/to/uart.log
+make neorv32-stream-board-session
+make neorv32-stream-gowin-handoff BITSTREAM=build/tangnano9k/ascon.fs
 ```
 
 Outputs:
