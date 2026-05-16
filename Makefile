@@ -15,7 +15,7 @@ PYTEST_CMD := $(ENV) $(PYTEST)
 
 .PHONY: help env check-layout test test-all test-kat test-spec test-arch \
         generate-verilog list-configs list-configs-csv list-configs-json docs-configs \
-        stream-encrypt-sim stream-decrypt-sim axis-mmio-bridge-sim stream-axis-mmio-system-sim firmware-stream-ref-bench neorv32-stream-board-manifest neorv32-stream-board-preflight neorv32-stream-board-package matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
+        stream-encrypt-sim stream-decrypt-sim axis-mmio-bridge-sim stream-axis-mmio-system-sim firmware-stream-ref-bench neorv32-stream-uart-report neorv32-stream-board-manifest neorv32-stream-board-preflight neorv32-stream-board-package matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
         clean clean-cache clean-generated clean-build clean-nested repair verify all
 
 help:
@@ -33,6 +33,7 @@ help:
 	@echo "  make axis-mmio-bridge-sim Run optional Icarus sim for the CPU-driven AXI-stream MMIO bridge"
 	@echo "  make stream-axis-mmio-system-sim Run optional Icarus smoke sim for the full CSR+bridge+stream AEAD system"
 	@echo "  make firmware-stream-ref-bench Run host firmware benchmark through the AXI-stream reference emulator"
+	@echo "  make neorv32-stream-uart-report LOG=uart.log Parse a board UART benchmark log"
 	@echo "  make neorv32-stream-board-manifest Print/check the Tang Nano 9K NEORV32 stream manifest"
 	@echo "  make neorv32-stream-board-preflight Generate/check the Tang Nano 9K NEORV32 stream board preflight plan"
 	@echo "  make neorv32-stream-board-package   Generate the Tang Nano 9K NEORV32 stream board build handoff package"
@@ -112,6 +113,11 @@ stream-axis-mmio-system-sim: check-layout
 
 firmware-stream-ref-bench: check-layout
 	$(PY) tools/run_firmware_stream_ref_benchmark.py --json
+
+neorv32-stream-uart-report: check-layout
+	@test -n "$(LOG)" || (echo "Set LOG=/path/to/neorv32_uart.log"; exit 1)
+	$(PY) tools/parse_neorv32_ascon_uart_log.py "$(LOG)" --strict --markdown --out $(BUILD_DIR)/neorv32_stream_axis_mmio/uart_report.md
+	$(PY) tools/parse_neorv32_ascon_uart_log.py "$(LOG)" --strict --json --out $(BUILD_DIR)/neorv32_stream_axis_mmio/uart_report.json
 
 neorv32-stream-board-manifest: check-layout
 	$(PY) tools/print_neorv32_stream_board_manifest.py --check

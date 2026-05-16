@@ -3,7 +3,7 @@ REPO_ROOT := ../../..
 MANIFEST := manifest.json
 NEORV32_HOME ?=
 
-.PHONY: help manifest check preflight package firmware rtl-list memory-map
+.PHONY: help manifest check preflight package firmware uart-report rtl-list memory-map
 
 help:
 	@echo "Tang Nano 9K NEORV32 stream ASCON scaffold"
@@ -13,6 +13,7 @@ help:
 	@echo "  make preflight             Generate/check the board preflight plan"
 	@echo "  make package               Generate the board build handoff package"
 	@echo "  make firmware NEORV32_HOME=/path/to/neorv32"
+	@echo "  make uart-report LOG=/path/to/uart.log"
 	@echo "  make rtl-list              Print the ASCON CFS file list"
 	@echo "  make memory-map            Print firmware base addresses"
 
@@ -33,6 +34,11 @@ package:
 firmware:
 	@test -n "$(NEORV32_HOME)" || (echo "Set NEORV32_HOME=/path/to/neorv32"; exit 1)
 	$(MAKE) -C $(REPO_ROOT)/firmware/neorv32_ascon_benchmark NEORV32_HOME=$(NEORV32_HOME) USE_CFS_AXIS_MMIO=1 clean_all exe
+
+uart-report:
+	@test -n "$(LOG)" || (echo "Set LOG=/path/to/neorv32_uart.log"; exit 1)
+	cd $(REPO_ROOT) && PYTHONPATH=. python tools/parse_neorv32_ascon_uart_log.py "$(LOG)" --strict --markdown --out build/neorv32_stream_axis_mmio/uart_report.md
+	cd $(REPO_ROOT) && PYTHONPATH=. python tools/parse_neorv32_ascon_uart_log.py "$(LOG)" --strict --json --out build/neorv32_stream_axis_mmio/uart_report.json
 
 rtl-list:
 	@cat $(REPO_ROOT)/rtl/neorv32/ascon_cfs_stream_axis_mmio_file_list.f

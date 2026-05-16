@@ -66,6 +66,7 @@ or from this directory with:
 
 ```sh
 make package
+make uart-report LOG=/path/to/uart.log
 ```
 
 The package is written to `build/neorv32_stream_axis_mmio/package` and contains

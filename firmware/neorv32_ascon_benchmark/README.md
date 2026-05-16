@@ -37,7 +37,9 @@ make NEORV32_HOME=/path/to/neorv32 USE_AXIS_MMIO=1 clean_all exe
 This compiles `ascon_accel_axis_mmio_transport.c`, sets
 `ASCON_BENCH_USE_AXIS_MMIO=1`, programs the frozen accelerator CSR block at
 `ASCON_ACCEL_BASE_ADDR`, and sends/receives 128-bit AXI-stream beats through the
-separate bridge window at `ASCON_ACCEL_AXIS_MMIO_BASE_ADDR`. The UART log prints
+separate bridge window at `ASCON_ACCEL_AXIS_MMIO_BASE_ADDR`. The UART log can be parsed with `make neorv32-stream-uart-report LOG=uart.log` after capture.
+
+The UART log prints
 `DATA PLANE : AXI_STREAM_MMIO` plus TX/RX beat counters so board bring-up can
 confirm that the firmware actually exercised the stream path.
 

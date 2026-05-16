@@ -833,3 +833,25 @@ validated manifest, preflight plan, memory map, split Verilog/VHDL RTL source
 lists, firmware make/C address definitions, and a `commands.sh` pre-board
 validation sketch. This is the last software-side scaffold before integrating
 the CFS replacement into an upstream NEORV32 Tang Nano 9K project.
+
+
+## NEORV32 UART benchmark report parser
+
+The board-facing benchmark flow now includes a UART log parser:
+
+```sh
+make neorv32-stream-uart-report LOG=uart.log
+```
+
+The parser consumes the output printed by `firmware/neorv32_ascon_benchmark`,
+extracts the selected data plane, ABI/capability values, software and hardware
+ciphertext/tag values, encrypt/decrypt cycle counts, AXI-MMIO beat counters,
+speedups, warnings, and final PASS/FAIL status, then emits both JSON and
+Markdown reports under `build/neorv32_stream_axis_mmio/`.  Strict mode rejects
+logs with missing PASS, encryption/tag mismatches, nonzero driver status,
+nonzero AXI transport status, or hardware cycle counts that do not beat the
+software reference when the relevant fields are present.
+
+This gives the physical board bring-up phase a reproducible artifact format for
+lab notes and final project reporting instead of relying on manual UART-log
+inspection.
