@@ -605,14 +605,14 @@ module ascon_aead128_stream_decrypt_buffered #(
   endfunction
 
   function [DATA_WIDTH-1:0] plain_output_block;
-    input [MAX_TEXT_BITS-1:0] buf;
+    input [MAX_TEXT_BITS-1:0] plain_buf;
     input [31:0] byte_offset;
     integer k;
     begin
       plain_output_block = {DATA_WIDTH{1'b0}};
       for (k = 0; k < DATA_BYTES; k = k + 1) begin
         if ((byte_offset + k) < MAX_TEXT_BYTES) begin
-          plain_output_block[k * 8 +: 8] = buf[(byte_offset + k) * 8 +: 8];
+          plain_output_block[k * 8 +: 8] = plain_buf[(byte_offset + k) * 8 +: 8];
         end
       end
     end

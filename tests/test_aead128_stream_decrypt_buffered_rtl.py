@@ -83,3 +83,10 @@ def test_stream_decrypt_backend_doc_records_quarantine_policy() -> None:
     assert "MAX_TEXT_BYTES" in text
     assert "m_axis_tvalid remains low" in text
     assert "ASCON_ERROR_TAG_INVALID" in text
+
+
+def test_stream_decrypt_backend_avoids_verilog_reserved_formal_names() -> None:
+    text = DECRYPT_BACKEND.read_text(encoding="utf-8")
+    assert "input [MAX_TEXT_BITS-1:0] buf;" not in text
+    assert "input [MAX_TEXT_BITS-1:0] plain_buf;" in text
+    assert "plain_buf[(byte_offset + k) * 8 +: 8]" in text
