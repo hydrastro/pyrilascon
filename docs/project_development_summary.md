@@ -436,8 +436,8 @@ the older bounded AXI top-level wrapper yet.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **213 passed, 11 skipped**;
-- `make verify`: **213 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **220 passed, 11 skipped**;
+- `make verify`: **220 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 14. Behavioral simulation harness added
 
@@ -454,8 +454,8 @@ depend on external EDA packages.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **213 passed, 11 skipped**;
-- `make verify`: **213 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **220 passed, 11 skipped**;
+- `make verify`: **220 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 15. Buffered authenticated decrypt RTL policy added
 
@@ -473,8 +473,8 @@ unauthenticated plaintext is never exposed.
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **213 passed, 11 skipped**;
-- `make verify`: **213 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **220 passed, 11 skipped**;
+- `make verify`: **220 passed, 11 skipped**, then config/docs/RTL generation completes.
 
 ## 16. Buffered decrypt behavioral simulation harness added
 
@@ -501,6 +501,51 @@ The Makefile now exposes both stream simulation entry points:
 
 Current validation after this slice:
 
-- `python -m pytest -q`: **213 passed, 11 skipped**;
-- `make verify`: **213 passed, 11 skipped**, then config/docs/RTL generation completes.
+- `python -m pytest -q`: **220 passed, 11 skipped**;
+- `make verify`: **220 passed, 11 skipped**, then config/docs/RTL generation completes.
+
+## 17. Unified streaming AEAD backend wrapper added
+
+The unified stream backend slice adds `rtl/stream/ascon_aead128_stream.v` and
+`rtl/stream/ascon_stream_file_list.f`.  This wrapper gives downstream firmware,
+SoC, DMA, and board integration one backend module to target while preserving the
+policy split internally:
+
+- `decrypt_i = 0` dispatches to `ascon_aead128_stream_encrypt`;
+- `decrypt_i = 1` dispatches to `ascon_aead128_stream_decrypt_buffered`;
+- output/status/tag/error signals are multiplexed from the selected operation.
+
+This is still below the full system top: it is the algorithm/data-plane backend,
+not the MMIO register integration wrapper.
+
+Current validation after this slice:
+
+- `python -m pytest -q`: **220 passed, 11 skipped**;
+- `make verify`: **220 passed, 11 skipped**, then config/docs/RTL generation completes.
+
+## 18. Firmware-facing streaming AEAD SoC top added
+
+The newest slice adds `rtl/common/ascon_accel_stream_aead128_top.v`,
+`rtl/common/ascon_stream_aead128_top_file_list.f`,
+`docs/streaming_aead_soc_top.md`, and structural tests around the new boundary.
+
+This top-level module is the integration point for firmware and future SoC/DMA
+work:
+
+- `ascon_accel_mmio_regs` keeps the frozen software-visible ABI;
+- `ascon_aead128_stream` provides the 128-bit AXI Stream data plane;
+- `CONTROL.DECRYPT` selects encryption or buffered authenticated decryption;
+- capabilities advertise AEAD128, buffered decrypt, constant-time tag compare,
+  streaming byte masks, cycle counter, and AXI Stream data support;
+- legacy MMIO DATA registers remain ABI/debug-visible, but bulk data transfer for
+  this top is explicitly AXI Stream-only.
+
+The older bounded `ascon_accel_axis_aead128_top` is retained for compatibility.
+New NEORV32, DMA, and board-level stream integration should target
+`ascon_accel_stream_aead128_top`.
+
+Current validation after this slice:
+
+- `python -m pytest -q`: **220 passed, 11 skipped**;
+- `make verify`: **220 passed, 11 skipped**, then config/docs/RTL generation completes.
 

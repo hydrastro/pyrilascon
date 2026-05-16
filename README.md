@@ -23,6 +23,7 @@ Implemented so far:
 - AXI-stream AEAD128 transaction oracle for unbounded AD/plaintext/ciphertext framing
 - stream-native AEAD128 encryption RTL plus buffered authenticated decrypt RTL policy
 - optional Icarus simulation harnesses for streaming encryption and buffered decrypt backends
+- unified stream backend wrapper and firmware-facing 128-bit AXI Stream SoC top
 
 ## Run tests
 
@@ -35,7 +36,7 @@ python -m pytest -q
 Expected result for this step:
 
 ```text
-213 passed, 11 skipped
+220 passed, 11 skipped
 ```
 
 
