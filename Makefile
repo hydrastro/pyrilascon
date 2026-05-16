@@ -15,7 +15,7 @@ PYTEST_CMD := $(ENV) $(PYTEST)
 
 .PHONY: help env check-layout test test-all test-kat test-spec test-arch \
         generate-verilog list-configs list-configs-csv list-configs-json docs-configs \
-        stream-encrypt-sim stream-decrypt-sim axis-mmio-bridge-sim stream-axis-mmio-system-sim firmware-stream-ref-bench neorv32-stream-uart-report neorv32-stream-board-manifest neorv32-stream-board-preflight neorv32-stream-board-package neorv32-stream-board-build-plan neorv32-stream-board-session neorv32-stream-gowin-handoff matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
+        stream-encrypt-sim stream-decrypt-sim axis-mmio-bridge-sim stream-axis-mmio-system-sim firmware-stream-ref-bench neorv32-stream-uart-report neorv32-stream-board-manifest neorv32-stream-board-preflight neorv32-stream-board-package neorv32-stream-board-build-plan neorv32-stream-board-session neorv32-stream-gowin-handoff project-status-report matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
         clean clean-cache clean-generated clean-build clean-nested repair verify all
 
 help:
@@ -40,6 +40,7 @@ help:
 	@echo "  make neorv32-stream-board-build-plan Dry-run/check the board build handoff package"
 	@echo "  make neorv32-stream-board-session    Generate a board programming/UART session report"
 	@echo "  make neorv32-stream-gowin-handoff    Generate the Tang Nano 9K Gowin/NEORV32 handoff"
+	@echo "  make project-status-report            Generate current implementation/verification status report"
 	@echo "  make design-asic           Generate default ASIC design product"
 	@echo "  make design-fpga           Generate default FPGA N-engine product"
 	@echo "  make matrix                Generate selected ASIC/FPGA design matrix"
@@ -147,6 +148,10 @@ neorv32-stream-board-session: check-layout
 neorv32-stream-gowin-handoff: check-layout
 	$(PY) tools/prepare_neorv32_stream_gowin_handoff.py --ensure-package --out $(BUILD_DIR)/neorv32_stream_axis_mmio/gowin_handoff --clean
 	$(PY) tools/prepare_neorv32_stream_gowin_handoff.py --check --out $(BUILD_DIR)/neorv32_stream_axis_mmio/gowin_handoff
+
+project-status-report: check-layout
+	$(PY) tools/generate_project_status_report.py --check
+	$(PY) tools/generate_project_status_report.py --write-defaults
 
 design-asic: check-layout
 	$(PY) tools/generate_design.py --preset asic_dual_enc_dec_cores --out $(BUILD_DIR)

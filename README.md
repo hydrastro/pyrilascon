@@ -34,6 +34,7 @@ Implemented so far:
 - Tang Nano 9K NEORV32 stream board manifest freezes the RTL file list, firmware mode, and memory map
 - NEORV32 UART benchmark log parser generates JSON/Markdown board-run reports
 - NEORV32 stream board dry-run build plan validates the generated package before synthesis
+- project status report generator records implemented milestones and remaining board/performance gates
 
 ## Run tests
 
@@ -47,6 +48,18 @@ The full collection for this stage is over 300 tests. Simulator-dependent tests
 are skipped automatically when `iverilog`/`vvp` are unavailable and run as normal
 pytest tests when Icarus Verilog is installed.
 
+
+
+## Project status report
+
+Generate a current implementation/verification snapshot with:
+
+```bash
+make project-status-report
+```
+
+This writes `build/project_status/project_status.json` and `build/project_status/project_status.md`.
+The report is the handoff document for the current stage: stream-native AEAD128 is implemented through firmware, RTL simulation, NEORV32 CFS integration, and Tang Nano/Gowin handoff tooling; the next hard gate remains a real board build and strict UART benchmark report.
 
 
 ## Configurable architecture generation
