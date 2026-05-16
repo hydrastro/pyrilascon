@@ -33,9 +33,9 @@ SoC-facing wiring is correct:
 
 ## Scope
 
-The integrated simulation now covers vectors that fit inside the bridge RX FIFO.
-The default FIFO depth is four 128-bit output beats, which is enough to verify
-multi-beat CPU-driven bring-up without adding DMA.
+The integrated simulation now covers a matrix of vectors that fit inside the bridge RX FIFO, including empty payloads, short partial final blocks, two-beat text, multi-beat AD plus multi-beat text, and a vector that fills the default four-beat RX FIFO exactly. The testbench logs `STATUS.RX_LEVEL` with each received beat, so simulator runs verify that queued output never exceeds the bridge capacity while firmware-style reads drain the FIFO.
+
+The default FIFO depth is four 128-bit output beats, which is enough to verify multi-beat CPU-driven bring-up without adding DMA.
 
 The stream backend itself remains the unbounded path. The FIFO depth only limits
 how much output the small CPU bridge can absorb while firmware is still sending

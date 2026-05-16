@@ -100,3 +100,39 @@ rtl/common/ascon_accel_stream_aead128_axis_mmio_system.v
 
 It exposes two simple MMIO windows: the frozen ASCON CSR window and the AXI
 stream bridge window consumed by `ascon_accel_axis_mmio_transport.c`.
+
+## Single-CFS-window stream wrapper build
+
+For the stream-native NEORV32 CFS wrapper in:
+
+```text
+rtl/neorv32/neorv32_cfs_ascon_stream_axis_mmio.vhd
+```
+
+build the benchmark with:
+
+```sh
+make NEORV32_HOME=/path/to/neorv32 USE_CFS_AXIS_MMIO=1 clean_all exe
+```
+
+This maps the frozen CSR window to `0xffeb0000` and the CPU-driven AXI-stream
+bridge window to `0xffeb0100`.  It is the preferred firmware build for the
+single-CFS-window board bring-up target.
+
+
+## Tang Nano 9K stream CFS manifest
+
+The board-facing stream-native CFS build contract is recorded in:
+
+```text
+boards/tangnano9k/neorv32_stream_axis_mmio/manifest.json
+```
+
+For the single-CFS-window wrapper use:
+
+```sh
+make NEORV32_HOME=/path/to/neorv32 USE_CFS_AXIS_MMIO=1 clean_all exe
+```
+
+This preserves `ASCON_ACCEL_BASE_ADDR=0xFFEB0000u` and selects
+`ASCON_ACCEL_AXIS_MMIO_BASE_ADDR=0xFFEB0100u`.

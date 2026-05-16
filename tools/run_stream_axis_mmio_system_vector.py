@@ -88,6 +88,8 @@ AXIS_STATUS_TX_READY = 0x00000001
 AXIS_STATUS_RX_VALID = 0x00000002
 AXIS_STATUS_RX_LAST = 0x00000004
 AXIS_STATUS_ERROR = 0x80000000
+AXIS_STATUS_RX_LEVEL_SHIFT = 8
+AXIS_STATUS_RX_LEVEL_MASK = 0x0000FF00
 AXIS_RX_CTRL_POP = 0x00000001
 
 
@@ -120,6 +122,7 @@ class RtlSystemResult:
     status_hex: str
     error_code: int
     cycles: int
+    rx_levels: list[int]
     stdout: str
 
 
@@ -438,7 +441,7 @@ module tb_ascon_stream_axis_mmio_system;
       rx_keep = keep_word[15:0];
       rx_user = user_word[3:0];
       rx_last = (status_word & 32'h{AXIS_STATUS_RX_LAST:08x}) != 32'h00000000;
-      $display("OUT_BEAT cycle=%0d data=%032x keep=%04x last=%0d user=%0h", cycle_count, rx_data, rx_keep, rx_last, rx_user);
+      $display("OUT_BEAT cycle=%0d data=%032x keep=%04x last=%0d user=%0h level=%0d", cycle_count, rx_data, rx_keep, rx_last, rx_user, status_word[15:8]);
       axis_write(8'h{AXIS_RX_CTRL:02x}, 32'h{AXIS_RX_CTRL_POP:08x});
     end
   endtask
@@ -480,6 +483,7 @@ endmodule
 
 def parse_rtl_stdout(stdout: str) -> RtlSystemResult:
     ciphertext = bytearray()
+    rx_levels: list[int] = []
     done: dict[str, str] | None = None
     for line in stdout.splitlines():
         line = line.strip()
@@ -487,6 +491,8 @@ def parse_rtl_stdout(stdout: str) -> RtlSystemResult:
             fields = dict(part.split("=", 1) for part in line.split()[1:])
             data = int(fields["data"], 16).to_bytes(DATA_BYTES, "little")
             keep = int(fields["keep"], 16)
+            if "level" in fields:
+                rx_levels.append(int(fields["level"], 0))
             for index in range(DATA_BYTES):
                 if (keep >> index) & 1:
                     ciphertext.append(data[index])
@@ -505,6 +511,7 @@ def parse_rtl_stdout(stdout: str) -> RtlSystemResult:
         status_hex=done["status"],
         error_code=int(done["error_code"]),
         cycles=int(done["cycle"]),
+        rx_levels=rx_levels,
         stdout=stdout,
     )
 

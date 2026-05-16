@@ -28,7 +28,10 @@ Implemented so far:
 - host-side firmware stream benchmark tool for pre-board NEORV32/SoC smoke testing
 - CPU-driven AXI-stream MMIO transport for NEORV32/bring-up bridge integration
 - FIFO-backed RTL MMIO-to-AXI-stream bridge and integrated stream AEAD128 system wrapper
+- multi-beat integrated AXI-MMIO system simulation coverage up to the default RX FIFO depth
 - NEORV32 benchmark firmware can select the stream-native MMIO bridge path with `USE_AXIS_MMIO=1`
+- stream-native NEORV32 CFS wrapper maps CSR and AXI-MMIO bridge windows into one CFS region
+- Tang Nano 9K NEORV32 stream board manifest freezes the RTL file list, firmware mode, and memory map
 
 ## Run tests
 
@@ -41,14 +44,14 @@ python -m pytest -q
 Expected result for this step in an environment without `iverilog`/`vvp`:
 
 ```text
-248 passed, 19 skipped
+263 passed, 23 skipped
 ```
 
 With Icarus Verilog installed, the optional RTL simulation tests run instead of
 skipping, so the expected total is:
 
 ```text
-267 passed
+286 passed
 ```
 
 
@@ -348,3 +351,15 @@ This drives the complete CSR + AXI-MMIO bridge + stream AEAD128 system wrapper t
 
 
 This verifies the MMIO register contract, TX AXI-stream commit/handshake behavior, RX holding register, and `RX_CTRL.POP` path before NEORV32 board bring-up.
+
+
+## Tang Nano 9K NEORV32 stream preflight
+
+The board-facing stream target includes manifest and preflight checks:
+
+```sh
+make neorv32-stream-board-manifest
+make neorv32-stream-board-preflight
+```
+
+The preflight writes `build/neorv32_stream_axis_mmio/preflight.json` and records the CSR/AXI-MMIO memory map, firmware build mode, RTL source list, host tool availability, and optional `NEORV32_HOME` readiness.

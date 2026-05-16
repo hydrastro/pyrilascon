@@ -127,6 +127,26 @@ CYCLE_COUNTER
 Other firmware-visible modes remain part of the ABI, but this backend returns
 unsupported-mode behavior for them until additional hardware cores are added.
 
+
+## Stream-native CFS alternative
+
+The stream-native board-facing wrapper is documented separately in:
+
+```text
+docs/neorv32_stream_cfs_integration.md
+```
+
+It uses:
+
+```text
+rtl/neorv32/neorv32_cfs_ascon_stream_axis_mmio.vhd
+rtl/neorv32/ascon_cfs_stream_axis_mmio_file_list.f
+```
+
+and maps the CPU-driven AXI-stream bridge at CFS offset `0x100`.  Firmware for
+that wrapper should be built with `USE_CFS_AXIS_MMIO=1`, which sets
+`ASCON_ACCEL_AXIS_MMIO_BASE_ADDR=0xFFEB0100u`.
+
 ## Current limitation
 
 This is the first CFS integration step. It provides the VHDL CFS replacement and

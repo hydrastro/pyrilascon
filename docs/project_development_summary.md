@@ -741,3 +741,79 @@ messages without requiring DMA.
 
 Validation in this environment: `python -m pytest -q` reports **248 passed, 19 skipped**. On a machine with `iverilog/vvp`, the optional simulator tests run for an expected total of **267 passed**.
 
+### Added: multi-beat integrated stream AXI-MMIO system simulation
+
+The integrated `ascon_accel_stream_aead128_axis_mmio_system` simulation now covers a broader FIFO-fit vector matrix instead of only the original smoke cases. The behavioral tests include empty payloads, short partial-final-block payloads, two-beat text, one-beat AD plus two-beat text, multi-beat AD plus multi-beat text, and a message that fills the default four-beat RX FIFO exactly.
+
+The generated testbench now prints the bridge `STATUS.RX_LEVEL` alongside each `OUT_BEAT`, and the Python parser records those levels. On machines with `iverilog/vvp`, pytest checks that every expected ciphertext beat is drained and that the observed RX level never exceeds `SYSTEM_RX_FIFO_DEPTH`.
+
+Validation in this environment: `python -m pytest -q` reports **250 passed, 23 skipped**. On a machine with `iverilog/vvp`, the optional simulator tests run for an expected total of **273 passed**.
+
+### Added: stream-native NEORV32 CFS wrapper
+
+This slice adds the board-facing CFS replacement for the stream-native AEAD128
+path: `rtl/neorv32/neorv32_cfs_ascon_stream_axis_mmio.vhd`.  It instantiates
+`ascon_accel_stream_aead128_axis_mmio_system` and splits one NEORV32 CFS address
+region into two local windows:
+
+```text
+CFS base + 0x000..0x0ff -> frozen ASCON CSR/MMIO ABI
+CFS base + 0x100..0x1ff -> CPU-driven AXI-stream MMIO bridge
+```
+
+The matching file list is `rtl/neorv32/ascon_cfs_stream_axis_mmio_file_list.f`.
+The NEORV32 benchmark Makefile now supports `USE_CFS_AXIS_MMIO=1`, which selects
+the stream transport and defines `ASCON_ACCEL_AXIS_MMIO_BASE_ADDR=0xFFEB0100u`
+for the single-CFS-window wrapper.  Documentation was added in
+`docs/neorv32_stream_cfs_integration.md`.
+
+Validation in this environment: the new CFS integration tests pass, and the test
+collection is now **256 passed, 23 skipped** without `iverilog/vvp`.  On a
+machine where every optional simulator test runs instead of skipping, the full
+collection is expected to total **279 tests**.
+
+
+### Added: Tang Nano 9K NEORV32 stream board manifest
+
+This slice adds the first board-facing handoff contract for the stream-native
+NEORV32/Tang Nano 9K path:
+
+```text
+boards/tangnano9k/neorv32_stream_axis_mmio/manifest.json
+```
+
+The manifest binds together:
+
+- `rtl/neorv32/ascon_cfs_stream_axis_mmio_file_list.f`;
+- `rtl/neorv32/neorv32_cfs_ascon_stream_axis_mmio.vhd`;
+- firmware build mode `USE_CFS_AXIS_MMIO=1`;
+- `ASCON_ACCEL_BASE_ADDR=0xFFEB0000u`;
+- `ASCON_ACCEL_AXIS_MMIO_BASE_ADDR=0xFFEB0100u`;
+- the intended Tang Nano 9K bring-up sequence.
+
+A new inspection tool, `tools/print_neorv32_stream_board_manifest.py`, validates
+that the manifest references existing RTL/firmware paths and that the memory map
+is internally consistent. The root Makefile target
+`make neorv32-stream-board-manifest` prints and checks the manifest, while
+`boards/tangnano9k/neorv32_stream_axis_mmio/Makefile` provides convenience
+targets for manifest inspection and the NEORV32 firmware build.
+
+Validation in this environment was run in two pytest groups because the full
+combined command exceeded the sandbox execution window:
+
+- `python -m pytest -q -k 'not sim'`: **244 passed, 1 skipped, 41 deselected**;
+- `python -m pytest -q -k sim`: **19 passed, 22 skipped, 245 deselected**;
+- combined coverage: **263 passed, 23 skipped** without `iverilog/vvp`;
+- with optional simulator tests available, the full collection is expected to
+  reach **286 passing tests**.
+
+Generation and manifest targets completed:
+
+- `make docs-configs`;
+- `make generate-verilog`;
+- `make neorv32-stream-board-manifest`.
+
+
+## NEORV32 stream board preflight
+
+The Tang Nano 9K stream-native NEORV32 scaffold now includes a preflight tool and Makefile target. It validates the manifest, source paths, firmware mode, memory map, and Makefile target availability, then emits `build/neorv32_stream_axis_mmio/preflight.json` as the first board bring-up plan.

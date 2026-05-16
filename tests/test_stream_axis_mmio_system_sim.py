@@ -5,6 +5,8 @@ from pathlib import Path
 import pytest
 
 from tools.run_stream_axis_mmio_system_vector import (
+    AXIS_STATUS_RX_LEVEL_MASK,
+    AXIS_STATUS_RX_LEVEL_SHIFT,
     AXIS_STATUS_RX_VALID,
     AXIS_STATUS_TX_READY,
     CSR_CONTROL_START,
@@ -50,6 +52,24 @@ def test_stream_axis_mmio_system_accepts_multibeat_vectors_within_rx_fifo_depth(
     assert len(vector.ciphertext_beats) == 3
 
 
+def test_stream_axis_mmio_system_accepts_exact_rx_fifo_depth_vector() -> None:
+    vector = build_golden_vector(
+        key=bytes(range(16)),
+        nonce=bytes(range(16, 32)),
+        associated_data=bytes(range(DATA_BYTES * 2)),
+        plaintext=bytes(range(DATA_BYTES * SYSTEM_RX_FIFO_DEPTH)),
+    )
+
+    assert len(vector.ad_beats) == 2
+    assert len(vector.plaintext_beats) == SYSTEM_RX_FIFO_DEPTH
+    assert len(vector.ciphertext_beats) == SYSTEM_RX_FIFO_DEPTH
+
+
+def test_stream_axis_mmio_status_constants_expose_rx_fifo_level() -> None:
+    assert AXIS_STATUS_RX_LEVEL_SHIFT == 8
+    assert AXIS_STATUS_RX_LEVEL_MASK == 0x0000FF00
+
+
 def test_stream_axis_mmio_system_rejects_vectors_beyond_rx_fifo_depth() -> None:
     with pytest.raises(ValueError, match="RX FIFO depth"):
         build_golden_vector(
@@ -77,6 +97,7 @@ def test_generated_stream_axis_mmio_system_testbench_drives_two_mmio_windows() -
     assert f"wait_axis_bits(32'h{AXIS_STATUS_RX_VALID:08x});" in tb
     assert tb.count("axis_recv_beat();") == len(vector.ciphertext_beats)
     assert "OUT_BEAT" in tb
+    assert "level=%0d" in tb
     assert "DONE" in tb
 
 
@@ -106,16 +127,23 @@ def test_stream_axis_mmio_system_rtl_sim_matches_python_for_empty_message() -> N
         dry_run=False,
     )
     assert result.matched is True, json.dumps(result_to_jsonable(result), indent=2)
+    if result.rtl is not None and result.golden.ciphertext_beats:
+        assert len(result.rtl.rx_levels) == len(result.golden.ciphertext_beats)
+        assert max(result.rtl.rx_levels) <= SYSTEM_RX_FIFO_DEPTH
 
 
 @pytest.mark.skipif(shutil.which("iverilog") is None or shutil.which("vvp") is None, reason="iverilog/vvp not installed")
 @pytest.mark.parametrize(
     ("ad", "plaintext"),
     [
-        (b"", b"hello"),
-        (b"metadata", b""),
-        (bytes.fromhex("aabbccddeeff"), bytes.fromhex("0001020304050607")),
-        (b"metadata", bytes(range(DATA_BYTES * 2 + 3))),
+        pytest.param(b"", b"hello", id="empty-ad-short-pt"),
+        pytest.param(b"metadata", b"", id="short-ad-empty-pt"),
+        pytest.param(bytes.fromhex("aabbccddeeff"), bytes.fromhex("0001020304050607"), id="partial-ad-short-pt"),
+        pytest.param(b"", bytes(range(DATA_BYTES * 2)), id="empty-ad-two-text-beats"),
+        pytest.param(bytes(range(DATA_BYTES)), bytes(range(DATA_BYTES * 2)), id="one-ad-beat-two-text-beats"),
+        pytest.param(bytes.fromhex("aabbccddeeff"), bytes(range(DATA_BYTES + 3)), id="partial-ad-partial-final-text"),
+        pytest.param(bytes(range(DATA_BYTES * 2)), bytes(range(DATA_BYTES * 3)), id="multi-ad-multi-text"),
+        pytest.param(b"metadata", bytes(range(DATA_BYTES * SYSTEM_RX_FIFO_DEPTH)), id="fills-rx-fifo"),
     ],
 )
 def test_stream_axis_mmio_system_rtl_sim_matches_python_for_fifo_fit_vectors(ad: bytes, plaintext: bytes) -> None:
@@ -128,3 +156,6 @@ def test_stream_axis_mmio_system_rtl_sim_matches_python_for_fifo_fit_vectors(ad:
         dry_run=False,
     )
     assert result.matched is True, json.dumps(result_to_jsonable(result), indent=2)
+    if result.rtl is not None and result.golden.ciphertext_beats:
+        assert len(result.rtl.rx_levels) == len(result.golden.ciphertext_beats)
+        assert max(result.rtl.rx_levels) <= SYSTEM_RX_FIFO_DEPTH
