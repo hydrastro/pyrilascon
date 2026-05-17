@@ -158,12 +158,12 @@ module ascon_aead128_mmio_backend #(
   endfunction
 
   function [127:0] block_from_buf;
-    input [255:0] buf;
+    input [255:0] data_buf;
     input [1:0]   idx;
     begin
       case (idx)
-        2'd0: block_from_buf = buf[127:0];
-        2'd1: block_from_buf = buf[255:128];
+        2'd0: block_from_buf = data_buf[127:0];
+        2'd1: block_from_buf = data_buf[255:128];
         default: block_from_buf = 128'h00000000000000000000000000000000;
       endcase
     end
@@ -195,18 +195,18 @@ module ascon_aead128_mmio_backend #(
   endfunction
 
   function [31:0] output_word;
-    input [255:0] buf;
+    input [255:0] data_buf;
     input [3:0] idx;
     begin
       case (idx)
-        4'd0: output_word = buf[31:0];
-        4'd1: output_word = buf[63:32];
-        4'd2: output_word = buf[95:64];
-        4'd3: output_word = buf[127:96];
-        4'd4: output_word = buf[159:128];
-        4'd5: output_word = buf[191:160];
-        4'd6: output_word = buf[223:192];
-        4'd7: output_word = buf[255:224];
+        4'd0: output_word = data_buf[31:0];
+        4'd1: output_word = data_buf[63:32];
+        4'd2: output_word = data_buf[95:64];
+        4'd3: output_word = data_buf[127:96];
+        4'd4: output_word = data_buf[159:128];
+        4'd5: output_word = data_buf[191:160];
+        4'd6: output_word = data_buf[223:192];
+        4'd7: output_word = data_buf[255:224];
         default: output_word = 32'h00000000;
       endcase
     end
