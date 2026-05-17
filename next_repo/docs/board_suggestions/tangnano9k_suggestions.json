@@ -1,0 +1,66 @@
+{
+  "assumptions": [
+    "Use the board as a proof vehicle, not as the architecture limit.",
+    "Try the most aggressive candidate first, then fall back only if timing or fit fails.",
+    "Keep the AXI Stream/CSR architecture stable even if the internal backend is smaller."
+  ],
+  "board_class": "tangnano9k",
+  "candidates": [
+    {
+      "context_profile": "single_320_register",
+      "contexts_per_engine": 1,
+      "control_profile": "axi_stream_microcoded_hybrid",
+      "data_plane": "axi_stream_128",
+      "datapath_profile": "128_bit",
+      "engine_count": 1,
+      "name": "tn9k_axis128_8rpc_single_context",
+      "notes": [
+        "Use if timing and LUT utilization pass.",
+        "Good stress test for the small device."
+      ],
+      "padding_profile": "streaming_final_bytemask",
+      "permutation_profile": "eight_rounds_per_cycle",
+      "priority": 1,
+      "security_profile": "none",
+      "summary": "Aggressive Tang Nano 9K candidate: 128-bit AXIS, p8 in 1 cycle, p12 in 2 cycles.",
+      "top_level_profile": "single_core"
+    },
+    {
+      "context_profile": "single_320_register",
+      "contexts_per_engine": 1,
+      "control_profile": "axi_stream_microcoded_hybrid",
+      "data_plane": "axi_stream_128",
+      "datapath_profile": "128_bit",
+      "engine_count": 1,
+      "name": "tn9k_axis128_4rpc_single_context",
+      "notes": [
+        "Recommended fallback if 8RPC fails timing or fit."
+      ],
+      "padding_profile": "streaming_final_bytemask",
+      "permutation_profile": "four_rounds_per_cycle",
+      "priority": 2,
+      "security_profile": "none",
+      "summary": "Safer high-throughput candidate: 128-bit AXIS and 4 rounds per cycle.",
+      "top_level_profile": "single_core"
+    },
+    {
+      "context_profile": "single_320_register",
+      "contexts_per_engine": 1,
+      "control_profile": "axi_stream_microcoded_hybrid",
+      "data_plane": "axi_stream_128",
+      "datapath_profile": "128_bit",
+      "engine_count": 1,
+      "name": "tn9k_axis128_1rpc_known_good",
+      "notes": [
+        "Use for debugging firmware/AXIS integration, not as the final FPGA architecture."
+      ],
+      "padding_profile": "streaming_final_bytemask",
+      "permutation_profile": "one_round_per_cycle",
+      "priority": 3,
+      "security_profile": "none",
+      "summary": "Known-good fallback preserving the same interface with one round per cycle.",
+      "top_level_profile": "single_core"
+    }
+  ],
+  "goal": "maximum_throughput_that_fits"
+}

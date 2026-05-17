@@ -1,0 +1,117 @@
+# Tang Nano 9K board targets
+
+Use these targets from inside the repository root after installing the open-source Gowin flow (`yosys`, `nextpnr-gowin`, `gowin_pack`, `openFPGALoader`).
+
+## Full AEAD128 KAT smoke test
+
+```sh
+cd boards/tangnano9k/ascon_aead128_kat_slow
+make
+make prog-sram
+```
+
+This is the first required target for this project because it exercises the full Ascon-AEAD128 flow in hardware, not just the permutation.
+
+## p12 pipeline experiment
+
+```sh
+cd boards/tangnano9k/ascon_p12_pipeline
+make
+make prog-sram
+```
+
+This is only a high-throughput permutation experiment. It is useful later, but it is not a full AEAD accelerator.
+
+## Full AEAD128 encrypt+decrypt slow KAT
+
+```sh
+cd boards/tangnano9k/ascon_aead128_full_slow
+make
+make prog-sram
+```
+
+This target runs both a fixed encryption KAT and a fixed decryption KAT. It is the
+current standalone full-AEAD smoke test before NEORV32 integration.
+
+## ascon_aead128_mmio_slow
+
+This target exercises the frozen 32-bit accelerator MMIO register map on the FPGA.
+It is the bridge target before NEORV32 integration: an on-chip test controller
+writes the same registers that firmware will write, then verifies encryption and
+decryption KAT outputs.
+
+```bash
+cd boards/tangnano9k/ascon_aead128_mmio_slow
+make clean
+make tools
+make
+make prog-sram
+```
+
+Expected pass indication: LED1, LED2, LED4, and LED5 on; LED3 off; LED0 blinking.
+
+
+## ascon_aead128_axis_slow
+
+Validates the FPGA-facing split interface: CSR/MMIO control plus AXI Stream payload data.  This is the first board-level AXI Stream smoke test and should pass before replacing the backend with a higher-throughput implementation.
+
+```sh
+cd boards/tangnano9k/ascon_aead128_axis_slow
+make clean
+make tools
+make
+make prog-sram
+```
+
+Expected LEDs: LED0 blinking, LED1/LED2/LED4/LED5 on, LED3 off.
+
+
+## ASCON AEAD128 128-bit AXI Stream 4RPC candidate
+
+```bash
+cd boards/tangnano9k/ascon_aead128_axis128_4rpc
+make clean
+make tools
+make
+make prog-sram
+```
+
+This target is the first high-throughput FPGA candidate after the AXI Stream
+smoke test. It uses a 128-bit AXI Stream-style payload interface and a
+four-rounds-per-cycle permutation backend while preserving the frozen CSR/MMIO
+control ABI.
+
+## ASCON AEAD128 128-bit AXI Stream 8RPC candidate
+
+```bash
+cd boards/tangnano9k/ascon_aead128_axis128_8rpc
+make clean
+make tools
+make
+make prog-sram
+```
+
+This target is the next throughput candidate after 4RPC. It keeps the same
+128-bit AXI Stream-style payload interface and frozen CSR/MMIO control ABI, but
+uses an eight-rounds-per-cycle permutation slice. Expected pass indication:
+LED0 blinking, LED1/LED2/LED4/LED5 on, LED3 off.
+
+## NEORV32 stream-native CFS scaffold
+
+```bash
+cd boards/tangnano9k/neorv32_stream_axis_mmio
+make check
+make memory-map
+make NEORV32_HOME=/path/to/neorv32 firmware
+```
+
+This target is the board-facing manifest for the stream-native AEAD128 path. It
+uses the NEORV32 CFS wrapper at `rtl/neorv32/neorv32_cfs_ascon_stream_axis_mmio.vhd`,
+maps the frozen ASCON CSR window at `0xFFEB0000`, and maps the CPU-driven
+AXI-stream MMIO bridge at `0xFFEB0100`.
+
+
+
+## NEORV32 stream-native preflight
+
+The stream-native CFS scaffold under `neorv32_stream_axis_mmio/` can be checked from the repo root with `make neorv32-stream-board-manifest` and `make neorv32-stream-board-preflight`.

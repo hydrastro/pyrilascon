@@ -1,0 +1,41 @@
+{
+  "assumptions": [
+    "Prefer AXI-Lite control plus AXI Stream data on Xilinx systems."
+  ],
+  "board_class": "xilinx_low",
+  "candidates": [
+    {
+      "context_profile": "single_320_register",
+      "contexts_per_engine": 1,
+      "control_profile": "axi_stream_microcoded_hybrid",
+      "data_plane": "axi_stream_128",
+      "datapath_profile": "128_bit",
+      "engine_count": 1,
+      "name": "xilinx_low_axis128_8rpc",
+      "notes": [],
+      "padding_profile": "streaming_final_bytemask",
+      "permutation_profile": "eight_rounds_per_cycle",
+      "priority": 1,
+      "security_profile": "none",
+      "summary": "128-bit AXIS and 8RPC for Artix/Spartan-class devices if timing closes.",
+      "top_level_profile": "single_core"
+    },
+    {
+      "context_profile": "multi_context_registers",
+      "contexts_per_engine": 4,
+      "control_profile": "axi_stream_microcoded_hybrid",
+      "data_plane": "axi_stream_128",
+      "datapath_profile": "128_bit",
+      "engine_count": 1,
+      "name": "xilinx_low_axis128_fully_pipelined_4ctx",
+      "notes": [],
+      "padding_profile": "streaming_final_bytemask",
+      "permutation_profile": "fully_pipelined",
+      "priority": 2,
+      "security_profile": "none",
+      "summary": "Small context-interleaved pipeline for low-end Xilinx parts.",
+      "top_level_profile": "one_pipelined_permutation_n_contexts"
+    }
+  ],
+  "goal": "maximum_throughput_that_fits"
+}

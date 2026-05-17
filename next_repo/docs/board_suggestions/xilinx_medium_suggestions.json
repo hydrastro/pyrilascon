@@ -1,0 +1,41 @@
+{
+  "assumptions": [
+    "Expect AXI DMA or a packet scheduler to become part of the throughput path."
+  ],
+  "board_class": "xilinx_medium",
+  "candidates": [
+    {
+      "context_profile": "fpga_bram_lutram",
+      "contexts_per_engine": 12,
+      "control_profile": "axi_stream_microcoded_hybrid",
+      "data_plane": "axi_stream_128_dma",
+      "datapath_profile": "128_bit",
+      "engine_count": 1,
+      "name": "xilinx_medium_one_pipeline_12ctx",
+      "notes": [],
+      "padding_profile": "streaming_final_bytemask",
+      "permutation_profile": "fully_pipelined",
+      "priority": 1,
+      "security_profile": "fpga_fault_detect_rand_counter_consttime_tag",
+      "summary": "One fully pipelined permutation with 12 contexts and AXI Stream packet scheduling.",
+      "top_level_profile": "one_pipelined_permutation_n_contexts"
+    },
+    {
+      "context_profile": "fpga_bram_lutram",
+      "contexts_per_engine": 12,
+      "control_profile": "dma_fed",
+      "data_plane": "axi_stream_128_dma",
+      "datapath_profile": "128_bit",
+      "engine_count": 2,
+      "name": "xilinx_medium_two_pipelines_12ctx",
+      "notes": [],
+      "padding_profile": "streaming_final_bytemask",
+      "permutation_profile": "fully_pipelined",
+      "priority": 2,
+      "security_profile": "fpga_fault_detect_rand_counter_consttime_tag",
+      "summary": "Two independent permutation pipelines, each with 12 contexts.",
+      "top_level_profile": "m_pipelines_n_contexts"
+    }
+  ],
+  "goal": "maximum_throughput_that_fits"
+}

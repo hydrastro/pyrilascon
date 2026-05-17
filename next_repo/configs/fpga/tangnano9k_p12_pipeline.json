@@ -1,0 +1,128 @@
+{
+  "name": "tangnano9k_p12_pipeline_smoke",
+  "target": "fpga",
+  "algorithm": {
+    "features": [
+      "aead128"
+    ],
+    "include_encrypt": true,
+    "include_decrypt": false,
+    "include_hash": false,
+    "include_xof": false,
+    "include_cxof": false
+  },
+  "topology": {
+    "family": "shared_permutation_mode_fsm",
+    "engine_count": 1,
+    "engine_capability": "aead_encrypt_only",
+    "shared_encrypt_decrypt_datapath": true,
+    "encrypt_datapaths_per_engine": 1,
+    "decrypt_datapaths_per_engine": 0,
+    "shared_permutation_per_engine": true,
+    "mode_fsm_count_per_engine": 1,
+    "top_level_profile": "one_pipelined_permutation_n_contexts",
+    "aead_core_count": 1,
+    "permutation_pipeline_count": 1,
+    "contexts_per_pipeline": 12,
+    "shared_pipeline_across_contexts": true
+  },
+  "permutation": {
+    "style": "round_pipelined",
+    "sbox_style": "boolean",
+    "rounds_per_cycle": 1,
+    "pipeline_stages": 12,
+    "unroll_factor": 12,
+    "register_between_rounds": true,
+    "share_round_logic": false,
+    "sbox_columns_per_cycle": 64,
+    "pipeline_initiation_interval": 1,
+    "context_interleaving_required": true
+  },
+  "datapath": {
+    "state_width_bits": 320,
+    "rate_width_bits": 128,
+    "profile": "128_bit",
+    "lane_width": "128",
+    "absorb_width": "128",
+    "io_word_width": "128",
+    "key_width_bits": 128,
+    "tag_width_bits": 128,
+    "split_encrypt_decrypt_control": false,
+    "share_key_registers": false,
+    "share_pad_logic": true,
+    "serialized_state_update": false,
+    "serialized_absorb": false
+  },
+  "context": {
+    "profile": "multi_context_registers",
+    "scheduling": "static_interleaved",
+    "storage": "multi_context_regfile",
+    "context_count": 12,
+    "contexts_per_engine": 12,
+    "interleave_depth": 12,
+    "context_id_bits": 4,
+    "shadow_state": false,
+    "rollback_supported": false,
+    "state_memory_read_ports": 1,
+    "state_memory_write_ports": 1
+  },
+  "padding": {
+    "profile": "streaming_final_bytemask",
+    "strategy": "inline_combinational",
+    "length_handling": "streaming_final_bytemask",
+    "supports_partial_blocks": true,
+    "supports_bit_granular_lengths": false,
+    "supports_arbitrary_byte_lengths": true,
+    "final_bytemask": true,
+    "final_bytemask_width": 16,
+    "pad_in_core": true,
+    "tracks_byte_count": false,
+    "requires_total_length": false,
+    "partial_block_buffer_bytes": 16
+  },
+  "io": {
+    "interface_style": "stream",
+    "data_bus_bits": 128,
+    "supports_backpressure": true,
+    "flow_control": "valid_ready",
+    "separate_ad_text_channels": false,
+    "separate_encrypt_decrypt_ports": false
+  },
+  "control": {
+    "profile": "command_fifo",
+    "microcode_words": 0,
+    "command_fifo_depth": 4,
+    "csr_register_count": 0,
+    "axi_stream_command_channels": 0,
+    "supports_runtime_algorithm_select": false,
+    "supports_concurrent_modes": false,
+    "supports_descriptors": false,
+    "supports_dma": false,
+    "scheduler_required": true
+  },
+  "security": {
+    "profile": "none",
+    "side_channel_protection": "none",
+    "fault_detection": "none",
+    "constant_time_control": true,
+    "constant_time_tag_compare": false,
+    "randomized_counter_hardening": false,
+    "clear_state_on_done": true,
+    "duplicate_control_fsm_checks": false,
+    "duplicate_compute_check": false,
+    "randomness_bits_per_cycle": 0,
+    "decryption_release_policy": "buffer_until_tag_verify",
+    "plaintext_buffer_until_tag_verified": true,
+    "plaintext_buffer_storage": "bram_fifo",
+    "plaintext_buffer_capacity_bytes": 4096,
+    "constant_time_decrypt_failure": true,
+    "zeroize_plaintext_buffer_on_failure": true
+  },
+  "rtl": {
+    "language": "verilog_2001",
+    "reset_style": "sync_active_high",
+    "emit_separate_files": true,
+    "include_reference_comments": true
+  },
+  "description": "Tang Nano 9K board target: 12-stage fully pipelined Ascon-p[12] permutation smoke test. This is a high-throughput permutation building block, not yet a full AEAD engine."
+}

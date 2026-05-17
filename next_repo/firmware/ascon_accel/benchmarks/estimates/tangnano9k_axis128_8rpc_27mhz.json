@@ -1,0 +1,17 @@
+{
+  "ad_bytes": 32,
+  "clock_mhz": 27.0,
+  "contexts": 1,
+  "data_bus_bits": 128,
+  "estimate": {
+    "clock_mhz": 27.0,
+    "cycles": 137,
+    "cycles_per_byte": 0.1337890625,
+    "operation_throughput_mbps": 1614.4817518248176,
+    "payload_bits": 8192,
+    "sustained_payload_mbps": 3456.0
+  },
+  "permutation_profile": "eight_rounds_per_cycle",
+  "target": "fpga",
+  "text_bytes": 1024
+}
