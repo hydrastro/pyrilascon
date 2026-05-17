@@ -44,6 +44,7 @@ from ascon_arch.context_planning import context_config_for_profile
 from ascon_arch.control_planning import control_config_for_profile
 from ascon_arch.padding_planning import padding_config_for_profile
 from ascon_arch.security_planning import security_config_for_profile
+from ascon_arch.algorithm_planning import algorithm_config_for_feature, algorithm_name_suffix
 
 
 def shared_datapath_config(target: TargetTechnology, name: str = "shared_datapath") -> ImplementationConfig:
@@ -285,6 +286,26 @@ def fpga_n_parallel_engines_config(engine_count: int) -> ImplementationConfig:
         ),
     )
 
+
+
+def config_with_algorithm_feature(
+    config: ImplementationConfig,
+    feature: AlgorithmFeature,
+    *,
+    name_suffix: str | None = None,
+) -> ImplementationConfig:
+    """Return a copy of a design config specialized for one algorithm feature.
+
+    This keeps the design-space sweep orthogonal: topology/datapath/control choices
+    can be counted across AEAD, HASH, XOF, and CXOF architecture targets, while
+    production verification status remains tracked separately by the golden model and KATs.
+    """
+    suffix = name_suffix or algorithm_name_suffix(feature)
+    return replace(
+        config,
+        name=f"{config.name}_{suffix}",
+        algorithm=algorithm_config_for_feature(feature),
+    )
 
 
 def config_with_permutation_profile(

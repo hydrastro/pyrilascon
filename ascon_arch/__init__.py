@@ -219,6 +219,7 @@ __all__ = [
     "asic_two_datapaths_config",
     "asic_dual_enc_dec_cores_config",
     "asic_two_datapaths_with_datapath_profile_config",
+    "config_with_algorithm_feature",
     "config_with_control_profile",
     "config_with_datapath_profile",
     "config_with_padding_profile",

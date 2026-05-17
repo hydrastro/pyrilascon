@@ -34,6 +34,7 @@ AEAD_FEATURES: tuple[AlgorithmFeature, ...] = (
     AlgorithmFeature.AEAD80PQ,
     AlgorithmFeature.LEGACY_AEAD128A,
     AlgorithmFeature.LEGACY_AEAD80PQ,
+    AlgorithmFeature.LEGACY_AEAD128PQ,
 )
 
 HASH_FEATURES: tuple[AlgorithmFeature, ...] = (

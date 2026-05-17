@@ -70,8 +70,8 @@ def validate_config(config: ImplementationConfig) -> None:
     if control.profile == ControlProfile.HARDCODED_FSM:
         if control.supports_runtime_algorithm_select or control.supports_concurrent_modes or control.supports_dma:
             raise ConfigValidationError("hardcoded_fsm must not enable runtime algorithm select, concurrent modes, or DMA")
-        if len(config.algorithm.features) > 1 or config.algorithm.include_hash or config.algorithm.include_xof or config.algorithm.include_cxof:
-            raise ConfigValidationError("hardcoded_fsm is only valid for a fixed narrow algorithm set")
+        if len(config.algorithm.features) > 1:
+            raise ConfigValidationError("hardcoded_fsm is only valid for one fixed algorithm feature")
     if control.profile == ControlProfile.MICROCODED_SEQUENCER:
         if control.microcode_words <= 0:
             raise ConfigValidationError("microcoded_sequencer requires microcode_words > 0")
@@ -406,7 +406,10 @@ def validate_config(config: ImplementationConfig) -> None:
 
     aead_like = (
         AlgorithmFeature.AEAD128,
+        AlgorithmFeature.AEAD128A,
+        AlgorithmFeature.AEAD80PQ,
         AlgorithmFeature.LEGACY_AEAD128A,
+        AlgorithmFeature.LEGACY_AEAD80PQ,
         AlgorithmFeature.LEGACY_AEAD128PQ,
     )
     if not any(feature in config.algorithm.features for feature in aead_like) and (config.algorithm.include_encrypt or config.algorithm.include_decrypt):

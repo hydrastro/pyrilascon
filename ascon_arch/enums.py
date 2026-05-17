@@ -40,10 +40,18 @@ class AlgorithmFeature(str, Enum):
     # Architecture-level placeholders for broader design-space exploration.
     # These require dedicated golden-model/KAT support before they should be
     # considered production-verified algorithm targets.
-    LEGACY_AEAD128A = "legacy_aead128a"
-    LEGACY_AEAD128PQ = "legacy_aead128pq"
+    AEAD128A = "aead128a"
+    AEAD80PQ = "aead80pq"
+    HASH = "hash"
     HASHA = "hasha"
+    XOF = "xof"
     XOFA = "xofa"
+    CXOF = "cxof"
+
+    # Backward-compatible legacy names kept for existing configs/tests.
+    LEGACY_AEAD128A = "legacy_aead128a"
+    LEGACY_AEAD80PQ = "legacy_aead80pq"
+    LEGACY_AEAD128PQ = "legacy_aead128pq"
 
 
 class PermutationStyle(str, Enum):
