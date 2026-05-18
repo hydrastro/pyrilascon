@@ -100,8 +100,8 @@ begin
     generic map (
       DATA_BYTES     => 16,
       DATA_WIDTH     => 128,
-      MAX_TEXT_BYTES => 1024,
-      MAX_TEXT_BITS  => 8192,
+      MAX_TEXT_BYTES => 64,
+      MAX_TEXT_BITS  => 512,
       RX_FIFO_DEPTH  => 4
     )
     port map (

@@ -16,6 +16,8 @@
           python3Packages.pytest
           python3Packages.pip
           python3Packages.virtualenv
+          python3Packages.platformdirs
+          python3Packages.pyserial
 
           yosys
           nextpnr

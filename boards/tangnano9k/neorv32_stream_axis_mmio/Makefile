@@ -46,7 +46,7 @@ NEORV32_ARG = $(if $(filter command line,$(origin NEORV32_HOME)),--neorv32-home 
 SERIAL_ARG = $(if $(SERIAL),--serial-device $(SERIAL),)
 
 .PHONY: help all clean tools deps manifest check preflight package build-plan session gowin-handoff \
-        firmware firmware-auto firmware-soft firmware-image-soft bitstream bitstream-plain bitstream-ascon upload \
+        firmware firmware-auto firmware-soft firmware-image-soft bitstream bitstream-plain bitstream-ascon bitstream-uart-smoke prog-uart-smoke upload \
         uart-report uart-capture doctor rtl-list memory-map prog-sram prog-flash
 
 help:
@@ -61,6 +61,7 @@ help:
 	@echo "  make                       Generate package/handoff, build firmware, and build ASCON bitstream"
 	@echo "  make bitstream-plain       Build minimal NEORV32 CPU+UART bootloader smoke bitstream"
 	@echo "  make bitstream-ascon       Build NEORV32 CPU+UART+ASCON-CFS bitstream"
+	@echo "  make bitstream-uart-smoke  Build hardware-only UART transmitter"
 	@echo "  make firmware              Build firmware; FIRMWARE_PROFILE=auto|soft"
 	@echo "  make firmware-auto         Build firmware using host-compatible toolchain probe"
 	@echo "  make firmware-soft         Build freestanding RV32I/ILP32 firmware with Nix-native toolchain"
@@ -159,6 +160,34 @@ bitstream-ascon:
 
 bitstream: package gowin-handoff $(FS)
 	@echo "wrote $(FS)"
+
+UART_SMOKE_TOP = tangnano9k_uart_smoke_top
+UART_SMOKE_BUILD = $(REPO_ROOT)/build/neorv32_stream_axis_mmio/board/uart_smoke
+UART_SMOKE_JSON = $(UART_SMOKE_BUILD)/$(UART_SMOKE_TOP).json
+UART_SMOKE_PNR_JSON = $(UART_SMOKE_BUILD)/$(UART_SMOKE_TOP)_pnr.json
+UART_SMOKE_FS = $(UART_SMOKE_BUILD)/$(UART_SMOKE_TOP).fs
+
+bitstream-uart-smoke: $(UART_SMOKE_FS)
+	@echo "wrote $(UART_SMOKE_FS)"
+
+$(UART_SMOKE_BUILD):
+	mkdir -p $(UART_SMOKE_BUILD)
+
+$(UART_SMOKE_JSON): rtl/$(UART_SMOKE_TOP).v | $(UART_SMOKE_BUILD)
+	$(YOSYS) -q -p "read_verilog rtl/$(UART_SMOKE_TOP).v; synth_gowin -top $(UART_SMOKE_TOP) -json $(UART_SMOKE_JSON)"
+
+$(UART_SMOKE_PNR_JSON): $(UART_SMOKE_JSON) $(CST)
+	@if [ "$$(basename "$(NEXTPNR)")" = "nextpnr-gowin" ]; then \
+	  $(NEXTPNR) --json $(UART_SMOKE_JSON) --write $(UART_SMOKE_PNR_JSON) --freq 27 --device $(DEVICE) --family $(FAMILY) --cst $(CST); \
+	else \
+	  $(NEXTPNR) --json $(UART_SMOKE_JSON) --write $(UART_SMOKE_PNR_JSON) --freq 27 --device $(DEVICE) --vopt family=$(FAMILY) --vopt cst=$(CST); \
+	fi
+
+$(UART_SMOKE_FS): $(UART_SMOKE_PNR_JSON)
+	$(GOWIN_PACK) -d $(FAMILY) -o $(UART_SMOKE_FS) $(UART_SMOKE_PNR_JSON)
+
+prog-uart-smoke: $(UART_SMOKE_FS)
+	$(OPENFPGALOADER) -b $(BOARD) "$(UART_SMOKE_FS)"
 
 $(BOARD_BUILD):
 	mkdir -p $(BOARD_BUILD)/ghdl

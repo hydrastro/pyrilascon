@@ -148,13 +148,20 @@ def main() -> int:
         print(" ".join(cmd) + f" | tee {args.log}")
         return 0
 
-    with args.log.open("w", encoding="utf-8") as log_file:
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    # Picocom forwards raw UART bytes. During early bring-up the stream may
+    # contain framing noise, boot ROM probes, or bytes produced with the wrong
+    # baud/clock configuration.  Do not let a single non-UTF-8 byte abort the
+    # capture; preserve it visibly in the text log using the Unicode
+    # replacement character so uart-report can still parse any valid lines.
+    with args.log.open("w", encoding="utf-8", errors="replace") as log_file:
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=False)
         assert proc.stdout is not None
         try:
-            for line in proc.stdout:
+            for raw_line in proc.stdout:
+                line = raw_line.decode("utf-8", errors="replace")
                 print(line, end="")
                 log_file.write(line)
+                log_file.flush()
         finally:
             proc.wait()
     return proc.returncode

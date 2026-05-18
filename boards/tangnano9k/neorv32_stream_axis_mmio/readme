@@ -1,0 +1,6 @@
+ sudo fuser -k /dev/serial/by-id/usb-SIPEED_JTAG_Debugger_FactoryAIOT_Pro-if01-port0
+
+
+ cd boards/tangnano9k/neorv32_stream_axis_mmio
+make bitstream-uart-smoke
+sudo make prog-uart-smoke

@@ -46,7 +46,7 @@ begin
   neorv32_top_i : entity neorv32.neorv32_top
     generic map (
       CLOCK_FREQUENCY  => 27_000_000,
-      BOOT_MODE_SELECT => 0,          -- internal UART bootloader
+      BOOT_MODE_SELECT => 2,          -- internal UART bootloader
 
       -- Keep the CPU deliberately small for GW1NR-9 bring-up.
       RISCV_ISA_Zicntr => true,       -- cycle counter required by benchmark firmware
