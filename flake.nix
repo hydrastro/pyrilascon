@@ -26,6 +26,7 @@
           usbutils
           pkgsCross.riscv32-embedded.buildPackages.gcc
           ghdl
+          verilator
 
           gnumake
           git

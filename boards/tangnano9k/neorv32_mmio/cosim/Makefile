@@ -1,0 +1,133 @@
+# ============================================================================
+# ASCON-on-NEORV32 open-source co-simulation
+# Drop this directory at boards/tangnano9k/neorv32_mmio/cosim/ (or anywhere),
+# then run `make` from inside it.
+#
+# What this does:
+#   1. Build the C benchmark firmware as a VHDL IMEM image (neorv32_imem_image.vhd)
+#   2. Install that image into NEORV32's rtl/core/ (backs up the original)
+#   3. Convert NEORV32 VHDL + ASCON CFS VHDL → single Verilog netlist via ghdl
+#   4. Compile netlist + Verilog ASCON RTL + testbench with iverilog
+#   5. Run with vvp; UART output → stdout + neorv32_ascon_tb.log
+#   6. Parse the log with the project's own parse_neorv32_ascon_uart_log.py
+#
+# Why this exists:
+#   - The full design doesn't fit on the Tang Nano 9K (GW1NR-9C is too small).
+#   - This sim runs the EXACT SAME firmware, RTL, and comparison flow that the
+#     FPGA would run, so you can collect cycle-accurate hw-vs-software-golden
+#     numbers without ever needing the bitstream to fit.
+#
+# Tools required:
+#   - ghdl (any backend: mcode/gcc/llvm)
+#   - iverilog + vvp  (or set SIMULATOR=verilator for a much faster run)
+#   - riscv-none-elf-gcc  (your nix shell already has this)
+#
+# Caveats:
+#   - Icarus simulation of the full NEORV32 SoC is SLOW: typical runtime to
+#     completion is 5–20 minutes wall clock for the full benchmark.
+#     SIMULATOR=verilator drops this to <30 s once Verilator builds the model.
+# ============================================================================
+
+REPO_ROOT     ?= $(realpath ../../../..)
+NEORV32_HOME  ?= $(REPO_ROOT)/external/neorv32
+RISCV_PREFIX  ?= riscv-none-elf-
+NEORV32_FW_PROFILE ?= auto
+SIMULATOR     ?= iverilog            # iverilog | verilator
+
+BUILD := build
+WRAPPER := neorv32_verilog_wrapper
+
+# NEORV32 VHDL source list (file_list_soc.f), minus the stock neorv32_cfs.vhd
+NEORV32_FFILE := $(shell cat $(NEORV32_HOME)/rtl/file_list_soc.f)
+NEORV32_SRCS  := $(subst NEORV32_RTL_PATH_PLACEHOLDER,$(NEORV32_HOME)/rtl,$(NEORV32_FFILE))
+NEORV32_SRCS_NOCFS := $(filter-out %/neorv32_cfs.vhd,$(NEORV32_SRCS))
+
+# Our ASCON CFS wrapper (replaces the stock neorv32_cfs entity)
+ASCON_CFS_VHDL := $(REPO_ROOT)/rtl/neorv32/neorv32_cfs_ascon.vhd
+
+# Verilog ASCON RTL — bound at iverilog compile time
+ASCON_VLOG := \
+  $(REPO_ROOT)/rtl/common/ascon_round_comb.v \
+  $(REPO_ROOT)/rtl/common/ascon_aead128_mmio_backend.v \
+  $(REPO_ROOT)/rtl/common/ascon_accel_mmio_regs.v \
+  $(REPO_ROOT)/rtl/common/ascon_accel_mmio_aead128_top.v
+
+FW_DIR  := $(REPO_ROOT)/firmware/neorv32_ascon_benchmark
+FW_IMAGE := $(FW_DIR)/neorv32_imem_image.vhd
+IMEM_TARGET := $(NEORV32_HOME)/rtl/core/neorv32_imem_image.vhd
+IMEM_BACKUP := $(NEORV32_HOME)/rtl/core/neorv32_imem_image.vhd.orig
+
+.PHONY: all firmware-image install-image clean sim run
+
+all: run
+
+# ── Step 1: build firmware as VHDL IMEM image ───────────────────────────────
+firmware-image:
+	cd $(REPO_ROOT) && \
+	  TOOLCHAIN_ARGS="$$(PYTHONPATH=. python tools/check_neorv32_toolchain.py \
+	    --prefix $(RISCV_PREFIX) --profile $(NEORV32_FW_PROFILE) --make-args)"; \
+	  $(MAKE) -C $(FW_DIR) \
+	    NEORV32_HOME=$(NEORV32_HOME) RISCV_PREFIX=$(RISCV_PREFIX) \
+	    $$TOOLCHAIN_ARGS clean_all image
+
+# Install our firmware image as the NEORV32 IMEM ROM (back up original first).
+install-image: firmware-image
+	@if [ ! -f $(IMEM_BACKUP) ]; then cp $(IMEM_TARGET) $(IMEM_BACKUP); fi
+	cp $(FW_IMAGE) $(IMEM_TARGET)
+	@echo "Installed firmware image:"
+	@grep image_size_c $(IMEM_TARGET)
+
+# Restore the upstream default IMEM image (call after you're done simming).
+restore-image:
+	@if [ -f $(IMEM_BACKUP) ]; then cp $(IMEM_BACKUP) $(IMEM_TARGET); echo "Restored upstream IMEM image."; \
+	  else echo "No backup to restore."; fi
+
+# ── Step 2: convert NEORV32 VHDL + CFS wrapper → single Verilog netlist ──────
+$(WRAPPER).v: $(WRAPPER).vhd install-image
+	@mkdir -p $(BUILD)
+	ghdl -i --std=08 --work=neorv32 --workdir=$(BUILD) -P$(BUILD) \
+	  $(NEORV32_SRCS_NOCFS) \
+	  $(ASCON_CFS_VHDL) \
+	  $(WRAPPER).vhd
+	ghdl -m --std=08 --work=neorv32 --workdir=$(BUILD) -P$(BUILD) $(WRAPPER)
+	ghdl synth --std=08 --work=neorv32 --workdir=$(BUILD) -P$(BUILD) \
+	  --out=verilog $(WRAPPER) > $(WRAPPER).v
+
+netlist: $(WRAPPER).v
+
+# ── Step 3: compile and run the sim ──────────────────────────────────────────
+sim: $(WRAPPER).v
+ifeq ($(SIMULATOR),iverilog)
+	@echo "Compiling with Icarus Verilog (slow but small)"
+	iverilog -g2012 -I $(REPO_ROOT)/rtl/common \
+	  -o $(BUILD)/neorv32-iverilog \
+	  testbench.v $(WRAPPER).v $(ASCON_VLOG)
+	@echo "Running. UART output to stdout + neorv32_ascon_tb.log:"
+	vvp $(BUILD)/neorv32-iverilog
+else ifeq ($(SIMULATOR),verilator)
+	@echo "Compiling with Verilator (much faster)"
+	verilator -Wno-fatal --binary --top-module neorv32_ascon_tb \
+	  -I $(REPO_ROOT)/rtl/common \
+	  --Mdir $(BUILD)/obj_dir \
+	  testbench.v $(WRAPPER).v $(ASCON_VLOG)
+	@echo "Running:"
+	$(BUILD)/obj_dir/Vneorv32_ascon_tb
+else
+	$(error Unsupported SIMULATOR=$(SIMULATOR). Use iverilog or verilator)
+endif
+
+run: sim parse-log
+
+parse-log:
+	@if [ -s neorv32_ascon_tb.log ]; then \
+	  cd $(REPO_ROOT) && PYTHONPATH=. python tools/parse_neorv32_ascon_uart_log.py \
+	    $(CURDIR)/neorv32_ascon_tb.log --markdown --out $(CURDIR)/cosim_report.md ; \
+	  echo "" ; \
+	  echo "Report: $(CURDIR)/cosim_report.md" ; \
+	  cat $(CURDIR)/cosim_report.md ; \
+	else \
+	  echo "No UART log captured. Did the firmware get far enough to print PASS/FAIL?" ; \
+	fi
+
+clean:
+	rm -rf $(BUILD) $(WRAPPER).v neorv32_ascon_tb.log cosim_report.md
