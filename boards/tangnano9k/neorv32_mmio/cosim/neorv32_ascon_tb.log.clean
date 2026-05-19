@@ -1,0 +1,23 @@
+˓Kc{s+{&{s&+sCk[k
+DATA PLANE   : MMIO_WORD
+ABI          : 0x00000001
+CAPS         : 0x00230001
+SW CT        : %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x
+SW TAG       : %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x
+HW CT        : %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x
+HW TAG       : %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x
+HW PT        : %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x
+ENC status       : 0
+ENC hw cycles    : 0:70
+ENC hw mcy/byte  : 0
+ENC tag valid    : 0
+ENC hw err       : 0x00000000
+DEC status       : 0
+DEC hw cycles    : 0:0
+DEC hw mcy/byte  : 0
+DEC tag valid    : 1
+DEC hw err       : 0x00000000
+SW cycles    : 0:174334
+ENC speedup x1000: 0
+DEC speedup x1000: 0
+PASS

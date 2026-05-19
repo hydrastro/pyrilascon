@@ -17,7 +17,9 @@
 #define BENCH_AD_BYTES 16u
 
 static uint64_t rdcycle64(void) {
-#if __riscv_xlen == 64
+#ifdef ASCON_BENCH_NO_RDCYCLE
+  return 0u;
+#elif __riscv_xlen == 64
   uint64_t value;
   __asm__ volatile ("rdcycle %0" : "=r"(value));
   return value;
@@ -34,10 +36,18 @@ static uint64_t rdcycle64(void) {
 #endif
 }
 
+/* NEORV32 printf supports only %x (8-digit zero-padded), not %02x. Print
+   bytes one nibble at a time via %c. */
+static char ph_nib(uint8_t n) {
+  return (char)((n < 10u) ? ('0' + n) : ('a' + (n - 10u)));
+}
+
 static void print_hex(const char *label, const uint8_t *data, uint32_t len) {
   neorv32_uart0_printf("%s", label);
   for (uint32_t i = 0u; i < len; ++i) {
-    neorv32_uart0_printf("%02x", data[i]);
+    neorv32_uart0_printf("%c%c",
+        ph_nib((uint8_t)(data[i] >> 4)),
+        ph_nib((uint8_t)(data[i] & 0x0fu)));
   }
   neorv32_uart0_printf("\n");
 }
