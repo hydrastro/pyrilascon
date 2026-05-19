@@ -1,6 +1,25 @@
--- Tang Nano 9K NEORV32 + ASCON CFS top.
--- Boots through the NEORV32 UART bootloader and exposes the stream-native ASCON
--- AEAD128 accelerator through the CFS MMIO window at 0xffeb0000.
+-- ============================================================================
+-- Tang Nano 9K NEORV32 + ASCON CFS — corrected top
+--
+-- Drop in as boards/tangnano9k/neorv32_mmio/rtl/tangnano9k_neorv32_mmio_top.vhd
+--
+-- Why this file exists:
+--   The original top had `BOOT_MODE_SELECT => 2` with a misleading comment
+--   claiming "internal UART bootloader". In the checked-out NEORV32 (commit
+--   f62ca43), the semantics are:
+--     0 = boot via internal bootloader (UART upload flow)
+--     1 = boot from custom address
+--     2 = boot from initialised IMEM image (ROM, baked into bitstream)
+--   With value 2, NEORV32 instantiates a 32 KB behavioural-VHDL ROM from
+--   neorv32_imem_image.vhd. The open-source Gowin flow (yosys+apicula+
+--   nextpnr-himbaechel) does not reliably infer that as BSRAM, falling back
+--   to LUT-as-ROM and blowing the GW1NR-9C utilisation budget.
+--   That is the failure you saw at PnR.
+--
+-- Fix: BOOT_MODE_SELECT => 0 (the genuine bootloader) plus slim memories.
+--      This mirrors the configuration of the `plain` board target that
+--      previously produced a working .fs.
+-- ============================================================================
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -34,10 +53,8 @@ begin
   end process;
 
   -- Tang Nano 9K user LEDs are active-low.
-  -- cfs_out(0): ASCON IRQ, cfs_out(1): AXI bridge error,
-  -- cfs_out(2): selected CFS sub-window, cfs_out(3): selected window ready.
-  led_n(0) <= not heartbeat(24);
-  led_n(1) <= not cfs_out(0);
+  led_n(0) <= not heartbeat(24);     -- ~0.4 Hz heartbeat, confirms clk is alive
+  led_n(1) <= not cfs_out(0);        -- ASCON IRQ
   led_n(2) <= not cfs_out(1);
   led_n(3) <= not cfs_out(2);
   led_n(4) <= not cfs_out(3);
@@ -46,23 +63,23 @@ begin
   neorv32_top_i : entity neorv32.neorv32_top
     generic map (
       CLOCK_FREQUENCY  => 27_000_000,
-      BOOT_MODE_SELECT => 2,          -- internal UART bootloader
+      BOOT_MODE_SELECT => 0,           -- internal UART bootloader (FIXED)
 
-      -- Keep the CPU deliberately small for GW1NR-9 bring-up.
-      RISCV_ISA_Zicntr => true,       -- cycle counter required by benchmark firmware
+      -- Keep the CPU minimal for GW1NR-9 bring-up.
+      RISCV_ISA_Zicntr  => true,       -- cycle counter required by benchmark firmware
       CPU_FAST_SHIFT_EN => false,
 
-      -- Internal memories. Firmware executable is uploaded by the bootloader.
+      -- Slim internal memories. Firmware text+rodata = 13.8 KB, bss+heap = 768 B.
       IMEM_EN          => true,
-      IMEM_SIZE        => 32*1024,
-      IMEM_OUTREG_EN   => true,
+      IMEM_SIZE        => 16*1024,     -- was 32 KB
+      IMEM_OUTREG_EN   => false,
       DMEM_EN          => true,
-      DMEM_SIZE        => 16*1024,
-      DMEM_OUTREG_EN   => true,
+      DMEM_SIZE        => 8*1024,      -- was 16 KB
+      DMEM_OUTREG_EN   => false,
 
       -- Board IO and ASCON CFS.
       IO_UART0_EN      => true,
-      IO_UART0_RX_FIFO => 1,
+      IO_UART0_RX_FIFO => 1,           -- min permitted by NEORV32 generic
       IO_UART0_TX_FIFO => 1,
       IO_CFS_EN        => true
     )
@@ -75,4 +92,4 @@ begin
       cfs_out_o   => cfs_out
     );
 
-end architecture rtl;
+end architecture rtl;p
