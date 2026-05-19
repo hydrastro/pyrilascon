@@ -1,0 +1,43 @@
+Add ghdl to your flake.nix devShell packages.
+
+Edit flake.nix, find this block:
+
+          yosys
+          nextpnr
+          openfpgaloader
+          picocom
+          usbutils
+          pkgsCross.riscv32-embedded.buildPackages.gcc
+
+And add `ghdl` (any position works):
+
+          yosys
+          nextpnr
+          openfpgaloader
+          picocom
+          usbutils
+          ghdl                                   # ← add this line
+          pkgsCross.riscv32-embedded.buildPackages.gcc
+
+Then exit the shell and re-enter:
+
+  exit
+  nix develop
+
+Verify:
+
+  which ghdl
+  ghdl --version | head -1
+
+If you want a unified-diff to apply with `patch -p1` instead:
+
+--- a/flake.nix
++++ b/flake.nix
+@@ -22,6 +22,7 @@
+           yosys
+           nextpnr
+           openfpgaloader
+           picocom
+           usbutils
++          ghdl
+           pkgsCross.riscv32-embedded.buildPackages.gcc

@@ -588,22 +588,17 @@ module ascon_aead128_stream_decrypt_buffered #(
     end
   endfunction
 
-  // Rewritten to avoid variable LHS part-select (crashes yowasp-yosys 0.65.x WASM).
-  // Semantically identical: for each buffer byte i, use a comparator to decide
-  // whether this call writes to it, instead of a variable write index.
   function [MAX_TEXT_BITS-1:0] set_plain_block;
     input [MAX_TEXT_BITS-1:0] old_buf;
     input [31:0] byte_offset;
     input [127:0] block;
     input [4:0] valid_bytes;
-    integer i, k;
+    integer k;
     begin
       set_plain_block = old_buf;
-      for (i = 0; i < MAX_TEXT_BYTES; i = i + 1) begin
-        for (k = 0; k < 16; k = k + 1) begin
-          if ((k < valid_bytes) && (byte_offset + k == i[31:0])) begin
-            set_plain_block[i * 8 +: 8] = block[k * 8 +: 8];
-          end
+      for (k = 0; k < 16; k = k + 1) begin
+        if ((k < valid_bytes) && ((byte_offset + k) < MAX_TEXT_BYTES)) begin
+          set_plain_block[(byte_offset + k) * 8 +: 8] = block[k * 8 +: 8];
         end
       end
     end

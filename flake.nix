@@ -25,6 +25,7 @@
           picocom
           usbutils
           pkgsCross.riscv32-embedded.buildPackages.gcc
+          ghdl
 
           gnumake
           git
