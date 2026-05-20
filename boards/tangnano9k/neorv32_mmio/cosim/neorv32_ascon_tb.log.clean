@@ -2,11 +2,11 @@
 DATA PLANE   : MMIO_WORD
 ABI          : 0x00000001
 CAPS         : 0x00230001
-SW CT        : %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x
-SW TAG       : %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x
-HW CT        : %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x
-HW TAG       : %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x
-HW PT        : %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x
+SW CT        : 6373ebb28be97c9bac090cf399c13ef13ed6b59569937a2c1e843f0c9af86ac7
+SW TAG       : 8c986691b95aa53e6c1499a5a1f06db6
+HW CT        : 6373ebb28be97c9bac090cf399c13ef13ed6b59569937a2c1e843f0c9af86ac7
+HW TAG       : 8c986691b95aa53e6c1499a5a1f06db6
+HW PT        : 202122232425262728292a2b2c2d2e2f404142434445464748494a4b4c4d4e4f
 ENC status       : 0
 ENC hw cycles    : 0:70
 ENC hw mcy/byte  : 0
