@@ -93,4 +93,9 @@ def test_neorv32_benchmark_firmware_project_files_exist() -> None:
     main = (bench_dir / "main.c").read_text()
     assert "ascon_ref_aead128_encrypt" in main
     assert "ascon_accel_benchmark_encrypt" in main
-    assert "hardware encryption did not beat software" in main
+    # Sweep-based firmware: must emit machine-parsable CASE lines and
+    # advertise the per-build configuration banner.
+    assert "ASCON_BENCH_BUILD_TAG" in main
+    assert "ASCON_BENCH_MAX_BYTES_TAG" in main
+    assert "CASE name=" in main
+    assert "SUMMARY" in main

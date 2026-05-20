@@ -182,3 +182,125 @@ int32_t __modsi3(int32_t num, int32_t den) {
   (void)udivmod32(unum, uden, &rem);
   return (num < 0) ? -(int32_t)rem : (int32_t)rem;
 }
+
+/* -----------------------------------------------------------------------
+ * 64-bit math helpers used by gcc's libgcc.
+ * Required because we link with -nodefaultlibs to avoid the soft-float
+ * vs double-float multilib mismatch from nixpkgs newlib/libgcc.
+ * ----------------------------------------------------------------------- */
+
+/* Helper: 32x32 -> 64 multiply, using shift-add only (no widening multiplies).
+ * Returns a*b zero-extended to 64 bits. */
+static uint64_t mul32_64(uint32_t a, uint32_t b) {
+  uint64_t acc = 0u;
+  uint64_t x = (uint64_t)a;
+  while (b != 0u) {
+    if (b & 1u) acc += x;
+    x += x;        /* x *= 2, plain 64-bit add, no multiply */
+    b >>= 1u;
+  }
+  return acc;
+}
+
+uint64_t __muldi3(uint64_t a, uint64_t b) {
+  /* 64x64 -> low-64 multiplication.
+   *
+   *   a*b = (a_hi*2^32 + a_lo) * (b_hi*2^32 + b_lo)
+   *       = a_lo*b_lo + (a_lo*b_hi + a_hi*b_lo) * 2^32  (high*2^64 dropped)
+   *
+   * All sub-multiplies are 32x32 done with shift-add (mul32_64), so we
+   * never trigger __mulsidi3 / __mulsi3 / __muldi3 from libgcc. */
+  uint32_t a_lo = (uint32_t)a;
+  uint32_t a_hi = (uint32_t)(a >> 32);
+  uint32_t b_lo = (uint32_t)b;
+  uint32_t b_hi = (uint32_t)(b >> 32);
+  uint64_t ll = mul32_64(a_lo, b_lo);
+  uint64_t lh = mul32_64(a_lo, b_hi);
+  uint64_t hl = mul32_64(a_hi, b_lo);
+  return ll + ((lh + hl) << 32);
+}
+
+/* Full 128-bit product: returns the low 64 bits when both inputs are 64-bit.
+ * gcc generates calls to __multi3 in some configurations even when only
+ * 64x64 -> 64 is needed; alias it to __muldi3. */
+uint64_t __multi3(uint64_t a, uint64_t b) {
+  return __muldi3(a, b);
+}
+
+/* Unsigned 64/64 -> (quotient, remainder).
+ * Bit-by-bit non-restoring division; portable and small. */
+static uint64_t udivmoddi4(uint64_t num, uint64_t den, uint64_t *rem_out) {
+  uint64_t q = 0u;
+  uint64_t r = 0u;
+  if (den == 0u) {
+    if (rem_out) *rem_out = num;
+    return ~(uint64_t)0u;
+  }
+  for (int i = 63; i >= 0; --i) {
+    r = (r << 1) | ((num >> i) & 1u);
+    if (r >= den) {
+      r -= den;
+      q |= ((uint64_t)1u << i);
+    }
+  }
+  if (rem_out) *rem_out = r;
+  return q;
+}
+
+uint64_t __udivdi3(uint64_t num, uint64_t den) {
+  return udivmoddi4(num, den, 0);
+}
+
+uint64_t __umoddi3(uint64_t num, uint64_t den) {
+  uint64_t r = 0u;
+  (void)udivmoddi4(num, den, &r);
+  return r;
+}
+
+int64_t __divdi3(int64_t num, int64_t den) {
+  int neg = 0;
+  uint64_t un = (num < 0) ? (neg ^= 1, (uint64_t)(-num)) : (uint64_t)num;
+  uint64_t ud = (den < 0) ? (neg ^= 1, (uint64_t)(-den)) : (uint64_t)den;
+  uint64_t q = udivmoddi4(un, ud, 0);
+  return neg ? -(int64_t)q : (int64_t)q;
+}
+
+int64_t __moddi3(int64_t num, int64_t den) {
+  uint64_t r = 0u;
+  uint64_t un = (num < 0) ? (uint64_t)(-num) : (uint64_t)num;
+  uint64_t ud = (den < 0) ? (uint64_t)(-den) : (uint64_t)den;
+  (void)udivmoddi4(un, ud, &r);
+  return (num < 0) ? -(int64_t)r : (int64_t)r;
+}
+
+/* Count leading zeros — naive bit-by-bit. */
+int __clzsi2(uint32_t v) {
+  int n = 0;
+  if (v == 0u) return 32;
+  while ((v & 0x80000000u) == 0u) { v <<= 1; ++n; }
+  return n;
+}
+
+int __clzdi2(uint64_t v) {
+  uint32_t hi = (uint32_t)(v >> 32);
+  if (hi) return __clzsi2(hi);
+  return 32 + __clzsi2((uint32_t)v);
+}
+
+/* gcc may emit __ashrdi3 (arithmetic right shift) on signed 64-bit code. */
+int64_t __ashrdi3(int64_t value, int shift) {
+  unsigned int s = (unsigned int)shift & 63u;
+  if (s == 0u) return value;
+  if (s < 32u) {
+    int32_t hi = (int32_t)(value >> 32);
+    uint32_t lo = (uint32_t)(value);
+    uint32_t new_lo = (lo >> s) | ((uint32_t)hi << (32u - s));
+    int32_t  new_hi = hi >> s;
+    return ((int64_t)new_hi << 32) | (int64_t)new_lo;
+  } else {
+    int32_t hi = (int32_t)(value >> 32);
+    int32_t new_lo = hi >> (s - 32u);
+    int32_t new_hi = hi >> 31;     /* sign-extend */
+    return ((int64_t)new_hi << 32) | (uint32_t)new_lo;
+  }
+}
