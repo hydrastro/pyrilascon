@@ -1,0 +1,58 @@
+\contentsline {section}{\numberline {1}Introduction}{2}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Purpose}{2}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Relationship to the RASD}{2}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}Document Conventions}{2}{subsection.1.3}%
+\contentsline {section}{\numberline {2}System Overview}{3}{section.2}%
+\contentsline {subsection}{\numberline {2.1}High-Level Architecture}{3}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Integrated System Block Diagram}{4}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Verification Pyramid}{4}{subsection.2.3}%
+\contentsline {section}{\numberline {3}Design Decisions}{4}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Foundational Decisions}{5}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}RTL Decisions}{6}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Integration Decisions}{7}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}Firmware Decisions}{8}{subsection.3.4}%
+\contentsline {subsection}{\numberline {3.5}Verification Decisions}{8}{subsection.3.5}%
+\contentsline {subsection}{\numberline {3.6}Process and Repository Decisions}{9}{subsection.3.6}%
+\contentsline {section}{\numberline {4}Configuration Space: 560 Architecturally Valid Points}{9}{section.4}%
+\contentsline {subsection}{\numberline {4.1}The Four Architectural Axes}{9}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Visualising the Design Space}{10}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}What Was Implemented}{10}{subsection.4.3}%
+\contentsline {section}{\numberline {5}Implementation Status, by RASD Requirement}{10}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Functional Requirements}{11}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Non-Functional Requirements}{12}{subsection.5.2}%
+\contentsline {section}{\numberline {6}Verification Methodology}{13}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Layer 1 --- Python golden model}{13}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Layer 2 --- Verilog RTL against the model}{13}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Layer 3 --- C driver vs.\ emulated transport}{13}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}Layer 4 --- End-to-end co-simulation}{13}{subsection.6.4}%
+\contentsline {subsubsection}{\numberline {6.4.1}Result}{14}{subsubsection.6.4.1}%
+\contentsline {section}{\numberline {7}Synthesis and Silicon Validation}{15}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Standalone Backends on the Tang Nano 9K}{15}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Integrated NEORV32 + ASCON-CFS}{15}{subsection.7.2}%
+\contentsline {section}{\numberline {8}Architecture Exploration Framework}{16}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Five FPGA Backend Variants}{16}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}The AXI-MMIO Bridge}{16}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}The DMA-Fed AXI-Stream Front-End}{16}{subsection.8.3}%
+\contentsline {subsection}{\numberline {8.4}What is \textit {not yet} implemented}{17}{subsection.8.4}%
+\contentsline {section}{\numberline {9}Hash, XOF, and CXOF128 Backend}{18}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Implementation}{18}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Verification}{18}{subsection.9.2}%
+\contentsline {subsection}{\numberline {9.3}Integration status}{19}{subsection.9.3}%
+\contentsline {section}{\numberline {10}Comparison: this project vs.\ \texttt {ascon/ascon-hardware}}{19}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Scope and Design Philosophy}{19}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Interface, Integration, and Verification}{20}{subsection.10.2}%
+\contentsline {subsection}{\numberline {10.3}Per-Payload Sweep on the Integrated SoC (Co-Simulation)}{21}{subsection.10.3}%
+\contentsline {subsection}{\numberline {10.4}Implementation and Resource Comparison}{21}{subsection.10.4}%
+\contentsline {subsection}{\numberline {10.5}Author Note on the Performance Comparison Section}{22}{subsection.10.5}%
+\contentsline {section}{\numberline {11}Toolchain and Bring-Up Findings}{22}{section.11}%
+\contentsline {subsection}{\numberline {11.1}NEORV32 \texttt {BOOT\_MODE\_SELECT}}{22}{subsection.11.1}%
+\contentsline {subsection}{\numberline {11.2}Soft-float vs.\ double-float multilib}{23}{subsection.11.2}%
+\contentsline {subsection}{\numberline {11.3}NEORV32 printf width-modifier limitation}{23}{subsection.11.3}%
+\contentsline {subsection}{\numberline {11.4}Makefile tab-discipline in the cosim flow}{23}{subsection.11.4}%
+\contentsline {section}{\numberline {12}Remaining Work}{23}{section.12}%
+\contentsline {section}{\numberline {13}Conclusions}{23}{section.13}%
+\contentsline {section}{\numberline {A}Tools and Versions}{24}{appendix.A}%
+\contentsline {section}{\numberline {B}Reproducing Every Result}{24}{appendix.B}%
+\contentsline {section}{\numberline {C}Glossary}{25}{appendix.C}%
+\contentsline {section}{\numberline {D}Document History}{25}{appendix.D}%
+\contentsfinish 

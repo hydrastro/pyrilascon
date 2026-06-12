@@ -3,8 +3,16 @@
 % ============================================================================
 % Style: matched to the RASD (Mohammadi Masoudi Ramin, Rev. 0.5, May 2026)
 % ============================================================================
-\usepackage[T1]{fontenc}
-\usepackage[utf8]{inputenc}
+\usepackage{iftex}
+\ifPDFTeX
+  % pdfLaTeX needs explicit 8-bit font and input encodings.
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\fi
+% XeLaTeX / LuaLaTeX are natively UTF-8 and supply T1-equivalent output,
+% so they skip the two packages above. The document compiles under all
+% three engines; run it twice (or via latexmk) so the table of contents
+% and cross-references resolve.
 \usepackage[margin=2.5cm]{geometry}
 \usepackage{hyperref}
 \usepackage{booktabs}
@@ -624,7 +632,7 @@ the board target. The capability register reports which one is present.
 \dd{DD-014}{Standalone board targets for incremental bring-up}{
 \textbf{Decision.} In addition to the integrated SoC, the repository
 contains seven standalone Tang Nano 9K targets that isolate one part
-of the system on real silicon (cf.\ Table~\ref{tab:targets}).
+of the system on real silicon.
 
 \textbf{Rationale.} Debugging the integrated bitstream on open-source
 PnR is slow; debugging from LEDs is hard. Having a $16\%$-LUT
@@ -1538,6 +1546,61 @@ The eight HW measurements correspond to:
         one $p[8]$ regardless of partial-block padding.
 \end{itemize}
 
+\subsection{DMA Front-End Per-Payload Sweep (RASD~§8.4 Sizes)}
+\label{sec:dma-sweep}
+
+Table~\ref{tab:sweep} stops at the eight shapes the \emph{bounded}
+CPU-driven MMIO backend supports: the stream wrapper caps
+\texttt{MAX\_TEXT\_BYTES} and the bridge RX FIFO holds only four output
+beats, so the $64$/$256$/$1024$-byte payloads the RASD~§8.4 also asks
+for cannot be driven through the bridge without an interleaved firmware
+pump. The DMA-fed front-end of §\ref{sec:dma} streams them directly. The
+same Icarus system cosimulation, scripted across the RASD sizes by
+\texttt{tools/run\_stream\_axis\_dma\_system\_sweep.py}, verifies every
+result bit-for-bit against the Python golden model and reports the
+end-to-end cycle count from the descriptor \texttt{GO} pulse to
+\texttt{STATUS.DONE} (Table~\ref{tab:dma-sweep}).
+
+\begin{table}[H]
+\centering
+\caption{DMA front-end per-payload sweep under Icarus co-simulation.
+``Beats'' counts $128$-bit associated-data plus text beats; ``cycles''
+is measured from \texttt{GO} to \texttt{STATUS.DONE}. The cosimulation
+memory model accepts every request with a single-cycle read latency, so
+these are the front-end's own streaming and bookkeeping cycles ---
+\emph{not} a silicon or DRAM-timing measurement, and \emph{not}
+comparable to the accelerator-core HW columns of Table~\ref{tab:sweep}.
+All six cases match the golden model.}
+\label{tab:dma-sweep}
+\small
+\begin{tabular}{lrrrrr}
+\toprule
+\rowcolor{tabhead!20}
+\textbf{Case} & \textbf{AD} & \textbf{PT} & \textbf{Beats} &
+\textbf{Cycles} & \textbf{cy/beat}\\
+              & (B) & (B) & & (GO$\,\to\,$DONE) & \\
+\midrule
+\texttt{empty}        &  0 &    0 &  0 &    $82$  & ---\\
+\texttt{pt16}         &  0 &   16 &  1 &    $98$  & $98.0$\\
+\texttt{pt64}         &  0 &   64 &  4 &   $150$  & $37.5$\\
+\texttt{pt256}        &  0 &  256 & 16 &   $354$  & $22.1$\\
+\texttt{pt1024}       &  0 & 1024 & 64 & $1\,170$ & $18.3$\\
+\texttt{ad16\_pt1024} & 16 & 1024 & 65 & $1\,188$ & $18.3$\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Two points are worth recording. First, the per-beat cost amortises a
+fixed setup overhead --- descriptor latch, the initialisation $p[12]$,
+and tag finalisation --- and settles around $18$ cycles per $128$-bit
+beat at the larger sizes; adding one associated-data beat to the
+$1024$-byte case costs $18$ more cycles, matching that slope. Second,
+the $64$-beat ($1024$-byte) case is sixteen times the four-beat bridge
+FIFO and completes with exactly one beat in flight throughout --- the
+property the CPU bridge cannot provide, and the reason the front-end
+exists. The on-silicon counterpart of these numbers, like the integrated
+bitstream, still awaits a board build (§\ref{sec:silicon}).
+
 \subsection{Implementation and Resource Comparison}
 
 A precise quantitative comparison (LUTs/throughput) requires running
@@ -1636,10 +1699,13 @@ regenerated reliably.
 \section{Remaining Work}
 
 \begin{enumerate}[noitemsep]
-  \item \textbf{Per-payload sweep numbers.} The firmware emits per-case
-        \texttt{CASE} lines covering the RASD~§8.4 payload set; the
-        actual cycle counts need to be captured from one cosim and
-        one Kintex run, and pasted into the comparison-section tables.
+  \item \textbf{Per-payload sweep numbers on real silicon.} The
+        integrated cosim numbers are captured for the bounded MMIO
+        backend (Table~\ref{tab:sweep}), and the larger RASD~§8.4
+        sizes ($64$/$256$/$1024$\,B) are now measured through the
+        DMA-fed front-end cosim (Table~\ref{tab:dma-sweep}). What
+        remains is the on-silicon counterpart: one Kintex run of the
+        same payload set, pasted alongside the co-simulation tables.
   \item \textbf{Integrated bitstream on real silicon.} Either
         (i)~vendor Gowin EDA on the GW1NR-9, or (ii)~a
         $12$\,K-LUT-class target (Kintex bring-up next week).
@@ -1746,7 +1812,7 @@ sudo make -C boards/tangnano9k/ascon_aead128_mmio_slow prog-sram
 
 # Integrated SoC (synth OK, PnR fails on GW1NR-9)
 make -C boards/tangnano9k/neorv32_mmio bitstream
-# utilisation table matches §6.2 above; nextpnr halts at utilisation limit
+# utilisation table matches section 6.2 above; nextpnr halts at utilisation limit
 \end{lstlisting}
 
 \section{Glossary}
@@ -1782,7 +1848,7 @@ RTL            & Register-Transfer-Level hardware description.\\
 \rowcolor{tabhead!20}\textbf{Rev.} & \textbf{Date} & \textbf{Notes}\\
 \midrule
 1.0 & \today & Initial development report, RASD-matched style, companion to RASD~Rev.~0.5.\\
-1.1 & \today & Added the autonomous descriptor-driven DMA-fed AXI-stream front-end --- RTL engine and system wrapper, Icarus cosimulation ($14$ vectors up to the $1024$-byte/$64$-beat maximum), and a descriptor-oriented firmware driver; moved it from future work to implemented (§\ref{sec:dma}).\\
+1.1 & \today & Added the autonomous descriptor-driven DMA-fed AXI-stream front-end --- RTL engine and system wrapper, Icarus cosimulation ($14$ vectors up to the $1024$-byte/$64$-beat maximum) plus a per-payload sweep over the RASD~§8.4 sizes (§\ref{sec:dma-sweep}), and a descriptor-oriented firmware driver; moved it from future work to implemented (§\ref{sec:dma}). Made the preamble engine-agnostic (pdf/Xe/Lua\LaTeX) and corrected a dangling table reference and a stray non-ASCII byte in a code listing.\\
 \bottomrule
 \end{tabular}
 \end{center}

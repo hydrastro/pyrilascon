@@ -109,6 +109,40 @@ The standalone backend simulations remain the proof of the unbounded stream and
 buffered-decrypt behavior; this system cosimulation proves the DMA wiring,
 descriptor protocol, and ciphertext writeback are correct.
 
+## Per-payload sweep (RASD §8.4 sizes)
+
+The integrated CPU-driven MMIO co-simulation in the report tops out at the eight
+payload shapes the bounded MMIO backend supports (text up to the wrapper's small
+`MAX_TEXT_BYTES` and the four-beat bridge RX FIFO). The RASD §8.4 performance
+payload set also calls for 64-, 256-, and 1024-byte payloads, which the MMIO
+bridge cannot stream without an interleaved firmware pump. The DMA front-end
+covers them directly. `tools/run_stream_axis_dma_system_sweep.py` runs the set
+through the same Icarus cosimulation, verifies each result bit-for-bit against
+the golden model, and reports the end-to-end cycle count from the descriptor
+`GO` pulse to `STATUS.DONE`:
+
+```text
+case             AD     PT  beats   cycles  cy/beat   match
+-----------------------------------------------------------
+empty             0      0      0       82        -      ok
+pt16              0     16      1       98     98.0      ok
+pt64              0     64      4      150     37.5      ok     (RASD §8.4)
+pt256             0    256     16      354     22.1      ok     (RASD §8.4)
+pt1024            0   1024     64     1170     18.3      ok     (RASD §8.4)
+ad16_pt1024      16   1024     65     1188     18.3      ok
+```
+
+The cosimulation memory model accepts every request with a single-cycle read
+latency, so these cycles are the front-end's own streaming and bookkeeping cost,
+not a model of external DRAM timing. The per-beat cost amortizes a fixed setup
+overhead and settles around 18 cycles per 128-bit beat for the larger payloads;
+adding one associated-data beat to the 1024-byte case costs 18 more cycles,
+matching that slope. The 64-beat (1024-byte) case is sixteen times the four-beat
+CPU bridge FIFO and streams to completion with one beat in flight.
+
+Run it with `make stream-axis-dma-system-sweep` (or the script directly); the
+sweep is also asserted by `tests/test_stream_axis_dma_system_sweep.py`.
+
 ## Firmware driver
 
 `firmware/ascon_accel/ascon_accel_axis_dma_transport.{c,h}` provides a

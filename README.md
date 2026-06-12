@@ -384,6 +384,14 @@ make stream-axis-dma-system-sim
 
 This drives the CSR control plane plus the DMA descriptor block in front of the stream AEAD128 backend, lets the DMA fetch the payload from an embedded memory model, stream it through the backend with strictly one beat in flight, and write the ciphertext back to memory, then compares the result against the Python golden model. The cosimulation matrix runs empty, partial-block, multi-beat AD, and multi-beat plaintext vectors up to the backend's 1024-byte (64-beat) maximum, which is well beyond the four-beat CPU bridge FIFO. See `docs/stream_axis_dma_system.md` for the descriptor register map and verification details.
 
+The larger RASD §8.4 performance payload sizes (64/256/1024 bytes), which the bounded CPU-driven MMIO path cannot stream, are measured through the DMA front-end with:
+
+```bash
+make stream-axis-dma-system-sweep
+```
+
+This runs the RASD payload set through the same cosimulation, verifies each result bit-for-bit against the golden model, and reports the end-to-end cycle count (descriptor `GO` to `STATUS.DONE`) for each size.
+
 Encryption-side payload movement is automated by the DMA path; buffered authenticated decryption keeps the CPU-driven transport, and decrypt-side DMA remains future work.
 
 
