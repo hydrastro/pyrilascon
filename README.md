@@ -29,6 +29,9 @@ Implemented so far:
 - CPU-driven AXI-stream MMIO transport for NEORV32/bring-up bridge integration
 - FIFO-backed RTL MMIO-to-AXI-stream bridge and integrated stream AEAD128 system wrapper
 - multi-beat integrated AXI-MMIO system simulation coverage up to the default RX FIFO depth
+- autonomous descriptor-driven DMA-fed AXI-stream front-end that streams full encryption payloads to/from memory, removing the CPU per-beat polling and the bridge RX FIFO bound
+- integrated DMA front-end cosimulation against the Python golden model up to the 1024-byte (64-beat) backend maximum
+- descriptor-oriented firmware driver for the DMA front-end alongside the existing CPU-driven MMIO transport
 - NEORV32 benchmark firmware can select the stream-native MMIO bridge path with `USE_AXIS_MMIO=1`
 - stream-native NEORV32 CFS wrapper maps CSR and AXI-MMIO bridge windows into one CFS region
 - Tang Nano 9K NEORV32 stream board manifest freezes the RTL file list, firmware mode, and memory map
@@ -369,6 +372,19 @@ This drives the complete CSR + AXI-MMIO bridge + stream AEAD128 system wrapper t
 
 
 This verifies the MMIO register contract, TX AXI-stream commit/handshake behavior, RX holding register, and `RX_CTRL.POP` path before NEORV32 board bring-up.
+
+
+### AXI-stream DMA front-end cosimulation
+
+The CPU-driven bridge above makes firmware move every 128-bit beat and is bounded by the bridge RX FIFO. The autonomous DMA front-end instead takes a small descriptor (associated-data and plaintext source addresses, their lengths, and a destination address) and moves the whole encryption payload itself through a memory master port, while the frozen ASCON CSR ABI still drives the control plane and tag. Run the integrated cosimulation with:
+
+```bash
+make stream-axis-dma-system-sim
+```
+
+This drives the CSR control plane plus the DMA descriptor block in front of the stream AEAD128 backend, lets the DMA fetch the payload from an embedded memory model, stream it through the backend with strictly one beat in flight, and write the ciphertext back to memory, then compares the result against the Python golden model. The cosimulation matrix runs empty, partial-block, multi-beat AD, and multi-beat plaintext vectors up to the backend's 1024-byte (64-beat) maximum, which is well beyond the four-beat CPU bridge FIFO. See `docs/stream_axis_dma_system.md` for the descriptor register map and verification details.
+
+Encryption-side payload movement is automated by the DMA path; buffered authenticated decryption keeps the CPU-driven transport, and decrypt-side DMA remains future work.
 
 
 ## Tang Nano 9K NEORV32 stream preflight

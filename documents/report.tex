@@ -1230,6 +1230,79 @@ push/pop semantics on the CSR side, AXI stream handshake on the backend
 side. The firmware code paths above this bridge are identical to the
 MMIO-native code paths --- only the transport layer changes.
 
+\subsection{The DMA-Fed AXI-Stream Front-End}
+\label{sec:dma}
+
+The AXI-MMIO bridge above makes bring-up simple but keeps the CPU in the
+data path: firmware pushes and pops every $128$-bit beat, so a payload
+of $L$ bytes costs $O(L)$ loads and stores, and the amount of in-flight
+ciphertext is bounded by the small bridge RX FIFO (four output beats by
+default). The autonomous front-end \texttt{ascon\_axis\_dma.v} removes
+the CPU from the data path. Firmware programs a compact descriptor ---
+associated-data and plaintext source addresses, their lengths, and a
+destination address --- and sets a single \texttt{GO} bit; the engine
+then fetches the payload from memory over a master port, feeds the
+stream-native backend, drains each ciphertext beat, and writes it back
+to the destination buffer, raising \texttt{DONE} (or an interrupt) when
+the transfer completes.
+
+The control plane is deliberately left untouched: key, nonce, lengths,
+mode, \texttt{CONTROL.START}, and the resulting tag are still driven
+through the frozen ASCON CSR ABI exactly as before, so the core
+decoupling of NFR-006 is preserved --- the DMA block carries no
+NEORV32-specific ports and sits only in front of the backend's
+AXI-stream ports. The descriptor block is a separate MMIO window of
+eight word-aligned registers (\texttt{AD\_ADDR}, \texttt{AD\_LEN},
+\texttt{TEXT\_ADDR}, \texttt{TEXT\_LEN}, \texttt{DST\_ADDR},
+\texttt{CTRL} carrying \texttt{GO}/\texttt{IRQ\_EN}/\texttt{CLEAR},
+\texttt{STATUS} carrying \texttt{BUSY}/\texttt{DONE}/\texttt{ERROR} plus
+the output-beat count, and \texttt{OUT\_BYTES}).
+
+The one subtlety is back-pressure. The encrypt backend gates its text
+input \texttt{tready} on its output not being valid, so a fresh
+plaintext beat may be presented only after the previous ciphertext beat
+has been accepted. The DMA engine honours this with a single in-flight
+token: after presenting an input beat it stages the next one only once
+the matching output beat has been written back. Exactly one beat is ever
+in flight, so there is no internal output FIFO to overflow and the
+streaming behaviour is independent of payload length --- precisely the
+bound the CPU bridge cannot escape. Per-segment \texttt{tlast} is
+asserted combinationally from the running byte counts on the final beat
+of the associated-data segment and, separately, of the text segment,
+matching the backend's length checks; an earlier revision latched the AD
+\texttt{tlast} one cycle too late and tripped a spurious length error on
+the first beat, which driving it directly from the counts resolved.
+
+The front-end is verified by an Icarus Verilog cosimulation
+(\texttt{tools/run\_stream\_axis\_dma\_system\_vector.py}) that wraps the
+CSR control plane and the descriptor block around the real backend RTL,
+backed by an embedded synchronous memory model. The testbench programs
+the control plane and the descriptor exactly as firmware would, lets the
+DMA move the payload, and compares the ciphertext read back from memory
+and the tag read from the CSR registers against the same Python golden
+model used throughout the verification methodology (§\ref{sec:ver}). The
+matrix passes $14$ of $14$ vectors --- empty payloads, short partial
+final blocks, multi-beat associated data, and multi-beat plaintext up to
+the backend's $1024$-byte ($64$-beat) maximum. Reported cycle counts
+scale linearly with payload length (about $82$ cycles for an empty
+payload to roughly $1\,170$ for $1024$ bytes), confirming true
+beat-by-beat streaming; the $64$-beat case is sixteen times the CPU
+bridge's four-beat FIFO and could not be driven through the bridge
+without an interleaved firmware pump. A descriptor-oriented firmware
+driver (\texttt{ascon\_accel\_axis\_dma\_transport.\{c,h\}}) programs the
+descriptor, launches the transfer, and polls \texttt{STATUS} for
+completion; it is distinct from the beat-by-beat MMIO transport and is
+compiled and unit-checked alongside the rest of the firmware. The full
+register map and verification notes live in
+\texttt{docs/stream\_axis\_dma\_system.md}.
+
+\warn{The DMA front-end is verified at RTL through cosimulation against
+the golden model, not yet on silicon --- like the integrated bitstream
+it still awaits a board build (§\ref{sec:silicon}). It also automates
+\emph{encryption} only: buffered authenticated decryption keeps the
+CPU-driven transport, because its burst-at-the-end dataflow differs from
+the streaming encrypt path, so decrypt-side DMA remains future work.}
+
 \subsection{What is \textit{not yet} implemented}
 
 \begin{itemize}[noitemsep]
@@ -1237,7 +1310,6 @@ MMIO-native code paths --- only the transport layer changes.
   \item Multi-context schedulers ($M$ pipelines $\times N$ contexts).
   \item Ascon-AEAD128a, AEAD128pq RTL (Hash256/XOF128/CXOF128 are
         implemented; see §\ref{sec:hash}).
-  \item DMA-fed AXI-stream front-end.
   \item ASIC datapaths (bit-serial, $5$-bit-S-box-serial).
   \item Masking / side-channel countermeasures.
   \item NEORV32 integrated bitstream that closes PnR on the GW1NR-9 with
@@ -1710,6 +1782,7 @@ RTL            & Register-Transfer-Level hardware description.\\
 \rowcolor{tabhead!20}\textbf{Rev.} & \textbf{Date} & \textbf{Notes}\\
 \midrule
 1.0 & \today & Initial development report, RASD-matched style, companion to RASD~Rev.~0.5.\\
+1.1 & \today & Added the autonomous descriptor-driven DMA-fed AXI-stream front-end --- RTL engine and system wrapper, Icarus cosimulation ($14$ vectors up to the $1024$-byte/$64$-beat maximum), and a descriptor-oriented firmware driver; moved it from future work to implemented (§\ref{sec:dma}).\\
 \bottomrule
 \end{tabular}
 \end{center}

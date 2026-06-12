@@ -15,7 +15,7 @@ PYTEST_CMD := $(ENV) $(PYTEST)
 
 .PHONY: help env check-layout test test-all test-kat test-spec test-arch \
         generate-verilog list-configs list-configs-csv list-configs-json docs-configs \
-        stream-encrypt-sim stream-decrypt-sim axis-mmio-bridge-sim stream-axis-mmio-system-sim firmware-stream-ref-bench project-status-report project-checkpoint-bundle matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
+        stream-encrypt-sim stream-decrypt-sim axis-mmio-bridge-sim stream-axis-mmio-system-sim stream-axis-dma-system-sim firmware-stream-ref-bench project-status-report project-checkpoint-bundle matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
         clean clean-cache clean-generated clean-build clean-nested repair verify all
 
 
@@ -33,6 +33,7 @@ help:
 	@echo "  make stream-decrypt-sim    Run optional valid/corrupt-tag Icarus RTL sim vectors for buffered decrypt"
 	@echo "  make axis-mmio-bridge-sim Run optional Icarus sim for the CPU-driven AXI-stream MMIO bridge"
 	@echo "  make stream-axis-mmio-system-sim Run optional Icarus smoke sim for the full CSR+bridge+stream AEAD system"
+	@echo "  make stream-axis-dma-system-sim Run optional Icarus cosim for the autonomous descriptor-driven DMA front-end"
 	@echo "  make firmware-stream-ref-bench Run host firmware benchmark through the AXI-stream reference emulator"
 	@echo "  Board-specific targets live under boards/; example: cd boards/tangnano9k/neorv32_stream_axis_mmio && make help"
 	@echo "  make project-status-report            Generate current implementation/verification status report"
@@ -110,6 +111,9 @@ axis-mmio-bridge-sim: check-layout
 
 stream-axis-mmio-system-sim: check-layout
 	$(PY) tools/run_stream_axis_mmio_system_vector.py --key-hex 000102030405060708090a0b0c0d0e0f --nonce-hex 101112131415161718191a1b1c1d1e1f --ad-hex aabbccddeeff --plaintext-hex 000102030405060708090a0b0c0d0e0f101112
+
+stream-axis-dma-system-sim: check-layout
+	$(PY) tools/run_stream_axis_dma_system_vector.py --key-hex 000102030405060708090a0b0c0d0e0f --nonce-hex 101112131415161718191a1b1c1d1e1f --ad-hex aabbccddeeff --plaintext-hex 000102030405060708090a0b0c0d0e0f101112
 
 firmware-stream-ref-bench: check-layout
 	$(PY) tools/run_firmware_stream_ref_benchmark.py --json
