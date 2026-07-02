@@ -1,14 +1,51 @@
+# --- Python -------------------------------------------------------------
 __pycache__/
+*.py[cod]
 .pytest_cache/
-*.pyc
-*.vcd
-*.vvp
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# --- Nix dev shell (yowasp venv created by flake shellHook) -------------
+.venv-fpga/
+
+# --- External / fetched sources (see tools/ensure_neorv32_checkout.py) --
+external/
+
+# --- Build & generation outputs ------------------------------------------
+build/
+rtl/generated/*
+!rtl/generated/.gitkeep
+docs/generated/*
+!docs/generated/.gitkeep
+vectors/generated/*
+!vectors/generated/.gitkeep
+
+# --- C build artifacts ----------------------------------------------------
 *.o
+*.a
 *.elf
 *.bin
 *.hex
-*.map
-*.log
-build/
-external/
-*.zip
+*.gch
+*.d
+
+# --- FPGA toolchain outputs ------------------------------------------------
+*.fs
+*.fsh
+*.posp
+*.gowin_pack.log
+*_syn.v
+nextpnr*.log
+
+# --- Board bring-up run artifacts (regenerate, don't commit) --------------
+uart.log
+*.uart.log
+cosim_report.md
+session.json
+session.md
+
+# --- Editor / OS cruft ------------------------------------------------------
+.DS_Store
+*.swp
