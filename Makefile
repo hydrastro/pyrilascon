@@ -8,6 +8,8 @@ CONTEXTS_PER_ENGINE ?= 12
 CONTEXTS_PER_PIPELINE ?= $(CONTEXTS_PER_ENGINE)
 BUILD_DIR ?= build
 ALGOS ?= requested
+TN20K_DIR := boards/tangnano20k/neorv32_mmio
+SERIAL ?=
 
 ENV := PYTHONPATH=.
 PY := $(ENV) $(PYTHON)
@@ -17,11 +19,15 @@ PYTEST_CMD := $(ENV) $(PYTEST)
         generate-verilog list-configs list-configs-csv list-configs-json docs-configs \
         stream-encrypt-sim stream-decrypt-sim axis-mmio-bridge-sim stream-axis-mmio-system-sim stream-axis-dma-system-sim stream-axis-dma-system-sweep firmware-stream-ref-bench project-status-report project-checkpoint-bundle matrix design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines \
         clean clean-cache clean-generated clean-build clean-nested repair verify all
+.PHONY: sanity repo-audit clean-repo-junk clean-board distclean \
+        tn20k-doctor tn20k-sanity tn20k-firmware tn20k-bitstream tn20k-rebuild \
+        tn20k-detect tn20k-prog-sram tn20k-prog-flash tn20k-capture tn20k-report tn20k-benchmark
 
 
 help:
 	@echo "ASCON repo targets"
 	@echo ""
+	@echo "  make sanity                Repository hygiene audit + complete pytest suite"
 	@echo "  make test                  Run root tests only: pytest tests"
 	@echo "  make test-kat              Run known-answer tests only"
 	@echo "  make test-spec             Run spec/model tests"
@@ -36,13 +42,20 @@ help:
 	@echo "  make stream-axis-dma-system-sim Run optional Icarus cosim for the autonomous descriptor-driven DMA front-end"
 	@echo "  make stream-axis-dma-system-sweep Run the DMA front-end per-payload sweep (RASD 8.4 sizes: 64/256/1024 B)"
 	@echo "  make firmware-stream-ref-bench Run host firmware benchmark through the AXI-stream reference emulator"
-	@echo "  Board-specific targets live under boards/; example: cd boards/tangnano9k/neorv32_stream_axis_mmio && make help"
+	@echo "  make tn20k-doctor          Check the Tang Nano 20K toolchain and dependencies"
+	@echo "  make tn20k-bitstream       Rebuild firmware and the Tang Nano 20K bitstream"
+	@echo "  make tn20k-prog-sram       Load the current target into volatile SRAM"
+	@echo "  make tn20k-capture SERIAL=...   Capture a complete UART benchmark run"
+	@echo "  make tn20k-report          Validate the capture and generate result tables"
+	@echo "  make tn20k-prog-flash      Write the validated image to persistent flash"
 	@echo "  make project-status-report            Generate current implementation/verification status report"
 	@echo "  make project-checkpoint-bundle        Generate archiveable project checkpoint bundle"
 	@echo "  make design-asic           Generate default ASIC design product"
 	@echo "  make design-fpga           Generate default FPGA N-engine product"
 	@echo "  make matrix                Generate selected ASIC/FPGA design matrix"
 	@echo "  make clean                 Remove caches, build products, generated docs/RTL"
+	@echo "  make clean-repo-junk       Remove known accidental nested copies/artifacts"
+	@echo "  make distclean             Also remove root FPGA venv and pinned NEORV32 checkout"
 	@echo "  make clean-nested          Remove known nested old repo folders/zips"
 	@echo "  make repair                clean-nested + clean + test"
 	@echo "  make verify                Run tests, docs-configs, and Verilog generation"
@@ -59,6 +72,11 @@ check-layout:
 	@test -d tests || (echo "Missing tests/. Run from repo root."; exit 1)
 	@if [ -d ignore ]; then echo "Warning: ignore/ exists. It is ignored by pytest.ini; run 'make clean-nested' to delete it."; fi
 	@if [ -d ascon_hwmodel_aead_hash_step ]; then echo "Warning: nested ascon_hwmodel_aead_hash_step/ exists; run 'make clean-nested' to delete it."; fi
+
+repo-audit:
+	$(PY) tools/check_repository_hygiene.py
+
+sanity: repo-audit test
 
 test: check-layout clean-cache
 	$(PYTEST_CMD) $(PYTEST_FLAGS) tests
@@ -174,3 +192,66 @@ repair: clean-nested clean test
 verify: test docs-configs generate-verilog
 
 all: verify design-asic design-fpga design-fpga-pipeline design-fpga-mpipelines
+
+
+# ---------------------------------------------------------------------------
+# Tang Nano 20K convenience targets. The board Makefile remains the source of
+# truth; these aliases keep the root-level workflow discoverable.
+tn20k-doctor:
+	$(MAKE) -C $(TN20K_DIR) doctor
+
+tn20k-sanity:
+	$(MAKE) -C $(TN20K_DIR) sanity
+
+tn20k-firmware:
+	$(MAKE) -C $(TN20K_DIR) firmware
+
+tn20k-bitstream:
+	$(MAKE) -C $(TN20K_DIR) bitstream
+
+tn20k-rebuild:
+	$(MAKE) -C $(TN20K_DIR) rebuild
+
+tn20k-detect:
+	$(MAKE) -C $(TN20K_DIR) detect
+
+tn20k-prog-sram:
+	$(MAKE) -C $(TN20K_DIR) prog-sram
+
+tn20k-prog-flash:
+	$(MAKE) -C $(TN20K_DIR) prog-flash
+
+tn20k-capture:
+	$(MAKE) -C $(TN20K_DIR) uart-capture $(if $(strip $(SERIAL)),SERIAL="$(SERIAL)",)
+
+tn20k-report:
+	$(MAKE) -C $(TN20K_DIR) uart-report
+
+tn20k-benchmark:
+	$(MAKE) -C $(TN20K_DIR) benchmark $(if $(strip $(SERIAL)),SERIAL="$(SERIAL)",)
+
+clean-board:
+	$(MAKE) -C $(TN20K_DIR) clean
+
+clean-repo-junk:
+	@rm -rf boards/tangnano20k/neorv32_mmio/.venv-fpga
+	@rm -rf boards/tangnano20k/neorv32_mmio/external
+	@rm -rf firmware/ascon_accel/ascon_arch firmware/ascon_accel/ascon_hwmodel
+	@rm -rf firmware/ascon_accel/benchmarks firmware/ascon_accel/boards
+	@rm -rf firmware/ascon_accel/configs firmware/ascon_accel/docs
+	@rm -rf firmware/ascon_accel/firmware firmware/ascon_accel/rtl
+	@rm -rf firmware/ascon_accel/tests firmware/ascon_accel/tools firmware/ascon_accel/vectors
+	@rm -f firmware/ascon_accel/.gitignore firmware/ascon_accel/Makefile
+	@rm -f firmware/ascon_accel/demo_*.py firmware/ascon_accel/flake.nix
+	@rm -f firmware/ascon_accel/flake.lock firmware/ascon_accel/pytest.ini
+	@rm -f firmware/ascon_accel/*.gch rtl/stream/*.bak
+	@rm -f ascon_accel.o main_demo.o uart.log cosim_report.md notes
+	@rm -rf mnt
+	@rm -f documents/*.aux documents/*.out documents/*.toc
+	@rm -f boards/tangnano9k/neorv32_stream_axis_mmio/sys
+	@rm -f boards/tangnano9k/neorv32_mmio/cosim/neorv32_verilog_wrapper.v
+	@echo "Known accidental repository artifacts removed."
+
+distclean: clean clean-board clean-repo-junk
+	@rm -rf .venv-fpga external/neorv32 firmware/neorv32_ascon_benchmark/build
+	@echo "Removed reproducible local dependencies; run 'nix develop' to restore them."

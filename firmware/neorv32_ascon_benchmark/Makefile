@@ -10,6 +10,13 @@ APP_SRC = main.c \
 APP_INC = -I../ascon_accel -I../ascon_ref
 override USER_FLAGS += -Wextra
 
+# Machine-readable build identity and bounded-backend payload limit. Board
+# Makefiles override these values so UART evidence records its exact origin.
+ASCON_BENCH_BUILD_TAG ?= cosim-neorv32-mmio
+ASCON_BENCH_MAX_BYTES_TAG ?= 32
+override USER_FLAGS += -DASCON_BENCH_BUILD_TAG=\"$(ASCON_BENCH_BUILD_TAG)\"
+override USER_FLAGS += -DASCON_BENCH_MAX_BYTES_TAG=$(ASCON_BENCH_MAX_BYTES_TAG)
+
 # Set USE_AXIS_MMIO=1 to benchmark the stream-native AEAD128 SoC top through
 # the CPU-driven MMIO-to-AXI-stream bridge transport.
 #

@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
-"""Capture NEORV32 benchmark UART output with portable serial auto-detection."""
+"""Capture a complete NEORV32 benchmark run from a serial port.
+
+The capture is deterministic: it opens the UART, discards stale bytes, waits for
+the user to press the board reset key, records raw bytes, and exits only after a
+standalone ``PASS``/``FAIL`` line or a timeout. This avoids picocom banners and
+truncated one-case logs in benchmark evidence.
+"""
 from __future__ import annotations
 
 import argparse
 import glob
 import json
 import os
-import shutil
 import stat
-import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -28,7 +33,6 @@ def serial_candidates() -> list[Path]:
     for pattern in SERIAL_PATTERNS:
         for name in glob.glob(pattern):
             path = Path(name)
-            # Keep the human-stable /dev/serial/by-id symlink when available.
             key = str(path.resolve()) if path.exists() else str(path)
             if key not in seen:
                 seen.add(key)
@@ -38,34 +42,15 @@ def serial_candidates() -> list[Path]:
 
 def _serial_score(path: Path) -> int:
     text = str(path)
-    score = 0
-    if "/dev/serial/by-id/" in text:
-        score += 20
+    score = 20 if "/dev/serial/by-id/" in text else 0
     upper = text.upper()
     if "SIPEED" in upper or "TANG" in upper or "GOWIN" in upper:
         score += 50
-    # Sipeed debug adapters commonly expose if00 and if01.  Prefer if01 for
-    # the UART bridge when both interfaces are present, but still require the
-    # selected device to be readable/writable.
-    if "-if01-" in text or "_if01" in text or "if01" in text:
+    if "if01" in text:
         score += 5
-    if "-if00-" in text or "_if00" in text or "if00" in text:
+    if "if00" in text:
         score += 1
     return score
-
-
-def _choose_best_ready(candidates: list[Path]) -> dict[str, Any] | None:
-    ready = [_device_status(path) for path in candidates if _device_status(path)["ready"]]
-    if not ready:
-        return None
-    scored = sorted(ready, key=lambda item: (_serial_score(Path(item["path"])), item["path"]), reverse=True)
-    if len(scored) == 1:
-        return scored[0]
-    best_score = _serial_score(Path(scored[0]["path"]))
-    second_score = _serial_score(Path(scored[1]["path"]))
-    if best_score > second_score:
-        return scored[0]
-    return None
 
 
 def _device_status(path: Path) -> dict[str, Any]:
@@ -77,8 +62,35 @@ def _device_status(path: Path) -> dict[str, Any]:
         try:
             mode = stat.filemode(path.stat().st_mode)
         except OSError:
-            mode = None
-    return {"path": str(path), "exists": exists, "readable": readable, "writable": writable, "ready": readable and writable, "mode": mode}
+            pass
+    return {
+        "path": str(path),
+        "exists": exists,
+        "readable": readable,
+        "writable": writable,
+        "ready": readable and writable,
+        "mode": mode,
+    }
+
+
+def _choose_best_ready(candidates: list[Path]) -> dict[str, Any] | None:
+    ready: list[dict[str, Any]] = []
+    for path in candidates:
+        status = _device_status(path)
+        if status["ready"]:
+            ready.append(status)
+    if not ready:
+        return None
+    scored = sorted(
+        ready,
+        key=lambda item: (_serial_score(Path(item["path"])), item["path"]),
+        reverse=True,
+    )
+    if len(scored) == 1:
+        return scored[0]
+    if _serial_score(Path(scored[0]["path"])) > _serial_score(Path(scored[1]["path"])):
+        return scored[0]
+    return None
 
 
 def choose_serial(explicit: Path | None = None) -> dict[str, Any]:
@@ -87,7 +99,7 @@ def choose_serial(explicit: Path | None = None) -> dict[str, Any]:
     if explicit is not None:
         status = _device_status(explicit)
         status["source"] = "explicit"
-        status["candidates"] = [str(p) for p in serial_candidates()]
+        status["candidates"] = [str(path) for path in serial_candidates()]
         if not status["exists"]:
             status["message"] = f"serial device does not exist: {explicit}"
         elif not status["ready"]:
@@ -100,7 +112,7 @@ def choose_serial(explicit: Path | None = None) -> dict[str, Any]:
     best = _choose_best_ready(candidates)
     if best is not None:
         best["source"] = "auto"
-        best["candidates"] = [str(p) for p in candidates]
+        best["candidates"] = [str(path) for path in candidates]
         best["message"] = "auto-detected a preferred usable serial device"
         return best
     return {
@@ -111,61 +123,109 @@ def choose_serial(explicit: Path | None = None) -> dict[str, Any]:
         "ready": False,
         "mode": None,
         "source": "auto",
-        "candidates": [str(p) for p in candidates],
-        "message": "no unique usable serial device found; set SERIAL=/dev/ttyUSBx, SERIAL=/dev/ttyACMx, or a stable /dev/serial/by-id/... path",
+        "candidates": [str(path) for path in candidates],
+        "message": (
+            "no unique usable serial device found; set SERIAL=/dev/ttyUSBx, "
+            "SERIAL=/dev/ttyACMx, or a stable /dev/serial/by-id/... path"
+        ),
     }
 
 
-def main() -> int:
+def capture(path: str, *, baud: int, log_path: Path, timeout_s: float) -> int:
+    try:
+        import serial  # type: ignore[import-not-found]
+    except ImportError:
+        print("error: pyserial is not installed; re-enter `nix develop`", file=sys.stderr)
+        return 2
+
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    deadline = time.monotonic() + timeout_s
+    line_buffer = bytearray()
+    final_result: str | None = None
+
+    print(f"Opening {path} at {baud} baud (8N1, no flow control).")
+    print("Press S1/KEY1 on the Tang Nano 20K once. Capture stops automatically at PASS/FAIL.")
+
+    try:
+        with serial.Serial(
+            port=path,
+            baudrate=baud,
+            bytesize=serial.EIGHTBITS,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            timeout=0.1,
+            xonxoff=False,
+            rtscts=False,
+            dsrdtr=False,
+        ) as port, log_path.open("wb") as log_file:
+            port.reset_input_buffer()
+            while time.monotonic() < deadline:
+                chunk = port.read(256)
+                if not chunk:
+                    continue
+                log_file.write(chunk)
+                log_file.flush()
+                sys.stdout.write(chunk.decode("utf-8", errors="replace"))
+                sys.stdout.flush()
+                line_buffer.extend(chunk)
+
+                while b"\n" in line_buffer:
+                    raw_line, _, remainder = line_buffer.partition(b"\n")
+                    line_buffer = bytearray(remainder)
+                    line = raw_line.decode("utf-8", errors="replace").strip().strip("\x00\ufffd").strip()
+                    if line == "PASS":
+                        final_result = "PASS"
+                        break
+                    if line == "FAIL" or line.startswith("FAIL:"):
+                        final_result = "FAIL"
+                        break
+                if final_result is not None:
+                    break
+    except (OSError, ValueError) as exc:
+        print(f"\nerror: serial capture failed: {exc}", file=sys.stderr)
+        return 2
+
+    if final_result == "PASS":
+        print(f"\nCaptured complete PASS log: {log_path}")
+        return 0
+    if final_result == "FAIL":
+        print(f"\nFirmware reported FAIL; log retained at {log_path}", file=sys.stderr)
+        return 1
+    print(f"\nerror: timed out after {timeout_s:g}s before PASS/FAIL; partial log: {log_path}", file=sys.stderr)
+    return 3
+
+
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--serial-device", type=Path, default=None, help="serial device; defaults to SERIAL or auto-detection")
-    parser.add_argument("--log", type=Path, default=Path("uart.log"), help="capture log path")
-    parser.add_argument("--baud", default=os.environ.get("BAUD", "19200"), help="UART baud rate")
-    parser.add_argument("--dry-run", action="store_true", help="print the command without opening the port")
-    parser.add_argument("--json", action="store_true", help="print selected device status as JSON")
-    args = parser.parse_args()
+    parser.add_argument("--serial-device", type=Path, default=None)
+    parser.add_argument("--log", type=Path, default=Path("uart.log"))
+    parser.add_argument("--baud", type=int, default=int(os.environ.get("BAUD", "19200")))
+    parser.add_argument("--timeout", type=float, default=60.0)
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--json", action="store_true")
+    args = parser.parse_args(argv)
 
     status = choose_serial(args.serial_device)
     if args.json:
         print(json.dumps(status, indent=2, sort_keys=True))
-
     if not status["ready"]:
         print(f"error: {status['message']}", file=sys.stderr)
-        if status["candidates"]:
-            print("candidates:", file=sys.stderr)
-            for candidate in status["candidates"]:
-                print(f"  {candidate}", file=sys.stderr)
+        for candidate in status["candidates"]:
+            print(f"  {candidate}", file=sys.stderr)
         return 2
-
-    picocom = shutil.which("picocom")
-    if picocom is None:
-        print("error: picocom not found; enter the flake dev shell or install picocom", file=sys.stderr)
-        return 2
-
-    args.log.parent.mkdir(parents=True, exist_ok=True)
-    cmd = [picocom, "-b", str(args.baud), str(status["path"])]
     if args.dry_run:
-        print(" ".join(cmd) + f" | tee {args.log}")
+        print(
+            f"capture {status['path']} at {args.baud} baud to {args.log}; "
+            f"timeout={args.timeout:g}s"
+        )
         return 0
-
-    # Picocom forwards raw UART bytes. During early bring-up the stream may
-    # contain framing noise, boot ROM probes, or bytes produced with the wrong
-    # baud/clock configuration.  Do not let a single non-UTF-8 byte abort the
-    # capture; preserve it visibly in the text log using the Unicode
-    # replacement character so uart-report can still parse any valid lines.
-    with args.log.open("w", encoding="utf-8", errors="replace") as log_file:
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=False)
-        assert proc.stdout is not None
-        try:
-            for raw_line in proc.stdout:
-                line = raw_line.decode("utf-8", errors="replace")
-                print(line, end="")
-                log_file.write(line)
-                log_file.flush()
-        finally:
-            proc.wait()
-    return proc.returncode
+    return capture(
+        str(status["path"]),
+        baud=args.baud,
+        log_path=args.log,
+        timeout_s=args.timeout,
+    )
 
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     raise SystemExit(main())

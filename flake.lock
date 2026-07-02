@@ -1,5 +1,22 @@
 {
   "nodes": {
+    "neorv32": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1778923039,
+        "narHash": "sha256-qTXYkFfk7ncWZt1Os4uMk+2mLj+jng+vWqeQeRhfIlQ=",
+        "owner": "stnolting",
+        "repo": "neorv32",
+        "rev": "f62ca4323d263cfb0289e779bb107ffcf0dafff6",
+        "type": "github"
+      },
+      "original": {
+        "owner": "stnolting",
+        "repo": "neorv32",
+        "rev": "f62ca4323d263cfb0289e779bb107ffcf0dafff6",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1778443072,
@@ -18,6 +35,7 @@
     },
     "root": {
       "inputs": {
+        "neorv32": "neorv32",
         "nixpkgs": "nixpkgs"
       }
     }

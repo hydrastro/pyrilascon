@@ -27,11 +27,14 @@
  *
  *   CASE name=<n> ad=<a> pt=<p> sw_enc_cy=<H>:<L> sw_dec_cy=<H>:<L>
  *        hw_enc_cy=<H>:<L> hw_dec_cy=<H>:<L>
+ *        hw_enc_e2e_cy=<H>:<L> hw_dec_e2e_cy=<H>:<L>
  *        enc_ok=<0|1> dec_ok=<0|1> tag_valid=<0|1>
  *        hw_enc_err=0x<x> hw_dec_err=0x<x>
  *
- * Logs can be ingested by tools/parse_neorv32_ascon_uart_log.py to populate
- * the performance-comparison tables of the development report.
+ * Logs are captured by tools/capture_neorv32_uart.py and parsed by the
+ * canonical sweep parser tools/parse_sweep_log.py. The `hw_*_e2e_cy` fields
+ * are the practical CPU-visible accelerator latency; `hw_*_cy` are the
+ * accelerator core's internal busy cycles only.
  * --------------------------------------------------------------------------- */
 
 #define UART_BAUD              19200u
@@ -55,7 +58,8 @@
  * NEORV32 printf does not support width modifiers (%02x is ignored). Print
  * bytes one nibble at a time via %c. */
 static char ph_nib(uint8_t n) {
-  return (char)((n < 10u) ? ('0' + n) : ('a' + (n - 10u)));
+  static const char hex[] = "0123456789abcdef";
+  return hex[n & 0x0fu];
 }
 static void print_hex(const char *label, const uint8_t *data, uint32_t len) {
   neorv32_uart0_printf("%s", label);
@@ -216,8 +220,11 @@ static bool run_one_case(
   enc_req.output    = hw_ct;
 
   ascon_accel_benchmark_result_t enc_res;
+  const uint64_t hw_enc_t0 = rdcycle64();
   const ascon_accel_status_t enc_status = ascon_accel_benchmark_encrypt(
       accel, ASCON_ACCEL_MODE_AEAD128, &enc_req, &enc_res);
+  const uint64_t hw_enc_t1 = rdcycle64();
+  const uint64_t hw_enc_e2e_cycles = hw_enc_t1 - hw_enc_t0;
   memcpy(hw_tag, enc_req.tag, sizeof(hw_tag));
 
   /* ---- HW decrypt. */
@@ -233,8 +240,11 @@ static bool run_one_case(
   memcpy(dec_req.tag, hw_tag, sizeof(hw_tag));
 
   ascon_accel_benchmark_result_t dec_res;
+  const uint64_t hw_dec_t0 = rdcycle64();
   const ascon_accel_status_t dec_status = ascon_accel_benchmark_decrypt(
       accel, ASCON_ACCEL_MODE_AEAD128, &dec_req, &dec_res);
+  const uint64_t hw_dec_t1 = rdcycle64();
+  const uint64_t hw_dec_e2e_cycles = hw_dec_t1 - hw_dec_t0;
 
   const bool enc_ok = enc_status == ASCON_ACCEL_OK &&
                       bytes_equal(hw_ct, sw_ct, c->pt_len) &&
@@ -247,6 +257,7 @@ static bool run_one_case(
       "CASE name=%s ad=%u pt=%u "
       "sw_enc_cy=%u:%u sw_dec_cy=%u:%u "
       "hw_enc_cy=%u:%u hw_dec_cy=%u:%u "
+      "hw_enc_e2e_cy=%u:%u hw_dec_e2e_cy=%u:%u "
       "enc_ok=%u dec_ok=%u tag_valid=%u "
       "hw_enc_err=0x%x hw_dec_err=0x%x\n",
       c->name, c->ad_len, c->pt_len,
@@ -256,6 +267,10 @@ static bool run_one_case(
       (uint32_t)(enc_res.elapsed_cycles & 0xffffffffu),
       (uint32_t)(dec_res.elapsed_cycles >> 32),
       (uint32_t)(dec_res.elapsed_cycles & 0xffffffffu),
+      (uint32_t)(hw_enc_e2e_cycles >> 32),
+      (uint32_t)(hw_enc_e2e_cycles & 0xffffffffu),
+      (uint32_t)(hw_dec_e2e_cycles >> 32),
+      (uint32_t)(hw_dec_e2e_cycles & 0xffffffffu),
       enc_ok ? 1u : 0u,
       dec_ok ? 1u : 0u,
       dec_res.tag_valid ? 1u : 0u,
@@ -273,6 +288,71 @@ static bool run_one_case(
   }
 
   return enc_ok && dec_ok;
+}
+
+/* Verify the authenticated-decryption failure path on the actual accelerator.
+ * The public driver must reject a one-bit tag corruption and must not copy any
+ * unauthenticated plaintext into the caller's output buffer. */
+static bool run_negative_tag_case(ascon_accel_t *accel) {
+  enum { NEG_AD_LEN = 8, NEG_PT_LEN = 16 };
+  uint8_t ct[NEG_PT_LEN];
+  uint8_t tag[16];
+  uint8_t output[NEG_PT_LEN];
+  memset(ct, 0, sizeof(ct));
+  memset(tag, 0, sizeof(tag));
+  memset(output, 0xa5, sizeof(output));
+
+  ascon_accel_aead_request_t enc_req;
+  memset(&enc_req, 0, sizeof(enc_req));
+  enc_req.key = key;
+  enc_req.nonce = nonce;
+  enc_req.ad = ad_pool;
+  enc_req.ad_len = NEG_AD_LEN;
+  enc_req.input = pt_pool;
+  enc_req.input_len = NEG_PT_LEN;
+  enc_req.output = ct;
+
+  ascon_accel_benchmark_result_t enc_res;
+  const ascon_accel_status_t enc_status = ascon_accel_benchmark_encrypt(
+      accel, ASCON_ACCEL_MODE_AEAD128, &enc_req, &enc_res);
+  memcpy(tag, enc_req.tag, sizeof(tag));
+  tag[15] ^= 0x01u;
+
+  ascon_accel_aead_request_t dec_req;
+  memset(&dec_req, 0, sizeof(dec_req));
+  dec_req.key = key;
+  dec_req.nonce = nonce;
+  dec_req.ad = ad_pool;
+  dec_req.ad_len = NEG_AD_LEN;
+  dec_req.input = ct;
+  dec_req.input_len = NEG_PT_LEN;
+  dec_req.output = output;
+  memcpy(dec_req.tag, tag, sizeof(tag));
+
+  ascon_accel_benchmark_result_t dec_res;
+  const ascon_accel_status_t dec_status = ascon_accel_benchmark_decrypt(
+      accel, ASCON_ACCEL_MODE_AEAD128, &dec_req, &dec_res);
+
+  bool output_unchanged = true;
+  for (uint32_t i = 0u; i < NEG_PT_LEN; ++i) {
+    output_unchanged = output_unchanged && (output[i] == 0xa5u);
+  }
+  const bool pass = enc_status == ASCON_ACCEL_OK &&
+                    dec_status == ASCON_ACCEL_ERR_TAG_INVALID &&
+                    !dec_res.tag_valid &&
+                    dec_res.error_code == ASCON_ERROR_TAG_INVALID &&
+                    output_unchanged;
+
+  neorv32_uart0_printf(
+      "AUTH_NEGATIVE enc_status=%d dec_status=%d tag_valid=%u "
+      "hw_err=0x%x output_unchanged=%u pass=%u\n",
+      enc_status,
+      dec_status,
+      dec_res.tag_valid ? 1u : 0u,
+      dec_res.error_code,
+      output_unchanged ? 1u : 0u,
+      pass ? 1u : 0u);
+  return pass;
 }
 
 int main(void) {
@@ -328,10 +408,12 @@ int main(void) {
     }
   }
 
-  neorv32_uart0_printf("SUMMARY      : passed=%u failed=%u total=%u\n",
-                       passed, failed, SWEEP_LEN);
+  const bool negative_pass = run_negative_tag_case(&accel);
+  neorv32_uart0_printf(
+      "SUMMARY      : passed=%u failed=%u total=%u negative_pass=%u\n",
+      passed, failed, SWEEP_LEN, negative_pass ? 1u : 0u);
 
-  if (failed != 0u) {
+  if (failed != 0u || !negative_pass) {
     neorv32_uart0_printf("FAIL\n");
     return 1;
   }

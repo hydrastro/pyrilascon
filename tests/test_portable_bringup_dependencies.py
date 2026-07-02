@@ -15,6 +15,13 @@ import neorv32_stream_bringup_doctor as doctor  # noqa: E402
 from neorv32_stream_bringup_doctor import build_report  # noqa: E402
 from prepare_neorv32_stream_board_build import prepare_package  # noqa: E402
 from prepare_neorv32_stream_gowin_handoff import prepare_handoff  # noqa: E402
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def isolate_neorv32_home(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prevent the developer shell from influencing path-detection tests."""
+    monkeypatch.delenv("NEORV32_HOME", raising=False)
 
 
 def _fake_neorv32(path: Path) -> Path:

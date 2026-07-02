@@ -1,5 +1,27 @@
 # Ascon hardware-oriented Python model
 
+## Tang Nano 20K verified workflow
+
+The maintained board path is `boards/tangnano20k/neorv32_mmio/`. It embeds the
+NEORV32 benchmark firmware into the FPGA image, compares the RV32I software
+reference against the MMIO ASCON-AEAD128 accelerator, verifies corrupted-tag
+rejection, and emits strict Markdown/CSV/JSON performance reports.
+
+```bash
+nix develop
+make sanity
+make tn20k-doctor
+make tn20k-rebuild
+make tn20k-detect
+make tn20k-prog-sram
+make tn20k-capture SERIAL=/dev/serial/by-id/<Sipeed-UART-device>
+make tn20k-report
+```
+
+See [`boards/tangnano20k/neorv32_mmio/README.md`](boards/tangnano20k/neorv32_mmio/README.md)
+for the complete test, programming, benchmark, and flash procedure.
+
+
 This package is a typed Python model of selected NIST SP 800-232 Ascon building blocks, written so the model structure maps cleanly to Verilog.
 
 Implemented so far:
@@ -48,7 +70,7 @@ From the package root:
 python -m pytest -q
 ```
 
-The full collection for this stage is over 300 tests. Simulator-dependent tests
+The full collection for this stage is over 400 tests. Simulator-dependent tests
 are skipped automatically when `iverilog`/`vvp` are unavailable and run as normal
 pytest tests when Icarus Verilog is installed.
 
@@ -63,7 +85,7 @@ make project-status-report
 ```
 
 This writes `build/project_status/project_status.json` and `build/project_status/project_status.md`.
-The report is the handoff document for the current stage: stream-native AEAD128 is implemented through firmware, RTL simulation, NEORV32 CFS integration, and Tang Nano/Gowin handoff tooling; the next hard gate remains a real board build and strict UART benchmark report.
+The report is the handoff document for the broader architecture work. The maintained Tang Nano 20K target now has a reproducible open-source build/program flow and a strict UART benchmark report; generated board evidence remains local under `build/` rather than being committed as source.
 
 
 ## Project checkpoint bundle

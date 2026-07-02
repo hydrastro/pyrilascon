@@ -1,0 +1,8 @@
+# Python-hosted open-source Gowin flow used by the Tang Nano 20K target.
+# Versions are pinned to the toolchain that successfully placed, routed,
+# packed, and programmed this repository's GW2AR-18 design.
+apycula==0.31
+numpy==2.5.0
+pyserial==3.5
+yowasp-nextpnr-himbaechel-gowin==0.10.0.0.post753
+yowasp-yosys==0.66.0.0.post1165
