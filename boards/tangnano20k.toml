@@ -1,0 +1,13 @@
+# Tang Nano 20K board descriptor. Adding a board = this file + a .cst pin map.
+[board]
+name        = "tangnano20k"
+device      = "GW2AR-LV18QN88C8/I7"   # yosys/nextpnr-himbaechel/gowin_pack device
+family      = "GW2A-18C"              # Apicula device family
+freq_mhz    = 27                      # onboard 27 MHz crystal
+loader      = "tangnano20k"           # openFPGALoader -b <this>
+constraints = "tangnano20k/tangnano20k.cst"
+# The 20K's GW2AR (Arora) part is placed & routed by the himbaechel backend.
+reset_style = "internal"              # no reset-button pin wired; use power-on reset
+
+[tools]
+nextpnr = "nextpnr-himbaechel"

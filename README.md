@@ -1,499 +1,179 @@
-# Ascon hardware-oriented Python model
+# pyrilascon
 
-## Tang Nano 20K verified workflow
+A configurable hardware accelerator for the **Ascon** family (NIST SP 800-232),
+built around a correct Python golden model, a design-space catalog, and a real
+RTL generator grown from that model. FPGA target is the Tang Nano 9K (open Gowin
+flow); the ASIC path feeds TinyTapeout via
+[`pyrilascontt`](https://github.com/hydrastro/pyrilascontt).
 
-The maintained board path is `boards/tangnano20k/neorv32_mmio/`. It embeds the
-NEORV32 benchmark firmware into the FPGA image, compares the RV32I software
-reference against the MMIO ASCON-AEAD128 accelerator, verifies corrupted-tag
-rejection, and emits strict Markdown/CSV/JSON performance reports.
+This tree is a rewrite of an earlier, heavier repository. The goal is the same
+ambition (explore the whole design space) with far less ceremony, and an honest
+line between what is *specified* and what is *built*.
 
-```bash
-nix develop
-make sanity
-make tn20k-doctor
-make tn20k-rebuild
-make tn20k-detect
-make tn20k-prog-sram
-make tn20k-capture SERIAL=/dev/serial/by-id/<Sipeed-UART-device>
-make tn20k-report
+## Layout
+
+```
+ascon_hwmodel/       typed golden model + Verilog emission   (REUSED, passes NIST KATs)
+ascon_designspace/   the slim design-space layer             (NEW - replaced ascon_arch)
+  axes.py            the vocabulary (algorithm, datapath, permutation, ...)
+  resolve.py         coordinates -> derived RTL-relevant fields
+  rules.py           validity predicates (the reason it's 560, not 816)
+  realize.py         the tier model (generated / hand-written / specified)
+  catalog.py         enumerate the space + attach a realization to every point
+  generator/         the tier-1 RTL generator, grown from the model
+    permutation.py   emit the round-based permutation core (R rounds/cycle)
+    smoke.py         emit a self-checking board top around a generated core
+    verify.py        simulate a generated core bit-exact vs the golden model
+ascon_boards/        one build driver for every board (synth/PnR/pack/flash)
+boards/              board descriptors (*.toml) + pin maps (*.cst)
+tests/               golden-model + catalog/rules + generator-sim + board tests
+docs/ARCHITECTURE.md the design rationale (tiers, generator plan, benchmark)
 ```
 
-See [`boards/tangnano20k/neorv32_mmio/README.md`](boards/tangnano20k/neorv32_mmio/README.md)
-for the complete test, programming, benchmark, and flash procedure.
+The generator, the board flow, the firmware, and the benchmark/host path are all
+in the tree now (stages 1-4). The remaining hand-written cores and the one
+deferred generator family (bit-serial) land as noted in the Roadmap - brought
+over deliberately, not dumped. RTL-simulation tests run alongside the RTL they
+exercise (they skip only when Icarus Verilog is absent).
 
+## The tier model (the honest part)
 
-This package is a typed Python model of selected NIST SP 800-232 Ascon building blocks, written so the model structure maps cleanly to Verilog.
+Every point in the design space is one of three tiers:
 
-Implemented so far:
+* **Tier 1 - generator.** Emitted by a parameterized RTL generator grown from
+  the golden model's Verilog emission (the model already emits a correct 320-bit
+  round). The generator emits **three permutation families** today, and every
+  emitted core is **verified bit-exact against the model's NIST-KAT-verified
+  p6/p8/p12** by simulation:
+  round-based (R rounds/cycle), fully-pipelined (one round/stage, 1 result/cycle,
+  throughput-verified), column-serial (K S-box columns/cycle), and bit-serial
+  (serial S-box *and* serial linear layer - the most-serial datapath, the narrow
+  width that fits a TinyTapeout ASIC tile). The serial cores are built from the
+  model's own S-box and rotation constants, not from memory. **All 134 tier-1
+  points read `GENERATED`; nothing on the generator axis is left `PLANNED`.**
+  The generator also emits and verifies the design-space *topologies* that
+  arrange these cores (single core; one pipelined permutation shared across N
+  contexts; M parallel pipelines - `generator/structural.py`), and full
+  **end-to-end algorithm cores** - Ascon-AEAD128 (`generator/aead.py`) and
+  Ascon-Hash256 (`generator/hash256.py`) - that wrap a generated permutation in
+  a hardwired-FSM sponge and are verified against NIST-KAT model vectors
+  (encrypt/decrypt/tag-reject and digests, across partial and multi-block inputs).
+* **Tier 2 - hand-written.** A vetted RTL core already implements the point
+  (today: the working FPGA AEAD128 128-bit AXI-stream cores).
+* **Tier 3 - specified.** In the design space but deliberately not
+  auto-generated. **Security countermeasures (masking / threshold / DOM) live
+  here** - a generator that emits unverified crypto countermeasures is worse
+  than none. Algorithm variants without golden-model KAT support live here too,
+  until that support exists.
 
-- fixed-width unsigned integer wrappers: `U4`, `U8`, `U16`, `U64`, `U128`, `U320`
-- separated byte-sequence hex and integer hex views
-- bitstring and byte-oriented `parse` / `pad`
-- Ascon IV construction for AEAD128, Hash256, XOF128, and CXOF128
-- little-endian five-word Ascon state model
-- 64-bit and 128-bit block wrappers
-- 64-bit and 128-bit rate absorption helpers
-- AEAD128 key/nonce initial-state construction
-- AEAD128 key injection helpers
-- AEAD associated-data domain separator
-- split Ascon permutation layers: `pc.py`, `ps.py`, `pl.py`
-- substitution layer implemented both as `p_s_lut()` and `p_s_bitsliced()`
-- split permutation wrappers: `p6.py`, `p8.py`, `p12.py`
-- Verilog emission colocated with the Python model object/layer it describes
-- generated `.vh` include fragments and standalone `.v` combinational wrappers
-- byte-aligned known-answer tests for NIST AEAD128, Hash256, XOF128, and CXOF128
-- AXI-stream AEAD128 transaction oracle for unbounded AD/plaintext/ciphertext framing
-- stream-native AEAD128 encryption RTL plus buffered authenticated decrypt RTL policy
-- optional Icarus simulation harnesses for streaming encryption and buffered decrypt backends
-- unified stream backend wrapper and firmware-facing 128-bit AXI Stream SoC top
-- host-side AXI Stream reference emulator for end-to-end firmware validation
-- host-side firmware stream benchmark tool for pre-board NEORV32/SoC smoke testing
-- CPU-driven AXI-stream MMIO transport for NEORV32/bring-up bridge integration
-- FIFO-backed RTL MMIO-to-AXI-stream bridge and integrated stream AEAD128 system wrapper
-- multi-beat integrated AXI-MMIO system simulation coverage up to the default RX FIFO depth
-- autonomous descriptor-driven DMA-fed AXI-stream front-end that streams full encryption payloads to/from memory, removing the CPU per-beat polling and the bridge RX FIFO bound
-- integrated DMA front-end cosimulation against the Python golden model up to the 1024-byte (64-beat) backend maximum
-- descriptor-oriented firmware driver for the DMA front-end alongside the existing CPU-driven MMIO transport
-- NEORV32 benchmark firmware can select the stream-native MMIO bridge path with `USE_AXIS_MMIO=1`
-- stream-native NEORV32 CFS wrapper maps CSR and AXI-MMIO bridge windows into one CFS region
-- Tang Nano 9K NEORV32 stream board manifest freezes the RTL file list, firmware mode, and memory map
-- NEORV32 UART benchmark log parser generates JSON/Markdown board-run reports
-- NEORV32 stream board dry-run build plan validates the generated package before synthesis
-- project status report generator records implemented milestones and remaining board/performance gates
-- project checkpoint bundle packages reports, evidence files, and board handoff contracts for archival/reporting
+The catalog records the tier for all 560 valid points, so "we explored the whole
+space, and here is exactly what is realized and how" is a checkable statement,
+not a slogan.
 
-## Run tests
+```sh
+python -m ascon_designspace        # prints the catalog + tier breakdown
+```
 
-From the package root:
+## Generate and verify a core
 
-```bash
+```sh
+python -m ascon_designspace.generator --list                        # what the generator emits
+python -m ascon_designspace.generator --rounds-per-cycle 4 --verify  # round-based, sim vs model
+python -m ascon_designspace.generator --pipelined 12 --verify        # fully-pipelined p12
+python -m ascon_designspace.generator --column-serial 1 --verify     # column-serial (1 col/cycle)
+python -m ascon_designspace.generator --bit-serial --verify          # bit-serial (most serial)
+python -m ascon_designspace.generator --context-pipeline 12 --contexts 4 --verify  # topology
+```
+
+`--verify` compiles the emitted core with Icarus Verilog and checks it
+bit-for-bit against the model's combinational p6/p8/p12 over random + edge-case
+vectors.
+
+## Add a board / flash
+
+A board is a descriptor plus a pin map; the same driver builds any board/target
+pair. `perm_smoke` wraps a **generated** core in a self-checking top (an LED
+lights iff the hardware result matches the model's golden value).
+
+```sh
+python -m ascon_boards list-boards
+python -m ascon_boards list-targets
+make board-dry-run BOARD=tangnano9k TARGET=perm_smoke   # print the exact flow
+make synth         BOARD=tangnano9k TARGET=perm_smoke   # yosys synth (needs yosys)
+make flash         BOARD=tangnano9k TARGET=perm_smoke   # full flow + openFPGALoader
+```
+
+Adding a board means dropping a `boards/<name>.toml` and a `.cst` - no new
+Makefile. The driver knows both the `nextpnr-gowin` and `nextpnr-himbaechel`
+invocations.
+
+## The four workflows this repo is organized around
+
+1. **Add a board** - a board becomes a small descriptor (device / family / clock)
+   plus a pin-constraint file; one shared build flow does synth/PnR/pack. No
+   per-board Makefile. *(stage 3 - done)*
+2. **Flash a board** - one command, board as a parameter:
+   `make flash BOARD=tangnano9k TARGET=...`. *(stage 3 - done)*
+3. **Interact via C** - the accelerator driver (clean ABI + MMIO/AXI-stream/DMA
+   transports) with two clear entry points: on-chip firmware (NEORV32 runs the
+   driver) and host-driven (your machine drives the flashed board over serial).
+   The driver is verified natively end-to-end through a ref-emulator transport
+   (`tests/test_driver_selftest.py`). *(stage 4 - done)*
+4. **Benchmark vs CPU-only** - one command builds the SW-reference-vs-HW-accel
+   harness, runs it, and parses the result. Headline metric is the **same-fabric**
+   NEORV32 cycle comparison (`hardware_cycles < software_cycles`), which is the
+   controlled experiment; cross-platform cycles-per-byte is optional context.
+   The C reference (the software baseline) is verified bit-exact vs the model;
+   the host tool parses the UART log and checks the criterion. `make bench-native`
+   runs here; `make bench` builds the NEORV32 image. *(stage 4 - done)*
+
+## Run the tests
+
+```sh
 python -m pytest -q
 ```
 
-The full collection for this stage is over 400 tests. Simulator-dependent tests
-are skipped automatically when `iverilog`/`vvp` are unavailable and run as normal
-pytest tests when Icarus Verilog is installed.
-
-
-
-## Project status report
-
-Generate a current implementation/verification snapshot with:
-
-```bash
-make project-status-report
-```
-
-This writes `build/project_status/project_status.json` and `build/project_status/project_status.md`.
-The report is the handoff document for the broader architecture work. The maintained Tang Nano 20K target now has a reproducible open-source build/program flow and a strict UART benchmark report; generated board evidence remains local under `build/` rather than being committed as source.
-
-
-## Project checkpoint bundle
-
-Generate an archiveable handoff bundle with:
-
-```bash
-make project-checkpoint-bundle
-```
-
-This writes `build/project_checkpoint_bundle/` and `build/project_checkpoint_bundle.zip`, containing the status report, Tang Nano/NEORV32 board manifest, copied evidence files, and remaining-gate summary for project reporting.
-
-
-## Configurable architecture generation
-
-The repository now separates the golden specification model from implementation choices:
-
-```text
-ascon_hwmodel/   # typed golden model and reference Verilog helpers
-ascon_arch/      # architecture/configuration vocabulary and validation
-configs/         # concrete ASIC/FPGA configuration examples
-tools/           # design and Verilog generation entry points
-build/           # generated design products, ignored by git
-```
-
-Generate the ASIC baseline with separate encryption/decryption datapaths:
-
-```bash
-PYTHONPATH=. python tools/generate_design.py --preset asic_two_datapaths
-```
-
-Generate the ASIC two-datapath variant with two rounds per cycle:
-
-```bash
-PYTHONPATH=. python tools/generate_design.py   --preset asic_two_datapaths   --permutation-profile two_rounds_per_cycle
-```
-
-Generate an FPGA design with N parallel engines and a selected permutation profile:
-
-```bash
-PYTHONPATH=. python tools/generate_design.py   --preset fpga_n_parallel_engines   --engine-count 4   --permutation-profile four_rounds_per_cycle
-```
-
-Permutation profiles are documented in `docs/permutation_architecture.md`.
-
-## Known-answer tests
-
-`tests/test_known_answer_vectors.py` embeds a compact byte-aligned KAT subset:
-
-- Ascon-AEAD128 encrypt/decrypt vectors from the official `ascon/ascon-c` LWC KAT file
-- Ascon-Hash256 empty-message digest
-- Ascon-XOF128 empty-message 512-bit output
-- Ascon-CXOF128 single-byte message with empty customization string
-
-The current test scope is deliberately byte-aligned. Full ACVP bit-length coverage will require bit-granular hash/XOF wrappers on top of `bitstring.py`.
-
-## Endianness convention
-
-The state is modeled as five 64-bit integer words:
-
-```text
-x0 = S[0:63]
-x1 = S[64:127]
-x2 = S[128:191]
-x3 = S[192:255]
-x4 = S[256:319]
-```
-
-A 40-byte state image is loaded little-endian word by word. For example, bytes `00 01 02 03 04 05 06 07` become the integer word `0x0706050403020100`.
-
-A Verilog `[319:0]` state bus preserves the logical bit index:
-
-```verilog
-state[63:0]    = x0;
-state[127:64]  = x1;
-state[191:128] = x2;
-state[255:192] = x3;
-state[319:256] = x4;
-```
-
-Therefore state packing is:
-
-```verilog
-state = {x4, x3, x2, x1, x0};
-```
-
-## S-box implementation policy
-
-The substitution layer has two equivalent Python views:
-
-- `p_s_lut(state)`: reference model using 64 scalar 5-bit S-box table lookups
-- `p_s_bitsliced(state)`: hardware-shaped model using word-level boolean operations
-
-`p_s(state)` currently aliases `p_s_bitsliced(state)`, because that representation maps directly to combinational RTL and is much faster in Python than looping through 64 single-bit slices.
-
-Generated Verilog also emits both:
-
-- `ascon_p_s_lut`
-- `ascon_p_s_bitsliced`
-- `ascon_p_s`, which currently calls the bitsliced implementation
-
-## Verilog generation policy
-
-The Verilog generation code is colocated with the Python model layer it describes:
-
-```text
-iv.py       -> IV Verilog helpers
-state.py    -> state pack/access helpers
-byteops.py  -> pad helpers
-pc.py       -> p_C and round constant helpers
-ps.py       -> p_S LUT and bitsliced helpers
-pl.py       -> p_L and rotation helpers
-round.py    -> round composition helper
-p6.py       -> Ascon-p[6] helper and standalone wrapper
-p8.py       -> Ascon-p[8] helper and standalone wrapper
-p12.py      -> Ascon-p[12] helper and standalone wrapper
-domain.py   -> AEAD domain separator helper
-keyops.py   -> AEAD128 key/init/finalization helpers
-```
-
-`ascon_hwmodel/verilog.py` is only an aggregation/file-writing facade.
-
-Generate Verilog files with:
-
-```bash
-PYTHONPATH=. python tools/generate_verilog.py
-```
-
-This writes:
-
-```text
-rtl/generated/ascon_iv.vh
-rtl/generated/ascon_state.vh
-rtl/generated/ascon_aux.vh
-rtl/generated/ascon_pc.vh
-rtl/generated/ascon_ps.vh
-rtl/generated/ascon_pl.vh
-rtl/generated/ascon_round.vh
-rtl/generated/ascon_p6.vh
-rtl/generated/ascon_p8.vh
-rtl/generated/ascon_p12.vh
-rtl/generated/ascon_aead_domain_key.vh
-rtl/generated/ascon_model.vh
-rtl/generated/ascon_permutation_comb.v
-rtl/generated/ascon_p6_comb.v
-rtl/generated/ascon_p8_comb.v
-rtl/generated/ascon_p12_comb.v
-```
-
-The `.vh` files are include fragments because they define functions/localparams to be included inside a module or package scope. The `.v` files are standalone combinational module wrappers.
-
-## AEAD encryption/decryption step
-
-The AEAD layer is now split by phase:
-
-```text
-ascon_hwmodel/aead_config.py
-ascon_hwmodel/aead_init.py
-ascon_hwmodel/aead_ad.py
-ascon_hwmodel/aead_plaintext.py
-ascon_hwmodel/aead_ciphertext.py
-ascon_hwmodel/aead_final.py
-ascon_hwmodel/aead_encrypt.py
-ascon_hwmodel/aead_decrypt.py
-ascon_hwmodel/aead.py
-```
-
-The standardized NIST mode is `AEADVariant.NIST_AEAD128`. Legacy Ascon submission-family parameter sets are present in `aead_config.py` as scaffolds, but only the NIST mode is byte-level conformance-targeted by the current little-endian state model.
-
-Run:
-
-```bash
-python -m pytest -q
-PYTHONPATH=. python tools/generate_verilog.py
-python demo_aead.py
-```
-
-Generated Verilog now includes:
-
-```text
-rtl/generated/ascon_rate.vh
-rtl/generated/ascon_aead.vh
-rtl/generated/ascon_hash_xof.vh
-```
-
-## Hash/XOF bonus layer
-
-NIST byte-oriented helpers are included for:
-
-```python
-ascon_hash256(message)
-ascon_xof128(message, output_bytes)
-ascon_cxof128(message, output_bytes, customization)
-```
-
-These currently expose byte-aligned APIs. Bit-granular output can be layered on top of `bitstring.py` later.
-
-## Architecture configuration layer
-
-The repository now has a first implementation-architecture layer under `ascon_arch/`.
-The ASCON specification model remains in `ascon_hwmodel/`; architecture choices are represented separately as typed configs.
-
-Current architecture families:
-
-```text
-shared_datapath                 low/medium area, one operation at a time
-separate_enc_dec_datapaths      higher area, encrypt and decrypt datapaths can progress independently
-shared_permutation_mode_fsm     medium area, one shared permutation bottleneck
-parallel_engines                N independent engines for high-throughput FPGA scaling
-```
-
-The architecture config now has typed axes for algorithm support, topology, permutation style, datapath width, context storage/scheduling, padding and length handling, I/O style, security options, and RTL emission metadata. Invalid combinations are rejected before RTL is generated.
-
-Chosen baselines:
-
-```text
-ASIC: asic_two_datapaths
-FPGA: fpga_N_parallel_engines, with configurable N
-```
-
-Generate design-product skeletons with:
-
-```bash
-PYTHONPATH=. python tools/generate_design.py --preset asic_two_datapaths
-PYTHONPATH=. python tools/generate_design.py --preset fpga_n_parallel_engines --engine-count 4
-PYTHONPATH=. python tools/generate_design.py --preset asic_shared_datapath
-PYTHONPATH=. python tools/generate_design.py --preset asic_shared_permutation_mode_fsm
-```
-
-Or use the explicit JSON configs:
-
-```bash
-PYTHONPATH=. python tools/generate_design.py --config configs/asic/two_separate_datapaths.json
-PYTHONPATH=. python tools/generate_design.py --config configs/fpga/n_parallel_engines_4.json
-```
-
-Generated design products are written under `build/`, which is intentionally ignored by git. Each product includes resolved config metadata, expected metrics, a module manifest, and structural SystemVerilog boundaries for the selected architecture.
-
-## State/context organization axis
-
-The architecture generator now includes explicit state/context profiles:
-
-```text
-single_320_register
-state_plus_shadow
-multi_context_registers
-fpga_bram_lutram
-separate_state_per_core
-shared_state_ram_pipelined_p8
-```
-
-Project defaults:
-
-```text
-ASIC: single_320_register
-FPGA: fpga_bram_lutram with multi-context interleaving
-```
-
-Generate the FPGA baseline with explicit context profile:
-
-```bash
-PYTHONPATH=. python tools/generate_design.py \
-  --preset fpga_n_parallel_engines \
-  --engine-count 4 \
-  --context-profile fpga_bram_lutram \
-  --contexts-per-engine 12
-```
-
-Generate the ASIC single-state baseline:
-
-```bash
-PYTHONPATH=. python tools/generate_design.py \
-  --preset asic_two_datapaths \
-  --context-profile single_320_register
-```
-
-See `docs/context_architecture.md` for the detailed profile meanings.
-
-## Tang Nano 9K full AEAD128 hardware target
-
-The first board-level target is a complete Ascon-AEAD128 fixed-vector smoke test:
-
-```sh
-cd boards/tangnano9k/ascon_aead128_kat_slow
-make
-make prog-sram
-```
-
-This target is intentionally slow and simple: one Ascon round per clock. It exercises initialization, associated-data processing, plaintext processing, finalization, and ciphertext/tag comparison in RTL.
-
-
-### AXI-stream MMIO bridge simulation
-
-Run the CPU-driven bridge behavioral smoke test with:
-
-```bash
-make axis-mmio-bridge-sim
-```
-Additional optional RTL smoke test:
-
-```bash
-make stream-axis-mmio-system-sim
-```
-
-This drives the complete CSR + AXI-MMIO bridge + stream AEAD128 system wrapper through its two MMIO windows and compares the RTL encryption result against the Python golden model.
-
-
-This verifies the MMIO register contract, TX AXI-stream commit/handshake behavior, RX holding register, and `RX_CTRL.POP` path before NEORV32 board bring-up.
-
-
-### AXI-stream DMA front-end cosimulation
-
-The CPU-driven bridge above makes firmware move every 128-bit beat and is bounded by the bridge RX FIFO. The autonomous DMA front-end instead takes a small descriptor (associated-data and plaintext source addresses, their lengths, and a destination address) and moves the whole encryption payload itself through a memory master port, while the frozen ASCON CSR ABI still drives the control plane and tag. Run the integrated cosimulation with:
-
-```bash
-make stream-axis-dma-system-sim
-```
-
-This drives the CSR control plane plus the DMA descriptor block in front of the stream AEAD128 backend, lets the DMA fetch the payload from an embedded memory model, stream it through the backend with strictly one beat in flight, and write the ciphertext back to memory, then compares the result against the Python golden model. The cosimulation matrix runs empty, partial-block, multi-beat AD, and multi-beat plaintext vectors up to the backend's 1024-byte (64-beat) maximum, which is well beyond the four-beat CPU bridge FIFO. See `docs/stream_axis_dma_system.md` for the descriptor register map and verification details.
-
-The larger RASD §8.4 performance payload sizes (64/256/1024 bytes), which the bounded CPU-driven MMIO path cannot stream, are measured through the DMA front-end with:
-
-```bash
-make stream-axis-dma-system-sweep
-```
-
-This runs the RASD payload set through the same cosimulation, verifies each result bit-for-bit against the golden model, and reports the end-to-end cycle count (descriptor `GO` to `STATUS.DONE`) for each size.
-
-Encryption-side payload movement is automated by the DMA path; buffered authenticated decryption keeps the CPU-driven transport, and decrypt-side DMA remains future work.
-
-
-## Tang Nano 9K NEORV32 stream preflight
-
-The board-facing stream target includes manifest and preflight checks:
-
-```sh
-make -C boards/tangnano9k/neorv32_stream_axis_mmio manifest
-make -C boards/tangnano9k/neorv32_stream_axis_mmio preflight
-```
-
-The preflight writes `build/neorv32_stream_axis_mmio/preflight.json` and records the CSR/AXI-MMIO memory map, firmware build mode, RTL source list, host tool availability, and optional `NEORV32_HOME` readiness.
-
-## Tang Nano 9K NEORV32 stream board package
-
-The board-facing stream target can generate a deterministic handoff package:
-
-```sh
-make -C boards/tangnano9k/neorv32_stream_axis_mmio package
-```
-
-This writes `build/neorv32_stream_axis_mmio/package` with the validated manifest,
-preflight plan, split Verilog/VHDL file lists, firmware defines, memory map, and
-pre-board command script for the NEORV32 stream CFS target.
-
-
-## NEORV32 stream board session
-
-Use `make -C boards/tangnano9k/neorv32_stream_axis_mmio session
-make -C boards/tangnano9k/neorv32_stream_axis_mmio gowin-handoff` to generate `build/neorv32_stream_axis_mmio/session/session.json` and `session.md`. The report ties the board package, memory map, optional bitstream, optional UART log, and benchmark parser output into one archived bring-up session.
-
-## NEORV32 stream board session report
-
-The board-session runner ties the Tang Nano 9K stream package, memory map,
-optional bitstream, optional UART log, and benchmark parser output into a single
-archivable report:
-
-```sh
-make -C boards/tangnano9k/neorv32_stream_axis_mmio session
-make -C boards/tangnano9k/neorv32_stream_axis_mmio gowin-handoff
-make -C boards/tangnano9k/neorv32_stream_axis_mmio session
-make -C boards/tangnano9k/neorv32_stream_axis_mmio gowin-handoff LOG=/path/to/uart.log
-make -C boards/tangnano9k/neorv32_stream_axis_mmio session
-make -C boards/tangnano9k/neorv32_stream_axis_mmio gowin-handoff BITSTREAM=build/tangnano9k/ascon.fs
-```
-
-Outputs:
-
-```text
-build/neorv32_stream_axis_mmio/session/session.json
-build/neorv32_stream_axis_mmio/session/session.md
-```
-
-The target is safe by default and never programs hardware. Use the underlying
-CLI with `--program --no-dry-run` only when a real board and bitstream are ready.
-
-### Tang Nano / NEORV32 bring-up diagnostics
-
-Before building firmware or opening UART, run:
-
-```sh
-make -C boards/tangnano9k/neorv32_stream_axis_mmio gowin-handoff
-make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware        # optional but portable: clones NEORV32 into external/neorv32
-make -C boards/tangnano9k/neorv32_stream_axis_mmio doctor
-```
-
-The flow is intentionally not tied to a specific workstation. `NEORV32_HOME` may
-be passed explicitly, exported in the shell, or resolved from the project-local
-`external/neorv32` checkout created by `make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware`. UART capture can use
-`SERIAL=/dev/ttyUSB0`, but if `SERIAL` is omitted the helper auto-detects one
-usable `/dev/serial/by-id/*`, `/dev/ttyUSB*`, `/dev/ttyACM*`, or macOS
-`/dev/cu.usb*` device.
-
-```sh
-make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware
-make -C boards/tangnano9k/neorv32_stream_axis_mmio uart-capture LOG=uart.log
-make -C boards/tangnano9k/neorv32_stream_axis_mmio uart-report LOG=uart.log
-```
-
-
-
-See `docs/neorv32_firmware_toolchain_profiles.md` for the portable NEORV32 firmware toolchain profile and Nix compatibility probe.
+Golden-model + catalog tests run everywhere. Simulator-dependent RTL tests skip
+automatically when `iverilog`/`vvp` are unavailable, and run when Icarus Verilog
+is installed.
+
+## Roadmap
+
+1. **Scaffold + reuse** *(done)* - new tree, golden model reused with NIST KATs
+   green, design-space catalog reproducing 560 with the tier ledger, ceremony
+   and checked-in artifacts dropped.
+2. **Design-space rewrite** *(done)* - enumeration + validation now live in
+   `ascon_designspace` (`axes` + `resolve` + `rules`); `ascon_arch` is deleted.
+   The layer went from ~5.3k lines + 38 JSON configs to ~800 lines, same 560
+   counts, plus the tier ledger.
+3. **Real generator + unified boards** *(done)* - (3a) the generator emits the
+   round-based permutation core, R rounds/cycle, verified bit-exact vs the golden
+   model in simulation; (3b) one build driver
+   + board descriptors, with a self-checking `perm_smoke` target that puts a
+   generated core on the Tang Nano 9K and synthesizes with yosys `synth_gowin`.
+   The generator now also emits fully-pipelined and column-serial families, all
+   verified (118 of 560 `GENERATED`); only bit-serial remains.
+4. **Benchmark + host path** *(done)* - the portable C reference (verified
+   bit-exact vs the model), the accelerator driver (verified natively through a
+   ref-emulator transport), the NEORV32 benchmark harness, and a host-over-serial
+   tool that parses the UART log into a SW-vs-HW table and checks
+   `hardware_cycles < software_cycles`. `make bench-native` / `bench` / `bench-host`.
+
+5. **Generator, wrappers, algorithm cores, both control styles** *(done)* - all
+   134 tier-1 points are `GENERATED` (four permutation families); the three
+   catalog topologies are emitted and verified; the permutation is emitted in
+   both control styles (hardwired FSM and microcoded sequencer); and the
+   generator produces the full algorithm family - AEAD128, AEAD128a, Ascon-128,
+   Ascon-80pq, Hash256, XOF128, CXOF128, HashA, XofA. HashA/XofA have no
+   independent KAT in the model, so they are verified against a Python reference
+   *proven to reduce to the model's Hash256/XOF128 at b=12* (so only the b=8
+   round count is spec-supplied, and it is spec-confirmed). The only thing
+   deliberately left out is the Tier 3 security countermeasures.
+
+## Provenance
+
+`ascon_hwmodel` and the accelerator firmware/RTL are reused from the previous
+repository because they are correct and tested (the golden model passes the
+official NIST AEAD128 / Hash256 / XOF128 / CXOF128 vectors). What changed is the
+architecture layer, the build orchestration, and the removal of reporting
+ceremony, doc sprawl, and generated artifacts from source control.

@@ -47,7 +47,7 @@ def emit_verilog_rotr64_function() -> str:
             "  input [63:0] x;",
             "  input [5:0]  amount;",
             "  begin",
-            "    ascon_rotr64 = (x >> amount) | (x << (6'd64 - amount));",
+            "    ascon_rotr64 = (x >> amount) | (x << (7'd64 - amount));",
             "  end",
             "endfunction",
         )
