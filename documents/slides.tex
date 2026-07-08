@@ -1,0 +1,412 @@
+% ============================================================
+%  NEORV32 Ascon-AEAD128 Hardware Accelerator -- Slides
+%  Author: Mohammadi Masoudi Ramin
+% ============================================================
+\documentclass[aspectratio=169,11pt]{beamer}
+
+\usetheme{default}
+\useinnertheme{circles}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{itemize items}[circle]
+\setbeamertemplate{footline}[frame number]
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,fit}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.16}
+\usepackage{xcolor}
+
+% -- Palette (matched to the documents) ------------------------
+\definecolor{docblue}{RGB}{0,51,102}
+\definecolor{doclblue}{RGB}{0,85,128}
+\definecolor{okgreen}{RGB}{40,120,70}
+\definecolor{warnamber}{RGB}{170,120,0}
+\definecolor{hwfill}{RGB}{225,238,252}
+\definecolor{swfill}{RGB}{234,245,234}
+\definecolor{barhw}{RGB}{0,85,128}
+\definecolor{barsw}{RGB}{170,120,0}
+
+\setbeamercolor{structure}{fg=docblue}
+\setbeamercolor{frametitle}{fg=docblue}
+\setbeamercolor{title}{fg=docblue}
+\setbeamerfont{frametitle}{series=\bfseries}
+\setbeamercolor{block title}{bg=docblue,fg=white}
+\setbeamercolor{block body}{bg=docblue!6,fg=black}
+\setbeamercolor{alerted text}{fg=warnamber}
+
+\newcommand{\code}[1]{\texttt{\small #1}}
+\newcommand{\ok}{\textbf{\color{okgreen}\checkmark}}
+
+\title{\textbf{An Ascon-AEAD128 Hardware Accelerator}}
+\subtitle{Model-driven, open-source, validated on silicon}
+\author{Mohammadi Masoudi Ramin}
+\institute{Politecnico di Milano}
+\date{}
+
+\begin{document}
+
+% ---- Title ----
+\begin{frame}[plain]
+\titlepage
+\begin{center}\small\color{docblue}
+NEORV32 RISC-V SoC \quad$\cdot$\quad Tang Nano 20K \quad$\cdot$\quad fully-open toolchain
+\end{center}
+\end{frame}
+
+% ---- Outline ----
+\begin{frame}{Outline}
+\tableofcontents
+\end{frame}
+
+% ============================================================
+\section{Motivation}
+\begin{frame}{Why this project}
+\begin{columns}[T]
+\begin{column}{0.56\textwidth}
+\begin{itemize}
+\item \textbf{Ascon} is the NIST lightweight-crypto standard (SP~800-232) for
+      authenticated encryption.
+\item On a small CPU, computing it in software is slow --- lots of 64-bit work on
+      a 32-bit core.
+\item \textbf{Goal:} a hardware accelerator that does Ascon-AEAD128, usable from
+      C, built with \emph{only open tools}, and \emph{proven on real silicon}.
+\end{itemize}
+\end{column}
+\begin{column}{0.44\textwidth}
+\begin{block}{Four objectives}
+\small
+\begin{enumerate}
+\item Hardware Ascon, matching the standard
+\item Clean C interface on RISC-V
+\item Open, reproducible toolchain
+\item Validate on FPGA + measure speed-up
+\end{enumerate}
+\end{block}
+\end{column}
+\end{columns}
+\end{frame}
+
+% ============================================================
+\section{Architecture}
+\begin{frame}{From specification to silicon}
+\centering
+\begin{tikzpicture}[
+  >=Latex, node distance=6mm and 9mm,
+  b/.style={draw=docblue, thick, rounded corners=2pt, align=center,
+            minimum height=8mm, font=\scriptsize, inner sep=3pt},
+  sw/.style={b, fill=swfill}, hw/.style={b, fill=hwfill}]
+\node[sw] (m) {Python golden model\\\scriptsize passes NIST KATs};
+\node[sw, right=of m] (g) {Generator};
+\node[hw, right=of g] (r) {Verilog + VHDL RTL};
+\node[hw, right=of r] (b) {Bitstream};
+\node[hw, right=of b] (f) {Tang Nano 20K};
+\draw[->](m)--(g);\draw[->](g)--(r);\draw[->](r)--(b);\draw[->](b)--(f);
+\end{tikzpicture}
+
+\vspace{4mm}
+\begin{block}{Model-first design}
+\small The RTL is \emph{generated} from a validated Python model, which also serves
+as the checking oracle. RTL and reference share one definition of ``correct'' ---
+so bugs are interface bugs, never crypto bugs.
+\end{block}
+\end{frame}
+
+\begin{frame}{The accelerator: five verified layers}
+\centering
+\begin{tikzpicture}[
+  >=Latex, node distance=2.6mm,
+  L/.style={draw=docblue, thick, rounded corners=2pt, align=center,
+            minimum height=8mm, font=\scriptsize, inner sep=3pt}]
+\node[L, fill=swfill, minimum width=42mm] (p) {\code{perm\_iter\_r1} --- permutation, 1 round/cycle};
+\node[L, fill=hwfill, minimum width=60mm, below=of p] (c) {\code{aead128\_core} --- AEAD mode datapath};
+\node[L, fill=white, minimum width=78mm, below=of c] (a) {\code{aead128\_axis} --- AXI-Stream engine (FSM)};
+\node[L, fill=hwfill, minimum width=96mm, below=of a] (m) {\code{aead128\_axis\_mmio} --- register file};
+\node[L, fill=okgreen!12, draw=okgreen, minimum width=112mm, below=of m] (w) {\code{aead128\_wb} --- Wishbone / XBUS adapter};
+\end{tikzpicture}
+
+\vspace{2mm}
+{\small Each layer has one job and is checked against the model in isolation.}
+\end{frame}
+
+\begin{frame}{Integration on the NEORV32 SoC}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{itemize}
+\item CPU: NEORV32, \code{rv32i}, 27\,MHz.
+\item Accelerator is a \textbf{bus peripheral} on the external bus (XBUS) at
+      \code{0x9000\,0000} --- \alert{no CPU pipeline changes}.
+\item Driver \code{ascon\_accel.h} hides all registers behind
+      \code{encrypt()} / \code{decrypt()}.
+\end{itemize}
+\end{column}
+\begin{column}{0.5\textwidth}
+\centering
+\begin{tikzpicture}[
+  >=Latex, font=\scriptsize,
+  n/.style={draw=docblue, thick, rounded corners=2pt, align=center,
+            minimum width=17mm, minimum height=7mm}]
+\node[n, fill=docblue!8] (cpu) {CPU};
+\node[n, right=10mm of cpu, fill=hwfill, draw=doclblue, very thick] (acc) {Ascon\\accel};
+\node[n, below=8mm of cpu, fill=white] (mem) {IMEM/DMEM};
+\node[n, below=8mm of acc, fill=white] (io) {UART/GPIO};
+\node[draw=okgreen, fill=okgreen!10, minimum width=52mm, minimum height=5mm,
+      below=3mm of $(mem)!0.5!(io)$, font=\scriptsize\bfseries] (bus) {XBUS bus};
+\draw[<->](cpu)--(acc); \draw[<->](cpu)--(mem);
+\draw[<->](acc)--(io); \draw[<->,doclblue,very thick](acc)--(bus);
+\draw[<->](cpu.south)--(bus.north-|cpu);
+\end{tikzpicture}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Fully-open, reproducible toolchain}
+\centering
+\begin{tikzpicture}[
+  >=Latex, node distance=6mm, font=\scriptsize,
+  t/.style={draw=docblue, thick, rounded corners=2pt, fill=docblue!8,
+            align=center, minimum height=9mm, inner sep=3pt}]
+\node[t](a){GHDL\\\scriptsize VHDL};
+\node[t,right=of a](b){Yosys\\\scriptsize +GHDL plugin};
+\node[t,right=of b](c){nextpnr\\\scriptsize himbaechel};
+\node[t,right=of c](d){Apicula\\\scriptsize gowin\_pack};
+\node[t,right=of d](e){openFPGALoader\\\scriptsize program};
+\draw[->](a)--(b);\draw[->](b)--(c);\draw[->](c)--(d);\draw[->](d)--(e);
+\end{tikzpicture}
+
+\vspace{5mm}
+\begin{block}{No vendor EDA}
+\small Pinned by a Nix flake for exact reproducibility. Every step from VHDL/Verilog
+to programmed FPGA is open source.
+\end{block}
+\end{frame}
+
+% ============================================================
+\section{Verification}
+\begin{frame}{Four layers of verification}
+\small
+\begin{center}
+\begin{tabular}{cll}
+\toprule
+\textbf{Layer} & \textbf{Checks} & \textbf{Against}\\
+\midrule
+1 & Python golden model & NIST Known-Answer Tests\\
+2 & Generated RTL & the model (25 vectors/module)\\
+3 & C driver & an emulated peripheral\\
+4 & End-to-end co-sim & NEORV32-faithful XBUS master\\
+\bottomrule
+\end{tabular}
+\end{center}
+\vspace{3mm}
+\begin{block}{119 automated tests}
+\small Run from a clean checkout; reproduced by \code{nix flake check}. Layer 4
+replays the driver's real register order through the bus adapter with NEORV32's
+exact pulsed-strobe timing.
+\end{block}
+\end{frame}
+
+% ============================================================
+\section{Challenges}
+\begin{frame}{From ``simulation passes'' to ``correct on silicon''}
+\small Eight real bugs --- each diagnosed from concrete evidence, not guesswork:
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{enumerate}
+\item Read-only build environment
+\item Toolchain name mismatch
+\item Float-ABI (double vs.\ soft) mismatch
+\item \textbf{Stack past end of RAM} $\to$ silent trap
+\end{enumerate}
+\end{column}
+\begin{column}{0.5\textwidth}
+\begin{enumerate}\setcounter{enumi}{4}
+\item Flaky USB debugger / shifting ports
+\item \alert{\textbf{XBUS bus handshake}}
+\item FPGA fit (drop M extension)
+\item \alert{\textbf{START-first protocol order}}
+\end{enumerate}
+\end{column}
+\end{columns}
+\vspace{2mm}
+\begin{block}{The two that mattered}
+\small A processor panic with a precise fault address (\code{0x9000\,0000},
+\code{0x9000\,0044}) named exactly which register --- and mechanism --- had failed.
+\end{block}
+\end{frame}
+
+\begin{frame}{The key hardware bug: the bus handshake}
+\begin{columns}[T]
+\begin{column}{0.54\textwidth}
+\small
+\textbf{NEORV32's XBUS:}
+\begin{itemize}
+\item pulses the strobe for \emph{one cycle}
+\item samples the acknowledge only in the \emph{next} cycle
+\end{itemize}
+\vspace{2mm}
+\textbf{First adapter:} acknowledged \emph{during} the strobe --- the one cycle the
+CPU wasn't looking.
+\vspace{2mm}
+$\Rightarrow$ CPU never sees ack $\to$ bus timeout $\to$ \alert{access fault}.
+\vspace{2mm}
+\textbf{Fix:} a handshake FSM that latches the strobe and acks the following cycle;
+re-verified against a NEORV32-faithful master.
+\end{column}
+\begin{column}{0.46\textwidth}
+\centering
+\begin{tikzpicture}[font=\scriptsize, >=Latex, yscale=0.75]
+\draw[->](0,0)--(6.2,0) node[right]{cyc};
+\foreach \x in {0,1,...,5}\draw[gray!40](\x,-0.2)--(\x,3.2);
+% strobe: pulse in cycle 0
+\node[left] at (-0.1,2.7){stb};
+\draw[docblue,very thick](0,2.4)--(0,3.0)--(1,3.0)--(1,2.4)--(5,2.4);
+% pending
+\node[left] at (-0.1,1.5){pending};
+\draw[doclblue,very thick](0,1.2)--(1,1.2)--(1,1.8)--(3,1.8)--(3,1.2)--(5,1.2);
+% ack (correct): cycle after strobe
+\node[left] at (-0.1,0.3){ack (fixed)};
+\draw[okgreen,very thick](0,0)--(1,0)--(1,0.6)--(2,0.6)--(2,0)--(5,0);
+\node[warnamber, font=\tiny] at (0.5,-0.55){\shortstack{old ack\\here (miss)}};
+\draw[warnamber,->,thick](0.5,-0.3)--(0.5,2.6);
+\end{tikzpicture}
+\end{column}
+\end{columns}
+\end{frame}
+
+% ============================================================
+\section{Results}
+\begin{frame}{Results: correct, and 18--57$\times$ faster}
+\small All 8 cases correct on hardware (\code{enc\_ok}, \code{dec\_ok},
+\code{tag\_valid} all set). Cycles at 27\,MHz:
+\begin{center}
+\renewcommand{\arraystretch}{1.05}
+\begin{tabular}{lccrrc}
+\toprule
+\textbf{Case} & \textbf{AD} & \textbf{PT} & \textbf{SW} & \textbf{HW} & \textbf{Speed-up}\\
+\midrule
+\code{empty}     & 0  & 0  & 38\,866 & 684   & \textbf{56.8}$\times$\\
+\code{ad8}       & 8  & 0  & 50\,205 & 1\,335 & 37.6$\times$\\
+\code{pt8}       & 0  & 8  & 39\,458 & 1\,239 & 31.9$\times$\\
+\code{ad8\_pt8}  & 8  & 8  & 50\,797 & 1\,890 & 26.9$\times$\\
+\code{pt16}      & 0  & 16 & 52\,156 & 2\,007 & 26.0$\times$\\
+\code{pt24}      & 0  & 24 & 52\,748 & 2\,763 & 19.1$\times$\\
+\code{pt32}      & 0  & 32 & 65\,447 & 3\,531 & 18.5$\times$\\
+\code{ad16\_pt32}& 16 & 32 & 86\,984 & 4\,948 & 17.6$\times$\\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{frame}
+
+\begin{frame}{Results, visualised}
+\begin{columns}[c]
+\begin{column}{0.52\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=\linewidth, height=4.6cm, ybar, bar width=3.5pt,
+  ymode=log, log origin=infty, ymin=400, ymax=120000,
+  ylabel={\tiny cycles (log)}, ylabel style={yshift=-2mm},
+  symbolic x coords={e,a8,p8,a8p8,p16,p24,p32,a16p32},
+  xtick=data, x tick label style={rotate=40,anchor=east,font=\tiny},
+  ytick={1000,10000,100000}, yticklabels={1k,10k,100k},
+  tick label style={font=\tiny},
+  legend style={at={(0.02,0.98)},anchor=north west,font=\tiny,draw=gray!40},
+  enlarge x limits=0.1]
+\addplot[fill=barsw,draw=barsw!70] coordinates{(e,38866)(a8,50205)(p8,39458)(a8p8,50797)(p16,52156)(p24,52748)(p32,65447)(a16p32,86984)};
+\addplot[fill=barhw,draw=barhw!70] coordinates{(e,684)(a8,1335)(p8,1239)(a8p8,1890)(p16,2007)(p24,2763)(p32,3531)(a16p32,4948)};
+\legend{SW,HW}
+\end{axis}
+\end{tikzpicture}
+{\tiny cycles: software vs.\ hardware}
+\end{column}
+\begin{column}{0.48\textwidth}
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=\linewidth, height=4.6cm,
+  ylabel={\tiny speed-up}, xlabel={\tiny payload bytes},
+  ymin=0, ymax=62, xmin=-2, xmax=50,
+  grid=both, grid style={gray!18},
+  tick label style={font=\tiny}, mark size=1.8pt]
+\addplot[color=barhw,thick,mark=*] coordinates{(0,56.8)(8,37.6)(8,31.9)(16,26.9)(16,26.0)(24,19.1)(32,18.5)(48,17.6)};
+\end{axis}
+\end{tikzpicture}
+{\tiny speed-up falls as payload grows}
+\end{column}
+\end{columns}
+\vspace{2mm}
+{\small Larger payloads $\Rightarrow$ more word-at-a-time data movement over MMIO
+$\Rightarrow$ lower speed-up. The crypto itself is a handful of cycles.}
+\end{frame}
+
+\begin{frame}{Faster than \emph{what}? --- being honest}
+\begin{block}{The comparison}
+\small \textbf{Software} = CPU cycles (\code{rdcycle}) for a reference C
+Ascon-AEAD128 on the same \code{rv32i} core. \quad
+\textbf{Hardware} = the accelerator's busy-cycle counter, same 27\,MHz.
+\end{block}
+\vspace{1mm}
+\alert{Caveats (stated plainly):}
+\begin{itemize}\small
+\item Software is a \emph{reference}, not hand-optimised --- an optimised version
+      would narrow the gap (hardware still wins).
+\item The hardware counter excludes register setup + readback; a full end-to-end
+      wall-clock number is lower, especially for the tiny \code{empty} case.
+\item The $\sim$18$\times$ on real payloads is closer to end-to-end than the
+      $\sim$57$\times$ on the empty one.
+\end{itemize}
+\vspace{1mm}
+{\small Fair phrasing: \textbf{the hardware engine vs.\ reference software on the
+same SoC} --- same platform, same clock.}
+\end{frame}
+
+% ============================================================
+\section{Wrap-up}
+\begin{frame}{Limitations \& future work}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Limitations}
+\begin{itemize}\small
+\item 32-byte payload cap
+\item MMIO word-at-a-time = data-movement bottleneck
+\item AEAD128 only on-board
+\item No side-channel analysis
+\end{itemize}
+\end{column}
+\begin{column}{0.5\textwidth}
+\textbf{Future work}
+\begin{itemize}\small
+\item Rate-block streaming (arbitrary length)
+\item DMA / wider datapath
+\item Hash \& XOF modes on-chip
+\item End-to-end wall-clock metric
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Conclusion}
+\begin{block}{What was achieved}
+\small A standard-conformant Ascon-AEAD128 accelerator --- generated from a
+verified model, usable from C on a RISC-V SoC, built with \emph{only open tools},
+and \textbf{validated on silicon}: all 8 cases correct, \textbf{18--57$\times$}
+faster than reference software on the same core.
+\end{block}
+\vspace{2mm}
+\begin{itemize}
+\item The hard part was the \textbf{hardware/software boundary} --- the bus
+      handshake and the protocol order --- exactly what only real, end-to-end
+      validation exposes.
+\item Every bug was found from the board's own evidence.
+\end{itemize}
+\vspace{3mm}
+\begin{center}
+{\large\color{docblue}\textbf{Thank you.}}\\[1mm]
+{\small Ascon-AEAD128 $\cdot$ NEORV32 $\cdot$ Tang Nano 20K $\cdot$ fully-open}
+\end{center}
+\end{frame}
+
+\end{document}

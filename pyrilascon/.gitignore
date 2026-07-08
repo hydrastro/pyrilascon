@@ -1,0 +1,50 @@
+# Build outputs and generated products are never checked in.
+build/
+dist/
+rtl/generated/*.v
+rtl/generated/*.vh
+!rtl/generated/.gitkeep
+vectors/generated/
+docs/generated/
+
+# FPGA / synthesis artifacts
+*.fs
+*.json.pnr
+*.pnr.json
+*_pnr.json
+
+# Firmware build artifacts
+*.o
+*.elf
+*.bin
+*.hex
+*.map
+neorv32_imem_image.vhd
+neorv32_exe.bin
+
+# Editor / OS / Python
+__pycache__/
+*.pyc
+.venv*/
+.pytest_cache/
+.mypy_cache/
+.DS_Store
+
+# Never commit: backups, logs, LaTeX aux
+*.bak
+*.log
+*.log.clean
+*.aux
+*.toc
+*.out
+
+# firmware / host build artifacts
+*.so
+neorv32_raw_exe.bin
+firmware/**/driver_selftest
+bench.log
+
+# Nix / direnv
+.direnv/
+result
+result-*
