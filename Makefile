@@ -32,6 +32,7 @@ help:
 	@echo "  make soc-flash-slink    Flash it to SRAM (power-cycle restores your SPI SoC)"
 	@echo "  make slink-test-run     Build + upload the SLINK self-test"
 	@echo "  make slink-bench-run    Build + upload the SLINK benchmark + table"
+	@echo "  make slink-demo-run     Build + upload the SLINK live demo"
 	@echo ""
 	@echo "  NOTE: the MMIO benchmark cannot drive the stream SoC (it writes"
 	@echo "        DATA_IN/DATA_IN_CTRL, which the stream SoC does not have)."
@@ -100,7 +101,7 @@ SOC_FS       ?= build/soc/neorv32_ascon_soc.fs
 SOC_SLINK_FS ?= build/soc-neorv32_ascon_slink_soc/neorv32_ascon_slink_soc.fs
 
 .PHONY: soc-flash soc-flash-spi soc-check-slink soc-build-slink soc-flash-slink \
-        bench-run demo demo-run ports slink-test slink-test-run slink-bench slink-bench-run
+        bench-run demo demo-run ports slink-test slink-test-run slink-bench slink-bench-run slink-demo slink-demo-run
 
 ports:  ## List candidate serial ports (use PORT=... to override)
 	@ls -l /dev/serial/by-id/ 2>/dev/null || echo "no /dev/serial/by-id -- is the board plugged in?"
@@ -163,3 +164,9 @@ slink-bench:  ## Build the SLINK benchmark (same CASE format as the MMIO one)
 slink-bench-run: slink-bench  ## Build + upload the SLINK benchmark, then print the table
 	$(PYTHON) host/neorv32_upload.py $(PORT) firmware/ascon_slink_bench/neorv32_exe.bin slink_bench.log
 	$(PYTHON) host/ascon_bench.py report slink_bench.log
+
+slink-demo:  ## Build the SLINK live demo
+	$(MAKE) -C firmware/ascon_slink_demo FREESTANDING=1 exe
+
+slink-demo-run: slink-demo  ## Build + upload the SLINK live demo
+	$(PYTHON) host/neorv32_upload.py $(PORT) firmware/ascon_slink_demo/neorv32_exe.bin slink_demo.log
