@@ -1,0 +1,48 @@
+Aborted.
+
+Type 'h' for help.
+CMD:> u
+Awaiting neorv32_exe.bin... OK
+CMD:> e
+Booting from 0x00000000...
+
+
+=================================================
+ Ascon-AEAD128 hardware accelerator -- live demo
+ NEORV32 RISC-V SoC @ 27 MHz  /  Tang Nano 20K
+=================================================
+
+[1] Accelerator found at 0x90000000
+    ABI          : 0x00000001
+    CAPABILITIES : 0x00600001   (bit0=AEAD128, bit21=cycle counter)
+
+[2] Plaintext        : "Politecnico di Milano"
+    Associated data  : 6865616465723031
+    Key              : 000102030405060708090a0b0c0d0e0f
+    Nonce            : 101112131415161718191a1b1c1d1e1f
+
+[3] Hardware encrypt
+    Ciphertext       : 947a9a346d24c3a0e8de074141b7277a153053e38e
+    Tag              : 96a871d14dcc2cc44fe2654db051ba8e
+    HW busy cycles   : 3299   (accelerator START->DONE)
+    HW wall cycles   : 8397   (incl. driver setup + readback)
+
+[4] Software (reference C) on the same CPU
+    SW cycles        : 63885
+    Identical result : YES
+    Speed-up (engine): 19.3x   [SW / HW busy]
+    Speed-up (wall)  : 7.6x   [SW / HW incl. data movement]
+
+[5] Hardware decrypt
+    Recovered        : "Politecnico di Milano"
+    Tag valid        : YES
+    Round-trip       : MESSAGE RECOVERED
+
+[6] Tamper test -- flipping ONE bit of the ciphertext
+    Tampered ct      : 957a9a346d24c3a0e8de074141b7277a153053e38e
+    Tag valid        : NO    <-- tampering detected by the hardware
+    Driver status    : -3   (ERR_TAG_INVALID)
+
+=================================================
+ Demo complete.
+=================================================

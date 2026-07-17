@@ -1,0 +1,17 @@
+Aborted.
+
+Type 'h' for help.
+CMD:> u
+Awaiting neorv32_exe.bin... OK
+CMD:> e
+Booting from 0x00000000...
+
+pyrilascon NEORV32 ASCON benchmark
+BUILD        : cosim-neorv32-mmio
+MAX_BYTES    : 32
+SWEEP_CASES  : 8
+DATA PLANE   : MMIO_WORD
+ABI          : 0x00000001
+CAPS         : 0x00e00001
+CASE name=empty ad=0 pt=0 sw_enc_cy=0:38866 sw_dec_cy=0:39241 hw_enc_cy=0:41 hw_dec_cy=0:41 enc_ok=1 dec_ok=1 tag_valid=1 hw_enc_err=0x00000000 hw_dec_err=0x00000000
+CASE name=ad8 ad=8 pt=0 sw_enc_cy=0:50205 sw_dec_cy=0:50579 hw_enc_cy=0:41 hw_dec_cy=0:41 enc_ok=0 dec_ok=0 tag_valid=0 hw_enc_err=0x00000000 hw_dec_err=0x00000000

@@ -83,7 +83,7 @@ RISCV_PREFIX ?= $(DETECTED_RISCV_PREFIX)
 endif
 
 ifeq ($(NEORV32_HOME),)
-$(error Set NEORV32_HOME to a resolved NEORV32 checkout; use `make -C boards/tangnano9k/neorv32_stream_axis_mmio firmware`)
+$(error Set NEORV32_HOME to a resolved NEORV32 checkout - run inside `nix develop`, which exports it)
 endif
 
 # NEORV32 compiles its host-side `image_gen` tool (which turns the ELF into the

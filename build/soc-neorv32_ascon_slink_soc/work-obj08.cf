@@ -1,0 +1,4 @@
+v 4
+file / "/home/user/Documents/uni/doha/pyrilascon/rtl/soc/neorv32_ascon_slink_soc.vhd" "7277969af489cc76f6de270c9e2c6eb25f24de0d" "20260717071204.757":
+  entity neorv32_ascon_slink_soc at 39( 2046) + 0 on 13;
+  architecture rtl of neorv32_ascon_slink_soc at 58( 2492) + 0 on 14;

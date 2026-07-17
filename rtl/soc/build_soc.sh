@@ -17,7 +17,18 @@ CHECK_ONLY=0
 
 : "${NEORV32_HOME:?set NEORV32_HOME to the NEORV32 source (the flake exports it)}"
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-BUILD="${BUILD:-$ROOT/build/soc}"
+# Which SoC to build. Defaults reproduce the silicon-validated MMIO SoC exactly;
+# the stream variant is selected by overriding these (see `make soc-build-slink`).
+SOC_TOP="${SOC_TOP:-neorv32_ascon_soc}"
+SOC_VHD="${SOC_VHD:-$ROOT/rtl/soc/neorv32_ascon_soc.vhd}"
+SOC_V="${SOC_V:-$ROOT/rtl/soc/ascon_aead128_wb.v}"
+# Separate build dir per variant, so a stream build never clobbers the bitstream
+# that is known to work.
+if [ "$SOC_TOP" = "neorv32_ascon_soc" ]; then
+  BUILD="${BUILD:-$ROOT/build/soc}"
+else
+  BUILD="${BUILD:-$ROOT/build/soc-$SOC_TOP}"
+fi
 mkdir -p "$BUILD"
 
 # yosys with the GHDL plugin, detected in priority order:
@@ -68,32 +79,35 @@ echo "== 1/4 emit accelerator datapath =="
 echo "== 2/4 analyze NEORV32 (into 'neorv32' lib) + SoC top =="
 FILES=$(sed "s#\$NEORV32_HOME#$NEORV32_HOME#g" "$NEORV32_HOME/rtl/file_list_soc.f")
 ghdl -a --std=08 --work=neorv32 --workdir="$BUILD" $FILES
-ghdl -a --std=08 --workdir="$BUILD" -P"$BUILD" "$ROOT/rtl/soc/neorv32_ascon_soc.vhd"
+ghdl -a --std=08 --workdir="$BUILD" -P"$BUILD" "$SOC_VHD"
 
-RD="read_verilog -I$ROOT/rtl/generated $ROOT/rtl/soc/ascon_aead128_wb.v $ROOT/rtl/generated/accel/*.v"
+RD="read_verilog -I$ROOT/rtl/generated $SOC_V $ROOT/rtl/generated/accel/*.v"
 
 if [ "$CHECK_ONLY" = 1 ]; then
   echo "== 3/3 elaborate + link (hierarchy -check), no synthesis =="
   "${YOSYS[@]}" -p "
-    ghdl --std=08 --workdir=$BUILD -P$BUILD neorv32_ascon_soc;
+    ghdl --std=08 --workdir=$BUILD -P$BUILD $SOC_TOP;
     $RD;
-    hierarchy -check -top neorv32_ascon_soc;
-    stat -top neorv32_ascon_soc"
-  echo "OK: NEORV32 + Ascon accelerator elaborate and link."
+    hierarchy -check -top $SOC_TOP;
+    stat -top $SOC_TOP"
+  echo "OK: $SOC_TOP elaborates and links."
   exit 0
 fi
 
 echo "== 3/4 synthesize (mixed VHDL+Verilog) -> Gowin JSON =="
 "${YOSYS[@]}" -p "
-  ghdl --std=08 --workdir=$BUILD -P$BUILD neorv32_ascon_soc;
+  ghdl --std=08 --workdir=$BUILD -P$BUILD $SOC_TOP;
   $RD;
-  synth_gowin -top neorv32_ascon_soc -json $BUILD/neorv32_ascon_soc.json"
+  synth_gowin -top $SOC_TOP -json $BUILD/$SOC_TOP.json"
 
 echo "== 4/4 place & route + pack =="
-nextpnr-himbaechel --json "$BUILD/neorv32_ascon_soc.json" \
-  --write "$BUILD/neorv32_ascon_soc.pnr.json" \
+nextpnr-himbaechel --json "$BUILD/$SOC_TOP.json" \
+  --write "$BUILD/$SOC_TOP.pnr.json" \
   --device GW2AR-LV18QN88C8/I7 \
   --vopt family=GW2A-18C --vopt cst="$ROOT/boards/tangnano20k/neorv32_soc.cst"
-gowin_pack -d GW2A-18C -o "$BUILD/neorv32_ascon_soc.fs" "$BUILD/neorv32_ascon_soc.pnr.json"
-echo "bitstream: $BUILD/neorv32_ascon_soc.fs"
-echo "flash with: openFPGALoader -b tangnano20k $BUILD/neorv32_ascon_soc.fs"
+gowin_pack -d GW2A-18C -o "$BUILD/$SOC_TOP.fs" "$BUILD/$SOC_TOP.pnr.json"
+echo "bitstream: $BUILD/$SOC_TOP.fs"
+echo ""
+echo "NOTE: this only BUILT the bitstream. It did not touch the board."
+echo "flash to SRAM (temporary, safe): openFPGALoader -b tangnano20k $BUILD/$SOC_TOP.fs"
+echo "flash to SPI  (persistent)    : openFPGALoader -b tangnano20k -f $BUILD/$SOC_TOP.fs"

@@ -20,10 +20,7 @@
 // Emit the datapath RTL first:  make accel-rtl
 `default_nettype none
 
-module ascon_aead128_slink_wb #(
-  parameter AD_MAX  = 32,
-  parameter MSG_MAX = 32
-) (
+module ascon_aead128_slink_wb (
   input  wire        clk,
   input  wire        rst_n,
 
@@ -60,7 +57,11 @@ module ascon_aead128_slink_wb #(
     else if (ready)   access <= 1'b0;
   end
 
-  ascon_aead128_slink_mmio #(.AD_MAX(AD_MAX), .MSG_MAX(MSG_MAX)) u_mmio (
+  // No parameter override: the mmio module's defaults (AD_MAX=32, MSG_MAX=32)
+  // are used, exactly as ascon_aead128_wb does. Keeping this adapter
+  // parameter-free avoids pushing VHDL generics through the yosys+ghdl mixed
+  // flow -- the proven adapter has none either.
+  ascon_aead128_slink_mmio u_mmio (
     .clk(clk), .rst_n(rst_n),
     .sel(access), .we(wb_we_i), .addr(wb_adr_i[7:0]), .wdata(wb_dat_i),
     .rdata(rdata), .ready(ready),

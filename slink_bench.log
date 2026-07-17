@@ -1,0 +1,24 @@
+ 
+CMD:> u
+Awaiting neorv32_exe.bin... OK
+CMD:> e
+Booting from 0x00000000...
+
+
+pyrilascon NEORV32 ASCON benchmark
+BUILD        : cosim-neorv32-slink
+MAX_BYTES    : 32
+SWEEP_CASES  : 8
+DATA PLANE   : SLINK_DMA_STREAM
+ABI          : 0x00000001
+CAPS         : 0x00e00001
+CASE name=empty ad=0 pt=0 sw_enc_cy=0:38878 sw_dec_cy=0:39244 hw_enc_cy=0:41 hw_dec_cy=0:41 enc_ok=1 dec_ok=1 tag_valid=1 hw_enc_err=0x00000000 hw_dec_err=0x00000000
+CASE name=ad8 ad=8 pt=0 sw_enc_cy=0:50217 sw_dec_cy=0:50582 hw_enc_cy=0:296 hw_dec_cy=0:296 enc_ok=1 dec_ok=1 tag_valid=1 hw_enc_err=0x00000000 hw_dec_err=0x00000000
+CASE name=pt8 ad=0 pt=8 sw_enc_cy=0:39470 sw_dec_cy=0:39668 hw_enc_cy=0:286 hw_dec_cy=0:286 enc_ok=1 dec_ok=1 tag_valid=1 hw_enc_err=0x00000000 hw_dec_err=0x00000000
+CASE name=ad8_pt8 ad=8 pt=8 sw_enc_cy=0:50809 sw_dec_cy=0:51006 hw_enc_cy=0:333 hw_dec_cy=0:333 enc_ok=1 dec_ok=1 tag_valid=1 hw_enc_err=0x00000000 hw_dec_err=0x00000000
+CASE name=pt16 ad=0 pt=16 sw_enc_cy=0:52168 sw_dec_cy=0:52598 hw_enc_cy=0:336 hw_dec_cy=0:336 enc_ok=1 dec_ok=1 tag_valid=1 hw_enc_err=0x00000000 hw_dec_err=0x00000000
+CASE name=pt24 ad=0 pt=24 sw_enc_cy=0:52760 sw_dec_cy=0:53022 hw_enc_cy=0:380 hw_dec_cy=0:380 enc_ok=1 dec_ok=1 tag_valid=1 hw_enc_err=0x00000000 hw_dec_err=0x00000000
+CASE name=pt32 ad=0 pt=32 sw_enc_cy=0:65459 sw_dec_cy=0:65953 hw_enc_cy=0:432 hw_dec_cy=0:432 enc_ok=1 dec_ok=1 tag_valid=1 hw_enc_err=0x00000000 hw_dec_err=0x00000000
+CASE name=ad16_pt32 ad=16 pt=32 sw_enc_cy=0:86996 sw_dec_cy=0:87489 hw_enc_cy=0:535 hw_dec_cy=0:535 enc_ok=1 dec_ok=1 tag_valid=1 hw_enc_err=0x00000000 hw_dec_err=0x00000000
+SUMMARY      : passed=8 failed=0 total=8
+PASS

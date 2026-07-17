@@ -1,0 +1,24 @@
+ 
+CMD:> u
+Awaiting neorv32_exe.bin... OK
+CMD:> e
+Booting from 0x00000000...
+
+
+=== Ascon SLINK data-plane self-test ===
+ABI          : 0x00000001
+CAPABILITIES : 0x00e00001
+SLINK plane  : YES (cap bit 23)
+SLINK block  : present
+DMA block    : present
+
+CASE %-10s ad=%2u pt=%2u  busy=%5u  ct=empty tag=ó @ñ"  ó @ñ"
+CASE %-10s ad=%2u pt=%2u  busy=%5u  ct=pt8 tag=ó @ñ"  Âÿqÿ
+CASE %-10s ad=%2u pt=%2u  busy=%5u  ct=pt16 tag=ó @ñ"  
+CASE %-10s ad=%2u pt=%2u  busy=%5u  ct=ad8_pt8 tag=Âÿqÿ  Âÿqÿ
+CASE %-10s ad=%2u pt=%2u  busy=%5u  ct=pt32 tag=ó @ñ"  s0
+CASE %-10s ad=%2u pt=%2u  busy=%5u  ct=ad16_pt32 tag=  s0
+DECRYPT %-8s busy=%5u  ad16_pt32
+TAMPER   1 bit flipped -> REJECTED (correct)
+
+ALL PASS: 0 failure(s)

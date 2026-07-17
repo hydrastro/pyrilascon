@@ -83,10 +83,6 @@ architecture rtl of neorv32_ascon_slink_soc is
   signal slink_rx_rdy : std_ulogic;
 
   component ascon_aead128_slink_wb is
-    generic (
-      AD_MAX  : natural := 32;
-      MSG_MAX : natural := 32
-    );
     port (
       clk            : in  std_ulogic;
       rst_n          : in  std_ulogic;
@@ -171,10 +167,6 @@ begin
   );
 
   ascon_inst : ascon_aead128_slink_wb
-  generic map (
-    AD_MAX  => 32,
-    MSG_MAX => 32
-  )
   port map (
     clk            => clk_i,
     rst_n          => rstn,
