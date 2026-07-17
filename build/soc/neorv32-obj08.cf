@@ -1,0 +1,203 @@
+v 4
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_bootrom_rom.vhd" "ffd799b7544777384fa06b031be3090f91502a13" "20260717064438.957":
+  entity neorv32_bootrom_rom at 13( 958) + 0 on 447;
+  architecture neorv32_bootrom_rom_rtl of neorv32_bootrom_rom at 33( 1533) + 0 on 448;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_bootrom_image.vhd" "16c36ae9cedc66444cc34468c27b731fa6f8f4f8" "20260717064438.956":
+  package neorv32_bootrom_image at 1( 0) + 0 on 446;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_dmem_ram.vhd" "3d9ff05c56b56d0d87cf623a1e0cd6a93c8f6467" "20260717064438.951":
+  entity neorv32_dmem_ram at 14( 1045) + 0 on 444;
+  architecture neorv32_dmem_ram_rtl of neorv32_dmem_ram at 35( 1749) + 0 on 445;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_imem_ram.vhd" "57476c226626128ab09674b54730625af547425b" "20260717064438.950":
+  entity neorv32_imem_ram at 14( 1045) + 0 on 442;
+  architecture neorv32_imem_ram_rtl of neorv32_imem_ram at 35( 1749) + 0 on 443;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_imem_rom.vhd" "bd2b5030119f12b72ba2f53d159390b997770375" "20260717064438.945":
+  entity neorv32_imem_rom at 13( 958) + 0 on 440;
+  architecture neorv32_imem_rom_rtl of neorv32_imem_rom at 34( 1583) + 0 on 441;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_imem_image.vhd" "a0fcc1917a758b775f22bfa46c5ebec0eff688e2" "20260717064438.943":
+  package neorv32_imem_image at 1( 0) + 0 on 439;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_cache_ram.vhd" "e96e65f6a8005171e50327be1a17fb4fb95e2f9c" "20260717064438.943":
+  entity neorv32_cache_ram at 14( 1045) + 0 on 437;
+  architecture neorv32_cache_ram_rtl of neorv32_cache_ram at 40( 1930) + 0 on 438;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_top.vhd" "318e8c78a7cbb16ef5c9ffff67c71a14028512bc" "20260717064438.942":
+  entity neorv32_top at 15( 1132) + 0 on 435;
+  architecture neorv32_top_rtl of neorv32_top at 286( 23116) + 0 on 436;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_debug_dm.vhd" "dcce4cdd683b51ccd165b4f882c933380b24e226" "20260717064438.924":
+  entity neorv32_debug_dm at 14( 1045) + 0 on 433;
+  architecture neorv32_debug_dm_rtl of neorv32_debug_dm at 42( 1957) + 0 on 434;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_debug_auth.vhd" "6b45299f331592f870ddea7db81a9254b555d1c0" "20260717064438.913":
+  entity neorv32_debug_auth at 16( 1219) + 0 on 431;
+  architecture neorv32_debug_auth_rtl of neorv32_debug_auth at 36( 2124) + 0 on 432;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_debug_dtm.vhd" "10e7fcbd43df79b1f5c48acf6279ee3dd73a71ce" "20260717064438.912":
+  entity neorv32_debug_dtm at 13( 958) + 0 on 429;
+  architecture neorv32_debug_dtm_rtl of neorv32_debug_dtm at 40( 1858) + 0 on 430;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_sysinfo.vhd" "dd6fdbfd4d8d4d522199b84ec55b81e9d0647de8" "20260717064438.909":
+  entity neorv32_sysinfo at 11( 784) + 0 on 427;
+  architecture neorv32_sysinfo_rtl of neorv32_sysinfo at 68( 4387) + 0 on 428;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_tracer.vhd" "e3cbb8f91ea9fe65b517b5ad820b1923493331bd" "20260717064438.907":
+  entity neorv32_tracer at 11( 784) + 0 on 425;
+  architecture neorv32_tracer_rtl of neorv32_tracer at 37( 1777) + 0 on 426;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_slink.vhd" "8b9110730d5116f36dfb2756ce5239cbc12f0dd0" "20260717064438.904":
+  entity neorv32_slink at 11( 784) + 0 on 423;
+  architecture neorv32_slink_rtl of neorv32_slink at 45( 2421) + 0 on 424;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_onewire.vhd" "af5258c0b12a5348b4a69c2adae938dc4e018302" "20260717064438.902":
+  entity neorv32_onewire at 11( 784) + 0 on 421;
+  architecture neorv32_onewire_rtl of neorv32_onewire at 34( 1666) + 0 on 422;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_gptmr.vhd" "5c9403896ded7d41f25a96c4a8eb7392f2980c5e" "20260717064438.899":
+  entity neorv32_gptmr at 13( 958) + 0 on 417;
+  architecture neorv32_gptmr_rtl of neorv32_gptmr at 34( 1655) + 0 on 418;
+  entity neorv32_gptmr_slice at 209( 8005) + 0 on 419;
+  architecture neorv32_gptmr_slice_rtl of neorv32_gptmr_slice at 232( 8989) + 0 on 420;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_neoled.vhd" "47189be682b046a026138d8203c9718fe917869f" "20260717064438.896":
+  entity neorv32_neoled at 11( 784) + 0 on 415;
+  architecture neorv32_neoled_rtl of neorv32_neoled at 33( 1587) + 0 on 416;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_trng.vhd" "c31a77d2cb4adbe8e8fa451aafff078451233217" "20260717064438.894":
+  entity neorv32_trng at 13( 958) + 0 on 409;
+  architecture neorv32_trng_rtl of neorv32_trng at 36( 1816) + 0 on 410;
+  entity neotrng at 231( 12747) + 0 on 411;
+  architecture neotrng_rtl of neotrng at 251( 13640) + 0 on 412;
+  entity neotrng_cell at 407( 19776) + 0 on 413;
+  architecture neotrng_cell_rtl of neotrng_cell at 424( 20304) + 0 on 414;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_pwm.vhd" "6ef3f72c26e5880dbd01cf1345a9eb31d2e3aa2c" "20260717064438.891":
+  entity neorv32_pwm at 14( 1045) + 0 on 405;
+  architecture neorv32_pwm_rtl of neorv32_pwm at 35( 1747) + 0 on 406;
+  entity neorv32_pwm_channel at 181( 6885) + 0 on 407;
+  architecture neorv32_pwm_channel_rtl of neorv32_pwm_channel at 205( 7925) + 0 on 408;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_twd.vhd" "487db7e1513408d8dd3e7cc37a6a34c74d13a242" "20260717064438.888":
+  entity neorv32_twd at 11( 784) + 0 on 403;
+  architecture neorv32_twd_rtl of neorv32_twd at 36( 1846) + 0 on 404;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_twi.vhd" "92ba16dce09ab0688a253f9b38f437927c4a0585" "20260717064438.885":
+  entity neorv32_twi at 11( 784) + 0 on 401;
+  architecture neorv32_twi_rtl of neorv32_twi at 36( 1860) + 0 on 402;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_spi.vhd" "b7cfc1fb5f99bf43e8c55c2a3ff8f8a7d8e5ffd6" "20260717064438.882":
+  entity neorv32_spi at 11( 784) + 0 on 399;
+  architecture neorv32_spi_rtl of neorv32_spi at 36( 1845) + 0 on 400;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_uart.vhd" "9547e53b3ef9b9e4cf7147a5170af7750c82b80d" "20260717064438.880":
+  entity neorv32_uart at 11( 784) + 0 on 397;
+  architecture neorv32_uart_rtl of neorv32_uart at 43( 2070) + 0 on 398;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_clint.vhd" "976ca5be1334f28d6c3ddfaec162bf64bbcdeb85" "20260717064438.877":
+  entity neorv32_clint at 14( 1045) + 0 on 393;
+  architecture neorv32_clint_rtl of neorv32_clint at 36( 1942) + 0 on 394;
+  entity neorv32_clint_mtimecmp at 204( 8404) + 0 on 395;
+  architecture neorv32_clint_mtimecmp_rtl of neorv32_clint_mtimecmp at 221( 9072) + 0 on 396;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_wdt.vhd" "cc0ee557a714c2cd963482c9283a74703f8bacf4" "20260717064438.874":
+  entity neorv32_wdt at 11( 784) + 0 on 391;
+  architecture neorv32_wdt_rtl of neorv32_wdt at 31( 1585) + 0 on 392;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_gpio.vhd" "79bfa8a894f668cf26fb09070bfdfae0f63dc8eb" "20260717064438.873":
+  entity neorv32_gpio at 11( 784) + 0 on 389;
+  architecture neorv32_gpio_rtl of neorv32_gpio at 34( 1679) + 0 on 390;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_sdi.vhd" "43484df60e496b90d928eafceaef27985c5521af" "20260717064438.871":
+  entity neorv32_sdi at 11( 784) + 0 on 387;
+  architecture neorv32_sdi_rtl of neorv32_sdi at 35( 1549) + 0 on 388;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_cfs.vhd" "76635b5ab6055fcb36f202388071f9bfc18438bc" "20260717064438.869":
+  entity neorv32_cfs at 11( 784) + 0 on 385;
+  architecture neorv32_cfs_rtl of neorv32_cfs at 34( 1478) + 0 on 386;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_bootrom.vhd" "f68411c3dc607abbc7ff801ec5120f10fadf6b94" "20260717064438.868":
+  entity neorv32_bootrom at 11( 784) + 0 on 383;
+  architecture neorv32_bootrom_rtl of neorv32_bootrom at 26( 1148) + 0 on 384;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_xbus.vhd" "f5ba363b433123df331a4ec2f45686da1bfa711f" "20260717064438.867":
+  entity neorv32_xbus at 14( 1045) + 0 on 381;
+  architecture neorv32_xbus_rtl of neorv32_xbus at 44( 2394) + 0 on 382;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_dmem.vhd" "cbceaced7e02a7e1ee9a8f2a29652538c12ba41d" "20260717064438.866":
+  entity neorv32_dmem at 11( 784) + 0 on 379;
+  architecture neorv32_dmem_rtl of neorv32_dmem at 30( 1297) + 0 on 380;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_imem.vhd" "bbc40314de4e500d62d38e577a86130e1688d887" "20260717064438.865":
+  entity neorv32_imem at 11( 784) + 0 on 377;
+  architecture neorv32_imem_rtl of neorv32_imem at 31( 1376) + 0 on 378;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_dma.vhd" "897cb919ac43e552bb5e417bd7998e34af3a60d2" "20260717064438.865":
+  entity neorv32_dma at 11( 784) + 0 on 375;
+  architecture neorv32_dma_rtl of neorv32_dma at 33( 1445) + 0 on 376;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_bus.vhd" "fef67705252eb40ce37084aa3d83ea1c52ef57b4" "20260717064438.862":
+  entity neorv32_bus_switch at 11( 784) + 0 on 363;
+  architecture neorv32_bus_switch_rtl of neorv32_bus_switch at 35( 1644) + 0 on 364;
+  entity neorv32_bus_reg at 166( 7128) + 0 on 365;
+  architecture neorv32_bus_reg_rtl of neorv32_bus_reg at 189( 7832) + 0 on 366;
+  entity neorv32_bus_gateway at 256( 10718) + 0 on 367;
+  architecture neorv32_bus_gateway_rtl of neorv32_bus_gateway at 308( 12321) + 0 on 368;
+  entity neorv32_bus_io_switch at 469( 19349) + 0 on 369;
+  architecture neorv32_bus_io_switch_rtl of neorv32_bus_io_switch at 555( 25187) + 0 on 370;
+  entity neorv32_bus_amo_rmw at 703( 32215) + 0 on 371;
+  architecture neorv32_bus_amo_rmw_rtl of neorv32_bus_amo_rmw at 724( 32730) + 0 on 372;
+  entity neorv32_bus_amo_rvs at 854( 38973) + 0 on 373;
+  architecture neorv32_bus_amo_rvs_rtl of neorv32_bus_amo_rvs at 874( 39462) + 0 on 374;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_cache.vhd" "458002d2524c43b6fd72245983c0e119145f001f" "20260717064438.854":
+  entity neorv32_cache at 21( 1654) + 0 on 361;
+  architecture neorv32_cache_rtl of neorv32_cache at 47( 2733) + 0 on 362;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_cpu.vhd" "6f8fc3c19b4ebccc725d3a9e4c90f77e1002f2d1" "20260717064438.850":
+  entity neorv32_cpu at 15( 1132) + 0 on 359;
+  architecture neorv32_cpu_rtl of neorv32_cpu at 104( 8193) + 0 on 360;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_cpu_trace.vhd" "3b570e266f8e1f8c60d1a58a474abaa3b37e331f" "20260717064438.847":
+  entity neorv32_cpu_trace at 11( 784) + 0 on 355;
+  architecture neorv32_cpu_trace_rtl of neorv32_cpu_trace at 36( 1717) + 0 on 356;
+  entity neorv32_cpu_trace_simlog at 177( 7707) + 0 on 357;
+  architecture neorv32_cpu_trace_simlog_rtl of neorv32_cpu_trace_simlog at 201( 8243) + 0 on 358;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_cpu_pmp.vhd" "0417e842d322c2f45a0cc617e11ad25cb6bee994" "20260717064438.840":
+  entity neorv32_cpu_pmp at 15( 1132) + 0 on 353;
+  architecture neorv32_cpu_pmp_rtl of neorv32_cpu_pmp at 46( 2263) + 0 on 354;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_cpu_lsu.vhd" "2cc4b9ffd9602cd80155f0cc00d6b1a76bef40ab" "20260717064438.836":
+  entity neorv32_cpu_lsu at 11( 784) + 0 on 351;
+  architecture neorv32_cpu_lsu_rtl of neorv32_cpu_lsu at 42( 2003) + 0 on 352;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_cpu_alu.vhd" "05c2522a6f1e9c752300b9fd94eec95c2b463496" "20260717064438.835":
+  entity neorv32_cpu_alu at 11( 784) + 0 on 349;
+  architecture neorv32_cpu_alu_rtl of neorv32_cpu_alu at 61( 3149) + 0 on 350;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_cpu_alu_crypto.vhd" "41f3875fb44c64993e50f3acef0d72675dd750b8" "20260717064438.832":
+  entity neorv32_cpu_alu_crypto at 18( 1393) + 0 on 347;
+  architecture neorv32_cpu_alu_crypto_rtl of neorv32_cpu_alu_crypto at 47( 2430) + 0 on 348;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_cpu_alu_cond.vhd" "ffec7f069e779def144a3a47d84354d2284bf400" "20260717064438.826":
+  entity neorv32_cpu_alu_cond at 11( 784) + 0 on 345;
+  architecture neorv32_cpu_alu_cond_rtl of neorv32_cpu_alu_cond at 32( 1470) + 0 on 346;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_cpu_alu_cfu.vhd" "f96a20eea651a181adb69ffd65b443af08285d2e" "20260717064438.825":
+  entity neorv32_cpu_alu_cfu at 14( 1045) + 0 on 343;
+  architecture neorv32_cpu_alu_cfu_rtl of neorv32_cpu_alu_cfu at 37( 1875) + 0 on 344;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_cpu_alu_fpu.vhd" "d19763c118593ea5e4503fa3c20d83779e36673d" "20260717064438.824":
+  entity neorv32_cpu_alu_fpu at 26( 2089) + 0 on 337;
+  architecture neorv32_cpu_alu_fpu_rtl of neorv32_cpu_alu_fpu at 59( 3464) + 0 on 338;
+  entity neorv32_cpu_alu_fpu_normalizer at 1514( 80011) + 0 on 339;
+  architecture neorv32_cpu_alu_fpu_normalizer_rtl of neorv32_cpu_alu_fpu_normalizer at 1547( 81533) + 0 on 340;
+  entity neorv32_cpu_alu_fpu_f2i at 1949( 100445) + 0 on 341;
+  architecture neorv32_cpu_alu_fpu_f2i_rtl of neorv32_cpu_alu_fpu_f2i at 1980( 101607) + 0 on 342;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_cpu_alu_bitmanip.vhd" "1438618692721e547792cc6ff572db537233aa09" "20260717064438.806":
+  entity neorv32_cpu_alu_bitmanip at 21( 1654) + 0 on 335;
+  architecture neorv32_cpu_alu_bitmanip_rtl of neorv32_cpu_alu_bitmanip at 55( 3080) + 0 on 336;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_cpu_alu_muldiv.vhd" "be924ae84f405f42bce663dd6b97a93bfeca67bd" "20260717064438.799":
+  entity neorv32_cpu_alu_muldiv at 16( 1219) + 0 on 333;
+  architecture neorv32_cpu_alu_muldiv_rtl of neorv32_cpu_alu_muldiv at 42( 2074) + 0 on 334;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_cpu_alu_shifter.vhd" "d1df1a19c116cad8ae499310ff35939501a3dda6" "20260717064438.797":
+  entity neorv32_cpu_alu_shifter at 14( 1045) + 0 on 331;
+  architecture neorv32_cpu_alu_shifter_rtl of neorv32_cpu_alu_shifter at 39( 1852) + 0 on 332;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_cpu_regfile.vhd" "5a04379dcdc357a25c271a90128e6c17ca94b73f" "20260717064438.795":
+  entity neorv32_cpu_regfile at 21( 1654) + 0 on 329;
+  architecture neorv32_cpu_regfile_rtl of neorv32_cpu_regfile at 46( 2471) + 0 on 330;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_cpu_counters.vhd" "38c6a7cd1ea69799e7cfb8c4b18cfa9b03909310" "20260717064438.793":
+  entity neorv32_cpu_counters at 16( 1219) + 0 on 327;
+  architecture neorv32_cpu_counters_rtl of neorv32_cpu_counters at 44( 2221) + 0 on 328;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_prim.vhd" "e10dcfb0b80a686dca0b4dbc189a3a649b0a5b27" "20260717064438.790":
+  entity neorv32_prim_fifo at 20( 1567) + 0 on 319;
+  architecture neorv32_prim_fifo_rtl of neorv32_prim_fifo at 46( 2685) + 0 on 320;
+  entity neorv32_prim_spram at 164( 7282) + 0 on 321;
+  architecture neorv32_prim_spram_rtl of neorv32_prim_spram at 186( 8081) + 0 on 322;
+  entity neorv32_prim_mul at 256( 10606) + 0 on 323;
+  architecture neorv32_prim_mul_rtl of neorv32_prim_mul at 278( 11515) + 0 on 324;
+  entity neorv32_prim_cnt at 329( 13816) + 0 on 325;
+  architecture neorv32_prim_cnt_rtl of neorv32_prim_cnt at 350( 14597) + 0 on 326;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_cpu_hwtrig.vhd" "17e6a0522f65587c43b56e5938bf2b7016d6b5a9" "20260717064438.787":
+  entity neorv32_cpu_hwtrig at 14( 1045) + 0 on 317;
+  architecture neorv32_cpu_hwtrig_rtl of neorv32_cpu_hwtrig at 39( 1855) + 0 on 318;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_cpu_control.vhd" "a209beac858286e56e599589644d0d6e2440406b" "20260717064438.785":
+  entity neorv32_cpu_control at 11( 784) + 0 on 315;
+  architecture neorv32_cpu_control_rtl of neorv32_cpu_control at 93( 5679) + 0 on 316;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_cpu_frontend.vhd" "0227e9a7b2f0950997568878c9399ee5607b819a" "20260717064438.772":
+  entity neorv32_cpu_frontend at 15( 1132) + 0 on 311;
+  architecture neorv32_cpu_frontend_rtl of neorv32_cpu_frontend at 46( 2195) + 0 on 312;
+  entity neorv32_cpu_frontend_ipb at 320( 13820) + 0 on 313;
+  architecture neorv32_cpu_frontend_ipb_rtl of neorv32_cpu_frontend_ipb at 348( 14701) + 0 on 314;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_cpu_decompressor.vhd" "52aa34114cd9036c13337bdf6cd2090b6d659643" "20260717064438.769":
+  entity neorv32_cpu_decompressor at 16( 1219) + 0 on 309;
+  architecture neorv32_cpu_decompressor_rtl of neorv32_cpu_decompressor at 33( 1702) + 0 on 310;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_sys.vhd" "f8761757fd5f1a10f1e13ea6adf199982a17e7ce" "20260717064438.762":
+  entity neorv32_sys_reset at 11( 784) + 0 on 305;
+  architecture neorv32_sys_reset_rtl of neorv32_sys_reset at 34( 1635) + 0 on 306;
+  entity neorv32_sys_clock at 90( 3846) + 0 on 307;
+  architecture neorv32_sys_clock_rtl of neorv32_sys_clock at 106( 4340) + 0 on 308;
+file / "/nix/store/crcnmk40sgd6vvrl4svqm6dk1z8jk315-source/rtl/core/neorv32_package.vhd" "cfd1725e2403ba35ba1b1c2855e4a631e820ed83" "20260717064438.760":
+  package neorv32_package at 11( 784) + 0 on 303 body;
+  package body neorv32_package at 1122( 69660) + 0 on 304;

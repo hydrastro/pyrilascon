@@ -14,12 +14,8 @@ htmlcov/
 external/
 
 # --- Build & generation outputs ------------------------------------------
-build/
-rtl/generated/*
 !rtl/generated/.gitkeep
-docs/generated/*
 !docs/generated/.gitkeep
-vectors/generated/*
 !vectors/generated/.gitkeep
 
 # --- C build artifacts ----------------------------------------------------
@@ -32,7 +28,7 @@ vectors/generated/*
 *.d
 
 # --- FPGA toolchain outputs ------------------------------------------------
-*.fs
+#*.fs
 *.fsh
 *.posp
 *.gowin_pack.log
