@@ -933,6 +933,55 @@ $\text{overhead} = \mathbf{204} + \mathbf{17.7} \times \text{words}$\\[1mm]
 names the next piece of work: a burst-capable master, not a faster permutation.}
 \end{frame}
 
+\begin{frame}{The number I did not want --- Amdahl, on my own board}
+{\small The demo reports \emph{two} numbers. The second is the honest one.}
+\vspace{0.5mm}
+\begin{columns}[T]
+\begin{column}{0.52\textwidth}
+\centering
+{\footnotesize\setlength{\tabcolsep}{4pt}\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{lrrr}
+\toprule
+& \textbf{MMIO} & \textbf{SLINK} & \textbf{ratio}\\
+\midrule
+accelerator busy & 3\,299 & \textbf{429}   & \textbf{7.7$\times$}\\
+driver overhead  & 5\,098 & 6\,914 & 1.4$\times$ \alert{worse}\\
+\midrule
+\textbf{wall-clock} & \textbf{8\,397} & \textbf{7\,343} & \textbf{1.14$\times$}\\
+\midrule
+speed-up (engine) & 19.3$\times$ & \textbf{148.9$\times$} & \\
+\rowcolor{hwfill}
+\textbf{speed-up (wall)} & \textbf{7.6$\times$} & \textbf{8.7$\times$} & \\
+\bottomrule
+\end{tabular}}
+\vspace{1mm}
+
+{\footnotesize Same board, same demo, same 21-byte message.}
+\end{column}
+\begin{column}{0.48\textwidth}
+\vspace{-1mm}
+\begin{center}
+\fbox{\parbox{0.94\textwidth}{\centering\small
+I made the accelerator \textbf{7.7$\times$} faster.\\[1mm]
+The system got \textbf{1.14$\times$} faster.}}
+\end{center}
+\vspace{1mm}
+\begin{itemize}\footnotesize
+\item The accelerator is now \textbf{5.8\%} of wall-clock time (it was 39\%).
+\item So an \emph{infinitely fast} accelerator would cap out at
+      \textbf{9.2$\times$} end-to-end.
+\item \textbf{The ceiling is my driver, not the hardware.}
+\end{itemize}
+\vspace{1mm}
+{\footnotesize The driver still packs the payload byte-by-byte before handing it to
+the DMA --- so the CPU touches every byte anyway. That is the next thing to fix,
+and I know it because I measured it.}
+\end{column}
+\end{columns}
+\vspace{1mm}
+{\small\color{docblue}\textbf{Amdahl's law is not a slogan here. It is a measurement I took on my own project.}}
+\end{frame}
+
 \begin{frame}{Faster than \emph{what}? --- being precise}
 \begin{block}{The comparison}
 \small \textbf{Software} = \code{rdcycle} around a reference C Ascon-AEAD128 on the
@@ -944,8 +993,9 @@ same \code{rv32i} core. \quad
 \begin{itemize}\small
 \item The software is a \emph{reference}, not hand-optimised --- an optimised
       version would narrow the gap (hardware still wins).
-\item The hardware counter excludes register setup and readback; the full
-      end-to-end wall-clock number is lower, especially for \code{empty}.
+\item The hardware counter excludes driver setup and readback. I \emph{measured}
+      the end-to-end figure rather than guessing: \textbf{8.7$\times$} wall-clock
+      against 148.9$\times$ engine --- the previous slide.
 \item The $\sim$18$\times$ on real payloads is much closer to end-to-end than the
       $\sim$57$\times$ on the empty case.
 \end{itemize}
